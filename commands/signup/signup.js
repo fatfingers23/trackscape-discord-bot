@@ -1,9 +1,16 @@
 const Discord = require('discord.js');
+const webClient = require('../../services/WebClient.js');
+
+const errorMessagesCleanNames = {
+	name: 'Clan Name',
+	runescapeUserName: 'Runescape username',
+};
+
 
 const helpEmbed = new Discord.MessageEmbed()
 	.setColor('#1a6ba1')
 	.setTitle('Sign up your clan with Runelite!')
-	.setDescription('??signup commnand help')
+	.setDescription('??signup command help')
 	.addFields(
 		{ name: '\u200b', value: '\u200b' },
 		{ name: 'Example usage', value: '??signup <clan name>, <clan leader>' },
@@ -38,20 +45,40 @@ module.exports = {
 			const webRequest = {
 				name: trimmedArgs[0],
 				discordId: server,
-				discordChannelId: channel,
 				discordIdOfCreator: user,
 				runescapeUserName: trimmedArgs[1],
 			};
 
+			let error = false;
 			Object.keys(webRequest).forEach(key => {
-				if(typeof webRequest[key] === undefined) {
-					message.channel.send('Sorry! Something went wrong!');
+				if(webRequest[key] === undefined) {
+					if(errorMessagesCleanNames[key] !== undefined) {
+						message.channel.send(`${errorMessagesCleanNames[key]} was not provided`);
+					}
+					else{
+						message.channel.send('Sorry! Something went wrong!');
+					}
+					error = true;
 				}
 			});
-
-			// Make welcome to Runelite embed vvv
-			message.channel.send('Success!');
-			console.log(webRequest);
+			if(error) {
+				return;
+			}
+			webClient.axiosInstance.post('api/clan/signup', webRequest)
+				.then(response => {
+					const success = new Discord.MessageEmbed()
+						.setColor('#1a6ba1')
+						.setTitle(`Successfully signed up the clan ${webRequest.name}`)
+						.setDescription(`Link to set in Clanmate Export Plugin: ${response.data.link}`)
+						.addFields(
+							{ name: 'Runelite Plugin link', value: 'https://runelite.net/plugin-hub/show/clanmate-export' },
+						)
+						.setTimestamp();
+					message.channel.send(success);
+				})
+				.catch(errorFromCall => {
+					message.channel.send(errorFromCall.response.data.message);
+				});
 		}
 	},
 };
