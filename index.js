@@ -1,5 +1,12 @@
 const Discord = require('discord.js');
-const client = new Discord.Client();
+const { Intents } = require('discord.js');
+const intents = new Intents([
+	Intents.NON_PRIVILEGED, // include all non-privileged intents, would be better to specify which ones you actually need
+	'GUILD_MEMBERS', // lets you request guild members
+	'GUILD_PRESENCES',
+]);
+
+const client = new Discord.Client({ intents:intents });
 const dotenv = require('dotenv');
 const fs = require('fs');
 dotenv.config();
