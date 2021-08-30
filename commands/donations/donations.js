@@ -159,7 +159,7 @@ function listAllCommand(message) {
 		.then(response => {
 			const success = new Discord.MessageEmbed()
 				.setColor('#1a6ba1')
-				.setTitle(`Successfully added ${webRequest.amount} to ${webRequest.username}`)
+				.setTitle('Total donated')
 				.addFields(
 					{
 						name: 'Grand Total Donated',
