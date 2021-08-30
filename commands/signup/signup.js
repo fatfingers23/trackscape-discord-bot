@@ -17,7 +17,6 @@ const helpEmbed = new Discord.MessageEmbed()
 		{ name: '\u200b', value: '\u200b' },
 		{ value: 'We will handle the rest!' },
 	)
-	.setImage('https://i.imgur.com/dHamuVH.jpeg')
 	.setTimestamp();
 
 function sendHelp(message) {
