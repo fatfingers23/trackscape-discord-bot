@@ -34,10 +34,6 @@ module.exports = {
 		else {
 			const trimmedArgs = args.map(arg => arg.trim());
 
-			if(trimmedArgs[0] === 'add') {
-				addCommand(args, message);
-				return;
-			}
 
 			if(trimmedArgs[0] === 'list' && trimmedArgs[1] === 'all') {
 				listAllCommand(message);
@@ -54,13 +50,23 @@ module.exports = {
 				return;
 			}
 
+			// TODO !!donastions add, type, donation type name
+			if(trimmedArgs[0] === 'add' && trimmedArgs[1] === 'type') {
+				// TODO add new donation type
+				return;
+			}
+
+			if(trimmedArgs[0] === 'add') {
+				addCommand(args, message);
+				return;
+			}
+
 			sendHelp(message);
 		}
 	},
 };
 
 function handleErrors(values, errorObj, message) {
-	let error = false;
 	Object.keys(values).forEach(key => {
 		if (values[key] === undefined) {
 			if (errorObj[key] !== undefined) {
@@ -69,13 +75,10 @@ function handleErrors(values, errorObj, message) {
 			else {
 				message.channel.send('Sorry! Something went wrong!');
 			}
-			error = true;
+			return true;
 		}
 	});
-
-	if (error) {
-		return;
-	}
+	return false;
 }
 
 function listDonationType(args, message) {
@@ -92,8 +95,10 @@ function listDonationType(args, message) {
 		lookupId: 'Donation type is missing',
 	};
 
-	handleErrors(webRequest, errorMessagesCleanNames, message);
-
+	const error = handleErrors(webRequest, errorMessagesCleanNames, message);
+	if(error) {
+		return;
+	}
 	webClient.axiosInstance.post(`api/donations/list/${server}/${user}`, webRequest)
 		.then(response => {
 			const success = new Discord.MessageEmbed()
@@ -196,19 +201,7 @@ function addCommand(args, message) {
 		amount: 'Amount is missing',
 	};
 
-
-	let error = false;
-	Object.keys(webRequest).forEach(key => {
-		if (webRequest[key] === undefined) {
-			if (errorMessagesCleanNames[key] !== undefined) {
-				message.channel.send(`${errorMessagesCleanNames[key]} was not provided`);
-			}
-			else {
-				message.channel.send('Sorry! Something went wrong!');
-			}
-			error = true;
-		}
-	});
+	const error = handleErrors(webRequest, errorMessagesCleanNames, message);
 	if (error) {
 		return;
 	}
