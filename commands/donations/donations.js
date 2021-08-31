@@ -82,8 +82,6 @@ function handleErrors(values, errorObj, message) {
 }
 
 function listDonationType(args, message) {
-	const server = message.guild.id;
-	const user = message.author.id;
 
 	const webRequest = {
 		type: 'donationType',
@@ -99,7 +97,7 @@ function listDonationType(args, message) {
 	if(error) {
 		return;
 	}
-	webClient.axiosInstance.post(`api/donations/list/${server}/${user}`, webRequest)
+	webClient.axiosInstance.post('api/donations/list', webRequest, { headers: setAuthHeader(message) })
 		.then(response => {
 			const success = new Discord.MessageEmbed()
 				.setColor('#1a6ba1')
@@ -119,8 +117,6 @@ function listDonationType(args, message) {
 }
 
 function listUser(args, message) {
-	const server = message.guild.id;
-	const user = message.author.id;
 
 	const webRequest = {
 		type: 'user',
@@ -134,7 +130,7 @@ function listUser(args, message) {
 
 	handleErrors(webRequest, errorMessagesCleanNames, message);
 
-	webClient.axiosInstance.post(`api/donations/list/${server}/${user}`, webRequest)
+	webClient.axiosInstance.post('api/donations/list', webRequest, { headers: setAuthHeader(message) })
 		.then(response => {
 			const success = new Discord.MessageEmbed()
 				.setColor('#1a6ba1')
@@ -155,12 +151,10 @@ function listUser(args, message) {
 
 
 function listAllCommand(message) {
-	const server = message.guild.id;
-	const user = message.author.id;
 	const webRequest = {
 		type: 'all',
 	};
-	webClient.axiosInstance.post(`api/donations/list/${server}/${user}`, webRequest)
+	webClient.axiosInstance.post('api/donations/list', webRequest, { headers: setAuthHeader(message) })
 		.then(response => {
 			const success = new Discord.MessageEmbed()
 				.setColor('#1a6ba1')
@@ -187,9 +181,6 @@ function listAllCommand(message) {
 
 function addCommand(args, message) {
 
-	const server = message.guild.id;
-	const user = message.author.id;
-
 	const webRequest = {
 		donationType: args[1],
 		username: args[2],
@@ -205,7 +196,7 @@ function addCommand(args, message) {
 	if (error) {
 		return;
 	}
-	webClient.axiosInstance.post(`api/donations/add/gold/${server}/${user}`, webRequest)
+	webClient.axiosInstance.post('api/donations/add/donation', webRequest, { headers: setAuthHeader(message) })
 		.then(response => {
 			const success = new Discord.MessageEmbed()
 				.setColor('#1a6ba1')
@@ -222,4 +213,14 @@ function addCommand(args, message) {
 		.catch(errorFromCall => {
 			message.channel.send(errorFromCall.response.data.message);
 		});
+}
+
+function setAuthHeader(message) {
+	const server = message.guild.id;
+	const user = message.author.id;
+
+	return {
+		'userdiscordid': user,
+		'discordserverid' : server,
+	};
 }
