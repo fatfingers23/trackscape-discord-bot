@@ -56,6 +56,11 @@ module.exports = {
 				return;
 			}
 
+			if(trimmedArgs[0] === 'remove' && trimmedArgs[1] === 'type') {
+				removeDonationType(args, message);
+				return;
+			}
+
 			if(trimmedArgs[0] === 'add') {
 				addCommand(args, message);
 				return;
@@ -225,8 +230,6 @@ function setAuthHeader(message) {
 	};
 }
 function addDonationType(args, message) {
-	const server = message.guild.id;
-	const user = message.author.id;
 
 	const webRequest = {
 		name: args[2],
@@ -241,7 +244,7 @@ function addDonationType(args, message) {
 		return;
 	}
 
-	webClient.axiosInstance.post(`api/donations/add/type/${server}/${user}`, webRequest)
+	webClient.axiosInstance.post('api/donations/add/type', webRequest, { headers: setAuthHeader(message) })
 		.then(response => {
 			const success = new Discord.MessageEmbed()
 				.setColor('#1a6ba1')
@@ -253,4 +256,32 @@ function addDonationType(args, message) {
 			message.channel.send(errorFromCall.response.data.message);
 		});
 
+}
+
+function removeDonationType(args, message) {
+	const webRequest = {
+		name: args[2],
+	};
+
+	const errorMessagesCleanNames = {
+		name: 'Donation type target is missing!',
+	};
+
+	const error = handleErrors(webRequest, errorMessagesCleanNames, message);
+	if (error) {
+		return;
+	}
+	const headers = setAuthHeader(message);
+
+	webClient.axiosInstance.delete('api/donations/remove/type', { data: webRequest, headers })
+		.then(response => {
+			const success = new Discord.MessageEmbed()
+				.setColor('#1a6ba1')
+				.setTitle(`${response.data.name} successfully removed from donation type list!`)
+				.setTimestamp();
+			message.channel.send(success);
+		})
+		.catch(errorFromCall => {
+			message.channel.send(errorFromCall.response.data.message);
+		});
 }
