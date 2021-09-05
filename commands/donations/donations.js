@@ -34,10 +34,6 @@ module.exports = {
 		else {
 			const trimmedArgs = args.map(arg => arg.trim());
 
-			if(trimmedArgs[0] === 'add') {
-				addCommand(args, message);
-				return;
-			}
 
 			if(trimmedArgs[0] === 'list' && trimmedArgs[1] === 'all') {
 				listAllCommand(message);
@@ -54,13 +50,23 @@ module.exports = {
 				return;
 			}
 
+			// TODO !!donastions add, type, donation type name
+			if(trimmedArgs[0] === 'add' && trimmedArgs[1] === 'type') {
+				// TODO add new donation type
+				return;
+			}
+
+			if(trimmedArgs[0] === 'add') {
+				addCommand(args, message);
+				return;
+			}
+
 			sendHelp(message);
 		}
 	},
 };
 
 function handleErrors(values, errorObj, message) {
-	let error = false;
 	Object.keys(values).forEach(key => {
 		if (values[key] === undefined) {
 			if (errorObj[key] !== undefined) {
@@ -69,18 +75,13 @@ function handleErrors(values, errorObj, message) {
 			else {
 				message.channel.send('Sorry! Something went wrong!');
 			}
-			error = true;
+			return true;
 		}
 	});
-
-	if (error) {
-		return;
-	}
+	return false;
 }
 
 function listDonationType(args, message) {
-	const server = message.guild.id;
-	const user = message.author.id;
 
 	const webRequest = {
 		type: 'donationType',
@@ -92,9 +93,11 @@ function listDonationType(args, message) {
 		lookupId: 'Donation type is missing',
 	};
 
-	handleErrors(webRequest, errorMessagesCleanNames, message);
-
-	webClient.axiosInstance.post(`api/donations/list/${server}/${user}`, webRequest)
+	const error = handleErrors(webRequest, errorMessagesCleanNames, message);
+	if(error) {
+		return;
+	}
+	webClient.axiosInstance.post('api/donations/list', webRequest, { headers: setAuthHeader(message) })
 		.then(response => {
 			const success = new Discord.MessageEmbed()
 				.setColor('#1a6ba1')
@@ -114,8 +117,6 @@ function listDonationType(args, message) {
 }
 
 function listUser(args, message) {
-	const server = message.guild.id;
-	const user = message.author.id;
 
 	const webRequest = {
 		type: 'user',
@@ -129,7 +130,7 @@ function listUser(args, message) {
 
 	handleErrors(webRequest, errorMessagesCleanNames, message);
 
-	webClient.axiosInstance.post(`api/donations/list/${server}/${user}`, webRequest)
+	webClient.axiosInstance.post('api/donations/list', webRequest, { headers: setAuthHeader(message) })
 		.then(response => {
 			const success = new Discord.MessageEmbed()
 				.setColor('#1a6ba1')
@@ -150,16 +151,14 @@ function listUser(args, message) {
 
 
 function listAllCommand(message) {
-	const server = message.guild.id;
-	const user = message.author.id;
 	const webRequest = {
 		type: 'all',
 	};
-	webClient.axiosInstance.post(`api/donations/list/${server}/${user}`, webRequest)
+	webClient.axiosInstance.post('api/donations/list', webRequest, { headers: setAuthHeader(message) })
 		.then(response => {
 			const success = new Discord.MessageEmbed()
 				.setColor('#1a6ba1')
-				.setTitle(`Successfully added ${webRequest.amount} to ${webRequest.username}`)
+				.setTitle('Total donated')
 				.addFields(
 					{
 						name: 'Grand Total Donated',
@@ -182,9 +181,6 @@ function listAllCommand(message) {
 
 function addCommand(args, message) {
 
-	const server = message.guild.id;
-	const user = message.author.id;
-
 	const webRequest = {
 		donationType: args[1],
 		username: args[2],
@@ -196,23 +192,11 @@ function addCommand(args, message) {
 		amount: 'Amount is missing',
 	};
 
-
-	let error = false;
-	Object.keys(webRequest).forEach(key => {
-		if (webRequest[key] === undefined) {
-			if (errorMessagesCleanNames[key] !== undefined) {
-				message.channel.send(`${errorMessagesCleanNames[key]} was not provided`);
-			}
-			else {
-				message.channel.send('Sorry! Something went wrong!');
-			}
-			error = true;
-		}
-	});
+	const error = handleErrors(webRequest, errorMessagesCleanNames, message);
 	if (error) {
 		return;
 	}
-	webClient.axiosInstance.post(`api/donations/add/gold/${server}/${user}`, webRequest)
+	webClient.axiosInstance.post('api/donations/add/donation', webRequest, { headers: setAuthHeader(message) })
 		.then(response => {
 			const success = new Discord.MessageEmbed()
 				.setColor('#1a6ba1')
@@ -229,4 +213,14 @@ function addCommand(args, message) {
 		.catch(errorFromCall => {
 			message.channel.send(errorFromCall.response.data.message);
 		});
+}
+
+function setAuthHeader(message) {
+	const server = message.guild.id;
+	const user = message.author.id;
+
+	return {
+		'userdiscordid': user,
+		'discordserverid' : server,
+	};
 }
