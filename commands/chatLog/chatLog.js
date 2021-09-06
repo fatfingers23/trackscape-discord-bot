@@ -60,12 +60,19 @@ function listMessages(message, count) {
 
 	webClient.axiosInstance.get('api/clan/chatlog/' + count, { headers: setAuthHeader(message) })
 		.then(response => {
-			let messageToSend = '``` \n';
+			let messageToSend = '';
 			response.data.reverse().forEach(x => {
 				messageToSend += `${x.time_sent} ${x.sender}: ${x.message} \n`;
 			});
-			messageToSend += '```';
-			message.channel.send(messageToSend);
+
+
+			for(let i = 0; i < messageToSend.length; i += 1994) {
+				let toSend = messageToSend.substring(i, Math.min(messageToSend.length, i + 1994));
+				toSend = '```' + toSend;
+				toSend += '```';
+				message.channel.send(toSend, { spilt: true });
+			}
+
 		})
 		.catch(errorFromCall => {
 			message.channel.send(errorFromCall.message);
