@@ -113,7 +113,7 @@ function listDonationType(args, message) {
 		.then(response => {
 			const success = new Discord.MessageEmbed()
 				.setColor('#1a6ba1')
-				.setTitle(`Successfully added ${webRequest.amount} to ${ response.data.name}`)
+				.setTitle('Total donated')
 				.addFields(
 					{
 						name: 'Grand Total Donated For ' + response.data.name,
@@ -146,7 +146,7 @@ function listUser(args, message) {
 		.then(response => {
 			const success = new Discord.MessageEmbed()
 				.setColor('#1a6ba1')
-				.setTitle(`Successfully added ${webRequest.amount} to ${ response.data.name}`)
+				// .setTitle(`Successfully added ${webRequest.amount} to ${ response.data.name}`)
 				.addFields(
 					{
 						name: 'Grand Total Donated For ' + response.data.name,
