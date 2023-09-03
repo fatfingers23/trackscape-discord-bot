@@ -1030,6 +1030,7 @@ dependencies = [
  "shuttle-serenity",
  "tokio",
  "tracing",
+ "urlencoding",
 ]
 
 [[package]]

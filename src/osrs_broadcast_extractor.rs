@@ -12,6 +12,7 @@ pub mod osrs_broadcast_extractor {
         pub player_it_happened_to: String,
         pub type_of_broadcast: BroadcastType,
         pub message: String,
+        pub icon_url: Option<String>,
     }
 
     pub struct DropItem{
@@ -34,33 +35,28 @@ pub mod osrs_broadcast_extractor {
         Unknown
     }
 
-    pub fn extract_message(message: ClanMessage){
-        let broadcast_type = get_broadcast_type(message.message);
+    pub fn extract_message(message: ClanMessage) -> Option<BroadcastMessageToDiscord> {
+
+        let broadcast_type = get_broadcast_type(message.message.clone());
         match broadcast_type {
-            BroadcastType::ItemDrop => {
-                println!("Item Drop!");
-            },
-            BroadcastType::Level => {
-                println!("Level!");
-            },
-            BroadcastType::PetDrop => {
-                println!("Pet Drop!");
-            },
-            BroadcastType::XPMilestone => {
-                println!("XP Milestone!");
-            },
-            BroadcastType::Quest => {
-                println!("Quest!");
-            },
-            BroadcastType::Pk => {
-                println!("PK!");
-            },
             BroadcastType::RaidDrop => {
-                println!("Raid Drop!");
-            },
-            BroadcastType::Unknown => {
-                println!("Unknown!");
+                let drop_item = raid_broadcast_extractor(message.message.clone());
+                match drop_item {
+                    None => {
+                        println!("Failed to extract drop item from message: {}", message.message.clone());
+                        None
+                    },
+                    Some(drop_item) => {
+                        Some(BroadcastMessageToDiscord {
+                            player_it_happened_to: drop_item.player_it_happened_to.clone(),
+                            type_of_broadcast: BroadcastType::RaidDrop,
+                            message: format!("{} received special loot from a raid: {}", drop_item.player_it_happened_to, drop_item.item_name),
+                            icon_url: drop_item.item_icon,
+                        })
+                    }
+                }
             }
+            _ => None
         }
     }
 
@@ -77,12 +73,11 @@ pub mod osrs_broadcast_extractor {
                 item_name: item.to_string(),
                 item_quantity: 1,
                 item_value: None,
-                item_icon: None,
+                item_icon: Some(get_wiki_image_url(item.to_string())),
             })
         } else {
             None
         }
-
     }
 
     pub fn get_broadcast_type(message_content: String) -> BroadcastType {
@@ -99,6 +94,14 @@ pub mod osrs_broadcast_extractor {
             return BroadcastType::Level;
         }
         return BroadcastType::Unknown;
+    }
+
+    fn get_wiki_image_url(item_name: String) -> String {
+        // https://oldschool.runescape.wiki/images/thumb/Tumeken%27s_shadow_%28uncharged%29_detail.png/1280px-Tumeken%27s_shadow_%28uncharged%29_detail.png?24f11
+        let encoded_item_name = urlencoding::encode(item_name.as_str());
+        let replace_spaces = encoded_item_name.replace("+", "_");
+        format!("https://oldschool.runescape.wiki/images/{}.png", replace_spaces)
+
     }
 }
 
@@ -178,6 +181,7 @@ mod tests {
         item_quantity:usize,
         //The value of the item
         item_value: Option<u64>,
+        item_icon: Option<String>,
     }
 
     struct LevelMessageTest {
@@ -197,6 +201,7 @@ mod tests {
             item_name: "Twisted buckler".to_string(),
             item_quantity: 1,
             item_value: None,
+            item_icon: Some("https://oldschool.runescape.wiki/images/Twisted_buckler_detail.png".to_string())
 
         });
         possible_raid_broadcasts.push(ItemMessageTest {
@@ -205,6 +210,7 @@ mod tests {
             item_name: "Twisted bow".to_string(),
             item_quantity: 1,
             item_value: None,
+            item_icon: Some("https://oldschool.runescape.wiki/images/Twisted_bow_detail.png".to_string())
         });
         possible_raid_broadcasts.push(ItemMessageTest {
             message: "RuneScape Player received special loot from a raid: Tumeken's shadow (uncharged)".to_string(),
@@ -212,6 +218,7 @@ mod tests {
             item_name: "Tumeken's shadow (uncharged)".to_string(),
             item_quantity: 1,
             item_value: None,
+            item_icon: Some("https://oldschool.runescape.wiki/images/Tumeken%27s_shadow_%28uncharged%29_detail.png".to_string())
         });
         possible_raid_broadcasts.push(ItemMessageTest {
             message: "RuneScape Player received special loot from a raid: Justiciar legguards.".to_string(),
@@ -219,6 +226,7 @@ mod tests {
             item_name: "Justiciar legguards".to_string(),
             item_quantity: 1,
             item_value: None,
+            item_icon: Some("https://oldschool.runescape.wiki/images/Justiciar_legguards_detail.png".to_string())
         });
 
         // possible_raid_broadcasts.push("RuneScape  received special loot from a raid: Twisted buckler.".to_string());

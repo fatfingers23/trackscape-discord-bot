@@ -5,9 +5,10 @@ use serenity::async_trait;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
+use serenity::utils::MessageBuilder;
 use shuttle_secrets::SecretStore;
 use tracing::{error, info};
-use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::ClanMessage;
+use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{BroadcastMessageToDiscord, ClanMessage, extract_message};
 
 struct Bot;
 
@@ -16,23 +17,33 @@ struct Bot;
 impl EventHandler for Bot {
     async fn message(&self, ctx: Context, msg: Message)
     {
+        //in game chat channel
         if msg.channel_id == 894635400432341043 {
             println!("New message!");
-            msg.embeds.iter().for_each(|embed| {
-                let author = embed.author.as_ref().unwrap().name.clone();
-                let message = embed.description.as_ref().unwrap().clone();
+            if msg.embeds.iter().count() > 0 {
+                let author = msg.embeds[0].author.as_ref().unwrap().name.clone();
+                let message = msg.embeds[0].description.as_ref().unwrap().clone();
                 let clan_message = ClanMessage {
                     author,
                     message,
                 };
-                println!("Author: {} Message: {}", clan_message.author, clan_message.message);
+                if clan_message.author == "Insomniacs" {
+                    let possible_response = extract_message(clan_message);
+                    match possible_response {
+                        None => {}
+                        Some(response) => {
+                            //Achievement Channel Id
+                            let channel = ctx.http.get_channel(1147679448993370182).await.unwrap();
+                            channel.id().send_message(&ctx.http, |m| {
+                                m.embed(|e| {
+                                    e.author(|a| a.icon_url(response.icon_url.unwrap()).name("Insomniacs"))
+                                        .description(response.message)
+                                })
+                            }).await.unwrap();
 
-            });
-
-        }
-        if msg.content == "!hello" {
-            if let Err(e) = msg.channel_id.say(&ctx.http, "world!").await {
-                error!("Error sending message: {:?}", e);
+                        }
+                    }
+                }
             }
         }
     }
