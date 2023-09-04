@@ -1,0 +1,8 @@
+version: '3.8'
+services:
+  discord-bot:
+    build: .
+    command: cargo shuttle --release
+networks:
+  rusty-tub:
+    driver: bridge

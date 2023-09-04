@@ -105,7 +105,6 @@ pub mod osrs_broadcast_extractor {
                     title: ":tada: New Pet drop!".to_string(),
                 })
             }
-
             _ => None
         }
     }
