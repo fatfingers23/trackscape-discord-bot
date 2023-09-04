@@ -50,7 +50,8 @@ impl EventHandler for Bot {
                             channel.id().send_message(&ctx.http, |m| {
                                 m.embed(|e| {
                                     e.title(response.title)
-                                        .description(response.message);
+                                        .description(response.message)
+                                        .color(0x0000FF);
                                     match response.icon_url {
                                         None => {}
                                         Some(icon_url) => {
