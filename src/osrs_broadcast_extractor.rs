@@ -2,7 +2,6 @@ use num_format::{Locale, ToFormattedString};
 
 
 pub mod osrs_broadcast_extractor {
-    use std::collections::HashMap;
     use num_format::{Locale, ToFormattedString};
 
     pub struct ClanMessage {
@@ -16,6 +15,7 @@ pub mod osrs_broadcast_extractor {
         pub message: String,
         pub icon_url: Option<String>,
         pub title: String,
+        pub item_value: Option<i64>,
     }
 
     pub struct DropItem {
@@ -53,6 +53,7 @@ pub mod osrs_broadcast_extractor {
                             message: format!("{} received special loot from a raid: {}.", drop_item.player_it_happened_to, drop_item.item_name),
                             icon_url: drop_item.item_icon,
                             title: ":tada: New raid drop!".to_string(),
+                            item_value: None,
                         })
                     }
                 }
@@ -92,6 +93,7 @@ pub mod osrs_broadcast_extractor {
                                 }
                             },
                             icon_url: drop_item.item_icon,
+                            item_value: drop_item.item_value,
                         })
                     }
                 }
@@ -103,6 +105,7 @@ pub mod osrs_broadcast_extractor {
                     message: message.message.clone(),
                     icon_url: None,
                     title: ":tada: New Pet drop!".to_string(),
+                    item_value: None,
                 })
             }
             _ => None

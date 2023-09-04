@@ -38,6 +38,14 @@ impl EventHandler for Bot {
                         Some(response) => {
                             //Achievement Channel Id
                             print!("{}", message.clone());
+
+                            if response.item_value.is_some() {
+                                if response.item_value.unwrap() < self.drop_price_threshold as i64 {
+                                    println!("The Item value is less than threshold, not sending message");
+                                    return;
+                                }
+                            }
+
                             let channel = ctx.http.get_channel(self.channel_to_send).await.unwrap();
                             channel.id().send_message(&ctx.http, |m| {
                                 m.embed(|e| {
@@ -50,8 +58,6 @@ impl EventHandler for Bot {
                                         }
                                     }
                                     e
-                                    // e.author(|a| a.icon_url(response.icon_url.unwrap()).name("Insomniacs"))
-                                    //     .description(response.message)
                                 })
                             }).await.unwrap();
                         }
