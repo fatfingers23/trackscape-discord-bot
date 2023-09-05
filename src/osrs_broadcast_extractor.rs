@@ -217,6 +217,7 @@ pub mod osrs_broadcast_extractor {
 #[cfg(test)]
 mod tests {
     use shuttle_persist::PersistInstance;
+    use tracing::info;
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{ClanMessage, DropItem};
     use super::*;
 
