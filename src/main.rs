@@ -26,7 +26,7 @@ impl EventHandler for Bot {
     {
         //in game chat channel
         if msg.channel_id == self.channel_to_check {
-            println!("New message!\n");
+            info!("New message!\n");
             if msg.embeds.iter().count() > 0 {
                 let author = msg.embeds[0].author.as_ref().unwrap().name.clone();
                 let message = msg.embeds[0].description.as_ref().unwrap().clone();
@@ -40,11 +40,11 @@ impl EventHandler for Bot {
                         None => {}
                         Some(response) => {
                             //Achievement Channel Id
-                            print!("{}\n", message.clone());
+                            info!("{}\n", message.clone());
 
                             if response.item_value.is_some() {
                                 if response.item_value.unwrap() < self.drop_price_threshold as i64 {
-                                    println!("The Item value is less than threshold, not sending message\n");
+                                    info!("The Item value is less than threshold, not sending message\n");
                                     return;
                                 }
                             }
@@ -114,10 +114,10 @@ async fn serenity(
                     "mapping",
                     ge_mapping.clone(),
                 )
-                .map_err(|e| println!("Saving Item Mapping Error: {e}"));
+                .map_err(|e| info!("Saving Item Mapping Error: {e}"));
         }
         Err(error) => {
-            println!("Error getting ge mapping: {}", error)
+            info!("Error getting ge mapping: {}", error)
         }
     }
 

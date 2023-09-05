@@ -4,6 +4,7 @@ pub mod osrs_broadcast_extractor {
     use reqwest::Error;
     use shuttle_persist::PersistInstance;
     use crate::ge_api::ge_api::{GeItemMapping, GeItemPrice, get_item_value_by_id};
+    use tracing::info;
 
     pub struct ClanMessage {
         pub author: String,
@@ -44,13 +45,13 @@ pub mod osrs_broadcast_extractor {
                 let drop_item = raid_broadcast_extractor(message.message.clone());
                 match drop_item {
                     None => {
-                        println!("Failed to extract drop item from message: {}", message.message.clone());
+                        info!("Failed to extract drop item from message: {}", message.message.clone());
                         None
                     }
                     Some(mut drop_item) => {
                         let item_mapping_from_state = persist
                             .load::<GeItemMapping>("mapping")
-                            .map_err(|e| println!("Saving Item Mapping Error: {e}"));
+                            .map_err(|e| info!("Saving Item Mapping Error: {e}"));
                         match item_mapping_from_state {
                             Ok(item_mapping) => {
                                 for item in item_mapping {
@@ -93,7 +94,7 @@ pub mod osrs_broadcast_extractor {
                 let drop_item = drop_broadcast_extractor(message.message.clone());
                 match drop_item {
                     None => {
-                        println!("Failed to extract drop item from message: {}", message.message.clone());
+                        info!("Failed to extract drop item from message: {}", message.message.clone());
                         None
                     }
                     Some(drop_item) => {
@@ -255,7 +256,7 @@ mod tests {
             let possible_drop_item = osrs_broadcast_extractor::raid_broadcast_extractor(possible_raid_broadcast.message);
             match possible_drop_item {
                 None => {
-                    println!("Failed to extract drop item from message: {}", message);
+                    info!("Failed to extract drop item from message: {}", message);
                     assert!(false);
                 }
                 Some(drop_item) => {
@@ -277,7 +278,7 @@ mod tests {
             let possible_drop_item = osrs_broadcast_extractor::drop_broadcast_extractor(possible_drop_broadcast.message);
             match possible_drop_item {
                 None => {
-                    println!("Failed to extract drop item from message: {}", message);
+                    info!("Failed to extract drop item from message: {}", message);
                     assert!(false);
                 }
                 Some(drop_item) => {
@@ -303,7 +304,7 @@ mod tests {
     //         }, );
     //         match extracted_message {
     //             None => {
-    //                 println!("Failed to extract drop item from message: {}", message);
+    //                 info!("Failed to extract drop item from message: {}", message);
     //                 assert!(false);
     //             }
     //             Some(extracted_message) => {

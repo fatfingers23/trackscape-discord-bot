@@ -36,7 +36,6 @@ pub mod ge_api {
             .await?
             .json()
             .await?;
-        println!("Response: {}", resp["data"][id.to_string()]);
         if resp["data"][id.to_string()].is_null() {
             return Ok(GeItemPrice {
                 high: 0,
