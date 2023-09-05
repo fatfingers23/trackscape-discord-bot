@@ -1,19 +1,22 @@
 mod osrs_broadcast_extractor;
+mod ge_api;
 
 use anyhow::anyhow;
 use serenity::async_trait;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::prelude::*;
-use serenity::utils::MessageBuilder;
+use shuttle_persist::PersistInstance;
 use shuttle_secrets::SecretStore;
-use tracing::{error, info};
-use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{BroadcastMessageToDiscord, ClanMessage, extract_message};
+use tracing::{info};
+use crate::ge_api::ge_api::{GeItemMapping, get_item_mapping, get_item_value_by_id};
+use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{ClanMessage, extract_message};
 
 struct Bot {
     channel_to_check: u64,
     channel_to_send: u64,
     drop_price_threshold: u64,
+    persist: PersistInstance,
 }
 
 
@@ -23,7 +26,7 @@ impl EventHandler for Bot {
     {
         //in game chat channel
         if msg.channel_id == self.channel_to_check {
-            println!("New message!");
+            println!("New message!\n");
             if msg.embeds.iter().count() > 0 {
                 let author = msg.embeds[0].author.as_ref().unwrap().name.clone();
                 let message = msg.embeds[0].description.as_ref().unwrap().clone();
@@ -32,16 +35,16 @@ impl EventHandler for Bot {
                     message: message.clone(),
                 };
                 if clan_message.author == "Insomniacs" {
-                    let possible_response = extract_message(clan_message);
+                    let possible_response = extract_message(clan_message, &self.persist).await;
                     match possible_response {
                         None => {}
                         Some(response) => {
                             //Achievement Channel Id
-                            print!("{}", message.clone());
+                            print!("{}\n", message.clone());
 
                             if response.item_value.is_some() {
                                 if response.item_value.unwrap() < self.drop_price_threshold as i64 {
-                                    println!("The Item value is less than threshold, not sending message");
+                                    println!("The Item value is less than threshold, not sending message\n");
                                     return;
                                 }
                             }
@@ -76,6 +79,7 @@ impl EventHandler for Bot {
 #[shuttle_runtime::main]
 async fn serenity(
     #[shuttle_secrets::Secrets] secret_store: SecretStore,
+    #[shuttle_persist::Persist] persist: PersistInstance
 ) -> shuttle_serenity::ShuttleSerenity {
     // Get the discord token set in `Secrets.toml`as
     let token = if let Some(token) = secret_store.get("DISCORD_TOKEN") {
@@ -102,6 +106,23 @@ async fn serenity(
         return Err(anyhow!("'DROP_PRICE_THRESHOLD' was not found").into());
     };
 
+    let ge_mapping_request = get_item_mapping().await;
+    match ge_mapping_request {
+        Ok(ge_mapping) => {
+            let _state = persist
+                .save::<GeItemMapping>(
+                    "mapping",
+                    ge_mapping.clone(),
+                )
+                .map_err(|e| println!("Saving Item Mapping Error: {e}"));
+        }
+        Err(error) => {
+            println!("Error getting ge mapping: {}", error)
+        }
+    }
+
+
+
     // Set gateway intents, which decides what events the bot will be notified about
     let intents = GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT;
 
@@ -110,6 +131,7 @@ async fn serenity(
             channel_to_check: in_game_channel.parse::<u64>().unwrap(),
             channel_to_send: channel_to_send_message_to.parse::<u64>().unwrap(),
             drop_price_threshold: drop_price_threshold.parse::<u64>().unwrap(),
+            persist
         })
         .await
         .expect("Err creating client");
