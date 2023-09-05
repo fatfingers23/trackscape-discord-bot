@@ -38,7 +38,7 @@ pub mod osrs_broadcast_extractor {
         Unknown,
     }
 
-    pub async fn extract_message(message: ClanMessage, persist: &PersistInstance) -> Option<BroadcastMessageToDiscord> {
+    pub async fn extract_message(message: ClanMessage, item_mapping_from_State: Result<GeItemMapping, ()>) -> Option<BroadcastMessageToDiscord> {
         let broadcast_type = get_broadcast_type(message.message.clone());
         match broadcast_type {
             BroadcastType::RaidDrop => {
@@ -49,10 +49,7 @@ pub mod osrs_broadcast_extractor {
                         None
                     }
                     Some(mut drop_item) => {
-                        let item_mapping_from_state = persist
-                            .load::<GeItemMapping>("mapping")
-                            .map_err(|e| info!("Saving Item Mapping Error: {e}"));
-                        match item_mapping_from_state {
+                        match item_mapping_from_State {
                             Ok(item_mapping) => {
                                 for item in item_mapping {
                                     if item.name == drop_item.item_name{
@@ -216,8 +213,10 @@ pub mod osrs_broadcast_extractor {
 
 #[cfg(test)]
 mod tests {
+    use std::vec;
     use shuttle_persist::PersistInstance;
     use tracing::info;
+    use crate::ge_api::ge_api::{GeItemMapping, GetItem};
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{ClanMessage, DropItem};
     use super::*;
 
@@ -293,29 +292,30 @@ mod tests {
         }
     }
 
-    // #[test]
-    // fn test_extract_message_drop_single_item() {
-    //     let possible_drop_broadcasts = get_drop_messages();
-    //     for possible_drop_broadcast in possible_drop_broadcasts {
-    //         let message = possible_drop_broadcast.message.clone();
-    //         let persist = PersistInstance::new(ServiceName::from_str("test3").unwrap()).unwrap();
-    //         let extracted_message = osrs_broadcast_extractor::extract_message(ClanMessage {
-    //             author: "Insomniacs".to_string(),
-    //             message: possible_drop_broadcast.message.clone(),
-    //         }, );
-    //         match extracted_message {
-    //             None => {
-    //                 info!("Failed to extract drop item from message: {}", message);
-    //                 assert!(false);
-    //             }
-    //             Some(extracted_message) => {
-    //                 assert_eq!(extracted_message.player_it_happened_to, possible_drop_broadcast.player_it_happened_to);
-    //                 assert_eq!(extracted_message.message, possible_drop_broadcast.discord_message);
-    //                 assert_eq!(extracted_message.icon_url, possible_drop_broadcast.item_icon);
-    //             }
-    //         }
-    //     }
-    // }
+    #[tokio::test]
+    async fn test_extract_message_drop_single_item() {
+        let possible_drop_broadcasts = get_drop_messages();
+        for possible_drop_broadcast in possible_drop_broadcasts {
+            let message = possible_drop_broadcast.message.clone();
+            let ge_item_mapping : Vec<GetItem> = Vec::new();
+            let get_item_mapping = Ok(ge_item_mapping);
+            let extracted_message = osrs_broadcast_extractor::extract_message(ClanMessage {
+                author: "Insomniacs".to_string(),
+                message: possible_drop_broadcast.message.clone(),
+            }, get_item_mapping).await;
+            match extracted_message {
+                None => {
+                    info!("Failed to extract drop item from message: {}", message);
+                    assert!(false);
+                }
+                Some(extracted_message) => {
+                    assert_eq!(extracted_message.player_it_happened_to, possible_drop_broadcast.player_it_happened_to);
+                    assert_eq!(extracted_message.message, possible_drop_broadcast.discord_message);
+                    assert_eq!(extracted_message.icon_url, possible_drop_broadcast.item_icon);
+                }
+            }
+        }
+    }
 
 
     //Test data setup

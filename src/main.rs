@@ -35,7 +35,10 @@ impl EventHandler for Bot {
                     message: message.clone(),
                 };
                 if clan_message.author == "Insomniacs" {
-                    let possible_response = extract_message(clan_message, &self.persist).await;
+                    let item_mapping_from_state = self.persist
+                        .load::<GeItemMapping>("mapping")
+                        .map_err(|e| info!("Saving Item Mapping Error: {e}"));
+                    let possible_response = extract_message(clan_message, item_mapping_from_state).await;
                     match possible_response {
                         None => {}
                         Some(response) => {
