@@ -1,11 +1,19 @@
 mod osrs_broadcast_extractor;
+mod  commands;
 mod ge_api;
 
+use std::env;
 use anyhow::anyhow;
 use serenity::async_trait;
+use serenity::model::application::command::Command;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
+use serenity::model::guild::Guild;
+use serenity::model::application::interaction::InteractionResponseType;
+use serenity::model::application::interaction::Interaction;
+use serenity::model::id::GuildId;
 use serenity::prelude::*;
+
 use shuttle_persist::PersistInstance;
 use shuttle_secrets::SecretStore;
 use tracing::{info};
@@ -20,8 +28,85 @@ struct Bot {
 }
 
 
+
 #[async_trait]
 impl EventHandler for Bot {
+
+    async fn guild_create(&self, _ctx: Context, guild: Guild) {
+        match guild.system_channel_id{
+            None => {
+                info!("No system channel id found");
+            }
+            Some(system_channel_id) => {
+                system_channel_id.send_message(&_ctx.http, |m| {
+                    m.embed(|e| {
+                        e.title("Hello, I'm the TrackScape Bot")
+                            .description("I'm here to help you with your OSRS Clan needs")
+                            .color(0x0000FF);
+                        e
+                    })
+                }).await.unwrap();
+            }
+        }
+
+
+
+        info!("We've been added to the guild: {}", guild.name);
+    }
+
+    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
+        if let Interaction::ApplicationCommand(command) = interaction {
+            // println!("Received command interaction: {:#?}", command);
+
+            let content = match command.data.name.as_str() {
+                "set_clan_chat_channel" => commands::set_clan_chat_channel::run(&command.data.options, &ctx).await,
+                _ => {
+                    info!("not implemented :(");
+                    None
+                }
+            };
+
+            if let Err(why) = command
+                .create_interaction_response(&ctx.http, |response| {
+                    match content {
+                        None => {
+                           response.interaction_response_data(|message| message.content("Command Completed Successfully."))
+                        }
+                        Some(reply) => {
+                           response.interaction_response_data(|message| message.content(reply))
+                        }
+                    }
+
+                })
+                .await
+            {
+                println!("Cannot respond to slash command: {}", why);
+            }
+        }
+    }
+
+    async fn ready(&self, ctx: Context, ready: Ready) {
+        println!("{} is connected!", ready.user.name);
+
+        let guild_id = GuildId(1148645741653393408);
+
+        let commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
+            commands
+                .create_application_command(|command| commands::set_clan_chat_channel::register(command))
+        })
+            .await;
+
+        println!("I now have the following guild slash commands: {:#?}", commands);
+
+        //Use this for global commands
+        // let guild_command = Command::create_global_application_command(&ctx.http, |command| {
+        //     commands::wonderful_command::register(command)
+        // })
+        //     .await;
+        //
+        // println!("I created the following global slash command: {:#?}", guild_command);
+    }
+
     async fn message(&self, ctx: Context, msg: Message)
     {
         //in game chat channel
@@ -72,10 +157,6 @@ impl EventHandler for Bot {
                 }
             }
         }
-    }
-
-    async fn ready(&self, _: Context, ready: Ready) {
-        info!("{} is connected!", ready.user.name);
     }
 }
 
