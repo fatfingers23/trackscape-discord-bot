@@ -176,7 +176,16 @@ pub mod osrs_broadcast_extractor {
     fn get_wiki_image_url(item_name: String) -> String {
         let replace_spaces = item_name.replace(" ", "_");
         let encoded_item_name = urlencoding::encode(replace_spaces.as_str());
-        format!("https://oldschool.runescape.wiki/images/{}.png", encoded_item_name)
+        format!("https://oldschool.runescape.wiki/images/{}_detail.png", encoded_item_name)
+    }
+
+    fn get_items_price(item_name: String) -> Option<i64>{
+        // https://github.com/seanmonstar/reqwest
+        //Have to get the ids from here first https://prices.runescape.wiki/api/v1/osrs/mapping
+        //Possibly look at caching this somehow
+
+        //Then can get price from here https://prices.runescape.wiki/api/v1/osrs/latest?id=2
+        None
     }
 }
 
@@ -304,7 +313,7 @@ mod tests {
             item_name: "Twisted buckler".to_string(),
             item_quantity: 1,
             item_value: None,
-            item_icon: Some("https://oldschool.runescape.wiki/images/Twisted_buckler.png".to_string()),
+            item_icon: Some("https://oldschool.runescape.wiki/images/Twisted_buckler_detail.png".to_string()),
             discord_message: "RuneScape Player received special loot from a raid: Twisted buckler.".to_string(),
         });
         possible_raid_broadcasts.push(ItemMessageTest {
@@ -313,7 +322,7 @@ mod tests {
             item_name: "Twisted bow".to_string(),
             item_quantity: 1,
             item_value: None,
-            item_icon: Some("https://oldschool.runescape.wiki/images/Twisted_bow.png".to_string()),
+            item_icon: Some("https://oldschool.runescape.wiki/images/Twisted_bow_detail.png".to_string()),
             discord_message: "Player received special loot from a raid: Twisted bow.".to_string(),
         });
         possible_raid_broadcasts.push(ItemMessageTest {
@@ -322,7 +331,7 @@ mod tests {
             item_name: "Tumeken's shadow (uncharged)".to_string(),
             item_quantity: 1,
             item_value: None,
-            item_icon: Some("https://oldschool.runescape.wiki/images/Tumeken%27s_shadow_%28uncharged%29.png".to_string()),
+            item_icon: Some("https://oldschool.runescape.wiki/images/Tumeken%27s_shadow_%28uncharged%29_detail.png".to_string()),
             discord_message: "RuneScape Player received special loot from a raid: Tumeken's shadow (uncharged)".to_string(),
         });
         possible_raid_broadcasts.push(ItemMessageTest {
@@ -331,7 +340,7 @@ mod tests {
             item_name: "Justiciar legguards".to_string(),
             item_quantity: 1,
             item_value: None,
-            item_icon: Some("https://oldschool.runescape.wiki/images/Justiciar_legguards.png".to_string()),
+            item_icon: Some("https://oldschool.runescape.wiki/images/Justiciar_legguards_detail.png".to_string()),
             discord_message: "RuneScape Player received special loot from a raid: Justiciar legguards.".to_string(),
         });
 
@@ -351,7 +360,7 @@ mod tests {
             item_name: "Abyssal whip".to_string(),
             item_quantity: 1,
             item_value: Some(1_456_814),
-            item_icon: Some("https://oldschool.runescape.wiki/images/Abyssal_whip.png".to_string()),
+            item_icon: Some("https://oldschool.runescape.wiki/images/Abyssal_whip_detail.png".to_string()),
             discord_message: "RuneScape Player received a drop: Abyssal whip (1,456,814 coins).".to_string(),
         });
 
@@ -361,7 +370,7 @@ mod tests {
             item_name: "Unknown Item".to_string(),
             item_quantity: 1,
             item_value: Some(0),
-            item_icon: Some("https://oldschool.runescape.wiki/images/Unknown_Item.png".to_string()),
+            item_icon: Some("https://oldschool.runescape.wiki/images/Unknown_Item_detail.png".to_string()),
             discord_message: "RuneScape Player received a drop: Unknown Item (0 coins).".to_string(),
         });
 
@@ -371,7 +380,7 @@ mod tests {
             item_name: "Cannonball".to_string(),
             item_quantity: 587,
             item_value: Some(111530),
-            item_icon: Some("https://oldschool.runescape.wiki/images/Cannonball.png".to_string()),
+            item_icon: Some("https://oldschool.runescape.wiki/images/Cannonball_detail.png".to_string()),
             discord_message: "RuneScape Player received a drop: 587 x Cannonball (111,530 coins).".to_string(),
         });
 
@@ -381,7 +390,7 @@ mod tests {
             item_name: "Awakener's orb".to_string(),
             item_quantity: 1,
             item_value: Some(2_238_871),
-            item_icon: Some("https://oldschool.runescape.wiki/images/Awakener%27s_orb.png".to_string()),
+            item_icon: Some("https://oldschool.runescape.wiki/images/Awakener%27s_orb_detail.png".to_string()),
             discord_message: "RuneScape Player received a drop: Awakener's orb (2,238,871 coins).".to_string(),
         });
 
