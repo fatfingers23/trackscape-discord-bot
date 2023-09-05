@@ -2,6 +2,7 @@
 pub mod osrs_broadcast_extractor {
     use num_format::{Locale, ToFormattedString};
     use reqwest::Error;
+    use serde::{Deserialize, Serialize};
     use shuttle_persist::PersistInstance;
     use crate::ge_api::ge_api::{GeItemMapping, GeItemPrice, get_item_value_by_id};
     use tracing::info;
@@ -28,7 +29,7 @@ pub mod osrs_broadcast_extractor {
         pub item_icon: Option<String>,
     }
 
-    #[derive(PartialEq)]
+    #[derive(PartialEq, Deserialize, Serialize, Debug)]
     pub enum BroadcastType {
         ItemDrop,
         PetDrop,

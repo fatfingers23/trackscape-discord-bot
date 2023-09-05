@@ -2,6 +2,7 @@ use serenity::builder;
 use serenity::model::prelude::application_command::{CommandDataOption, CommandDataOptionValue};
 use serenity::model::prelude::command::CommandOptionType;
 use serenity::client::Context;
+use serenity::model::channel::ChannelType;
 use tracing::info;
 
 pub fn register(
@@ -30,9 +31,20 @@ pub async fn run(options: &[CommandDataOption], ctx: &Context) -> Option<String>
         .expect("Expected Chanel Id object");
 
     if let CommandDataOptionValue::Channel(channel) = option {
-        channel.id.send_message(&ctx.http, |m| {
+        
+        if channel.kind != ChannelType::Text {
+            return Some("Please select a text channel.".to_string());
+        }
+        let result = channel.id.send_message(&ctx.http, |m| {
             m.content(format!("This channel has been set as the clan chat channel."))
-        }).await.unwrap();
+        }).await;
+        match result {
+            Ok(_) => {}
+            Err(error) => {
+                info!("Error sending message: {}", error);
+                return Some(error.to_string());
+            }
+        }
     }
     None
 }
