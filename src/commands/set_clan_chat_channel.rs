@@ -33,21 +33,20 @@ pub async fn run(
         .resolved
         .as_ref()
         .expect("Expected Chanel Id object");
-
     if let CommandDataOptionValue::Channel(channel) = option {
         if channel.kind != ChannelType::Text {
             return Some("Please select a text channel.".to_string());
         }
-
-        let server = db
+        info!("Channel: {:?}", channel);
+        let saved_guild_query = db
             .get_by_guild_id(guild_id)
             .await
             .expect("Error getting server");
-        match server {
-            Some(mut server) => {
-                server.clan_chat_channel = Some(channel.id.0);
-                //TODO acutally need to set the channel in the db
-                // db.update_guild(server).await;
+        info!("Saved Guild: {:?}", saved_guild_query);
+        match saved_guild_query {
+            Some(mut saved_guild) => {
+                saved_guild.clan_chat_channel = Some(channel.id.0);
+                db.update_guild(saved_guild).await;
                 let result = channel
                     .id
                     .send_message(&ctx.http, |m| {
@@ -71,5 +70,6 @@ pub async fn run(
             }
         }
     }
-    None
+    info!("Error getting channel");
+    Some("Error getting channel".to_string())
 }

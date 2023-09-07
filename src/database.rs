@@ -1,10 +1,11 @@
 use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::BroadcastType;
 use mongodb::bson::doc;
-use mongodb::Database;
+use mongodb::{bson, Database};
 use rand::Rng;
 use regex::Error;
 use serde::{Deserialize, Serialize};
 use std::string::ToString;
+use tracing::info;
 use xxhash_rust::xxh3::Xxh3;
 
 pub struct BotMongoDb {
@@ -70,13 +71,13 @@ impl BotMongoDb {
         Self { db: mongodb }
     }
 
-    pub async fn save_new_guild(&self, server_id: u64) {
-        let server = RegisteredGuild::new(server_id);
+    pub async fn save_new_guild(&self, guild_id: u64) {
+        let guild = RegisteredGuild::new(guild_id);
         let collection = self.db.collection(RegisteredGuild::COLLECTION_NAME);
         collection
-            .insert_one(server, None)
+            .insert_one(guild, None)
             .await
-            .expect("Failed to insert document for a new server.");
+            .expect("Failed to insert document for a new guild.");
     }
     pub async fn get_guild_by_code_and_clan_name(
         &self,
@@ -91,17 +92,27 @@ impl BotMongoDb {
         Ok(collection
             .find_one(filter, None)
             .await
-            .expect("Failed to find document for the Discord Server."))
+            .expect("Failed to find document for the Discord guild."))
     }
 
     pub async fn get_by_guild_id(&self, id: u64) -> Result<Option<RegisteredGuild>, Error> {
         let collection = self
             .db
             .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
-        let filter = doc! { "guild_id": id.to_string()};
+        info!("Getting guild by id: {}", id);
+        let filter = doc! { "guild_id": bson::to_bson(&id).unwrap()};
         Ok(collection
             .find_one(filter, None)
             .await
-            .expect("Failed to find document for the Discord Server."))
+            .expect("Failed to find document for the Discord guild."))
+    }
+
+    pub async fn update_guild(&self, guild: RegisteredGuild) {
+        let collection = self.db.collection(RegisteredGuild::COLLECTION_NAME);
+        let filter = doc! { "guild_id": bson::to_bson(&guild.guild_id).unwrap()};
+        collection
+            .replace_one(filter, guild, None)
+            .await
+            .expect("Failed to update document for the Discord guild.");
     }
 }
