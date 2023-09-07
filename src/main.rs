@@ -1,27 +1,24 @@
-mod osrs_broadcast_extractor;
-mod  commands;
-mod ge_api;
+mod commands;
 mod database;
+mod ge_api;
+mod osrs_broadcast_extractor;
 
-use mongodb::{Collection, Database};
-use std::env;
 use anyhow::anyhow;
+use mongodb::Database;
 use serenity::async_trait;
-use serenity::model::application::command::Command;
+use serenity::model::application::interaction::Interaction;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::model::guild::Guild;
-use serenity::model::application::interaction::InteractionResponseType;
-use serenity::model::application::interaction::Interaction;
 use serenity::model::id::GuildId;
 use serenity::prelude::*;
 
+use crate::database::BotMongoDb;
+use crate::ge_api::ge_api::{get_item_mapping, GeItemMapping};
+use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{extract_message, ClanMessage};
 use shuttle_persist::PersistInstance;
 use shuttle_secrets::SecretStore;
-use tracing::{info};
-use crate::database::BotMongoDb;
-use crate::ge_api::ge_api::{GeItemMapping, get_item_mapping, get_item_value_by_id};
-use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{ClanMessage, extract_message};
+use tracing::info;
 
 struct Bot {
     channel_to_check: u64,
@@ -31,29 +28,30 @@ struct Bot {
     mongo_db: BotMongoDb,
 }
 
-
-
 #[async_trait]
 impl EventHandler for Bot {
     async fn guild_create(&self, _ctx: Context, guild: Guild, is_new: bool) {
         info!("has been added to the guild {}", guild.name);
         if is_new {
             //This fires if it's a new guild it's been added to
-            self.mongo_db.save_new_server(guild.id.0).await;
+            self.mongo_db.save_new_guild(guild.id.0).await;
             info!("Joined a new Discord Server: {}", guild.name);
         }
     }
 
-    async fn guild_member_addition(&self, _ctx: Context, _new_member: serenity::model::guild::Member) {
+    async fn guild_member_addition(
+        &self,
+        _ctx: Context,
+        _new_member: serenity::model::guild::Member,
+    ) {
         info!("New member added to guild {}", _new_member.user.name);
     }
 
     // async fn guild_delete(&self, _ctx: Context, _incomplete: serenity::model::guild::UnavailableGuild) {
     //     info!("We've been removed from a guild {}", _incomplete.id);
     // }
-    async fn message(&self, ctx: Context, msg: Message)
-    {
-        self.mongo_db.get_or_set_server();
+    async fn message(&self, ctx: Context, msg: Message) {
+        // self.mongo_db.get_or_set_server();
         //in game chat channel
         if msg.channel_id == self.channel_to_check {
             info!("New message!\n");
@@ -65,10 +63,12 @@ impl EventHandler for Bot {
                     message: message.clone(),
                 };
                 if clan_message.author == "Insomniacs" {
-                    let item_mapping_from_state = self.persist
+                    let item_mapping_from_state = self
+                        .persist
                         .load::<GeItemMapping>("mapping")
                         .map_err(|e| info!("Saving Item Mapping Error: {e}"));
-                    let possible_response = extract_message(clan_message, item_mapping_from_state).await;
+                    let possible_response =
+                        extract_message(clan_message, item_mapping_from_state).await;
                     match possible_response {
                         None => {}
                         Some(response) => {
@@ -83,20 +83,24 @@ impl EventHandler for Bot {
                             }
 
                             let channel = ctx.http.get_channel(self.channel_to_send).await.unwrap();
-                            channel.id().send_message(&ctx.http, |m| {
-                                m.embed(|e| {
-                                    e.title(response.title)
-                                        .description(response.message)
-                                        .color(0x0000FF);
-                                    match response.icon_url {
-                                        None => {}
-                                        Some(icon_url) => {
-                                            e.image(icon_url);
+                            channel
+                                .id()
+                                .send_message(&ctx.http, |m| {
+                                    m.embed(|e| {
+                                        e.title(response.title)
+                                            .description(response.message)
+                                            .color(0x0000FF);
+                                        match response.icon_url {
+                                            None => {}
+                                            Some(icon_url) => {
+                                                e.image(icon_url);
+                                            }
                                         }
-                                    }
-                                    e
+                                        e
+                                    })
                                 })
-                            }).await.unwrap();
+                                .await
+                                .unwrap();
                         }
                     }
                 }
@@ -110,10 +114,11 @@ impl EventHandler for Bot {
         let guild_id = GuildId(1148645741653393408);
 
         let commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
-            commands
-                .create_application_command(|command| commands::set_clan_chat_channel::register(command))
+            commands.create_application_command(|command| {
+                commands::set_clan_chat_channel::register(command)
+            })
         })
-            .await;
+        .await;
 
         // println!("I now have the following guild slash commands: {:#?}", commands);
 
@@ -131,7 +136,15 @@ impl EventHandler for Bot {
             // println!("Received command interaction: {:#?}", command);
 
             let content = match command.data.name.as_str() {
-                "set_clan_chat_channel" => commands::set_clan_chat_channel::run(&command.data.options, &ctx).await,
+                "set_clan_chat_channel" => {
+                    commands::set_clan_chat_channel::run(
+                        &command.data.options,
+                        &ctx,
+                        &self.mongo_db,
+                        command.guild_id.unwrap().0,
+                    )
+                    .await
+                }
                 _ => {
                     info!("not implemented :(");
                     None
@@ -139,16 +152,13 @@ impl EventHandler for Bot {
             };
 
             if let Err(why) = command
-                .create_interaction_response(&ctx.http, |response| {
-                    match content {
-                        None => {
-                           response.interaction_response_data(|message| message.content("Command Completed Successfully."))
-                        }
-                        Some(reply) => {
-                           response.interaction_response_data(|message| message.content(reply))
-                        }
+                .create_interaction_response(&ctx.http, |response| match content {
+                    None => response.interaction_response_data(|message| {
+                        message.content("Command Completed Successfully.")
+                    }),
+                    Some(reply) => {
+                        response.interaction_response_data(|message| message.content(reply))
                     }
-
                 })
                 .await
             {
@@ -177,11 +187,12 @@ async fn serenity(
         return Err(anyhow!("'IN_GAME_CHANNEL' was not found").into());
     };
 
-    let channel_to_send_message_to = if let Some(token) = secret_store.get("CHANNEL_TO_SEND_MESSAGES_TO") {
-        token
-    } else {
-        return Err(anyhow!("'CHANNEL_TO_SEND_MESSAGES_TO' was not found").into());
-    };
+    let channel_to_send_message_to =
+        if let Some(token) = secret_store.get("CHANNEL_TO_SEND_MESSAGES_TO") {
+            token
+        } else {
+            return Err(anyhow!("'CHANNEL_TO_SEND_MESSAGES_TO' was not found").into());
+        };
 
     let drop_price_threshold = if let Some(token) = secret_store.get("DROP_PRICE_THRESHOLD") {
         token
@@ -193,10 +204,7 @@ async fn serenity(
     match ge_mapping_request {
         Ok(ge_mapping) => {
             let _state = persist
-                .save::<GeItemMapping>(
-                    "mapping",
-                    ge_mapping.clone(),
-                )
+                .save::<GeItemMapping>("mapping", ge_mapping.clone())
                 .map_err(|e| info!("Saving Item Mapping Error: {e}"));
         }
         Err(error) => {
@@ -204,13 +212,12 @@ async fn serenity(
         }
     }
 
-
-
     // Set gateway intents, which decides what events the bot will be notified about
-    let intents = GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT | GatewayIntents::GUILDS;
+    let intents =
+        GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT | GatewayIntents::GUILDS;
 
     let client = Client::builder(&token, intents)
-        .event_handler(Bot{
+        .event_handler(Bot {
             channel_to_check: in_game_channel.parse::<u64>().unwrap(),
             channel_to_send: channel_to_send_message_to.parse::<u64>().unwrap(),
             drop_price_threshold: drop_price_threshold.parse::<u64>().unwrap(),
