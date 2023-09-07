@@ -4,9 +4,11 @@ pub mod osrs_broadcast_extractor {
     use serde::{Deserialize, Serialize};
     use tracing::info;
 
+    #[derive(Deserialize)]
     pub struct ClanMessage {
         pub author: String,
         pub message: String,
+        pub clan_name: String,
     }
 
     pub struct BroadcastMessageToDiscord {
@@ -359,6 +361,7 @@ mod tests {
                 ClanMessage {
                     author: "Insomniacs".to_string(),
                     message: possible_drop_broadcast.message.clone(),
+                    clan_name: "Insomniacs".to_string(),
                 },
                 get_item_mapping,
             )

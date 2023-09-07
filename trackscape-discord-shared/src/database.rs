@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::string::ToString;
 use tracing::info;
 use xxhash_rust::xxh3::Xxh3;
+use crate::helpers::hash_string;
 
 pub struct BotMongoDb {
     db: Database,
@@ -31,7 +32,7 @@ impl RegisteredGuild {
     pub const COLLECTION_NAME: &'static str = "guilds";
     fn new(guild_id: u64) -> Self {
         let verification_code = Self::generate_code();
-        let hashed_verification_code = Self::hash_code(verification_code.clone());
+        let hashed_verification_code = hash_string(verification_code.clone());
         Self {
             guild_id,
             clan_name: None,
@@ -59,11 +60,7 @@ impl RegisteredGuild {
         code
     }
 
-    fn hash_code(code: String) -> String {
-        let mut hasher = Xxh3::new();
-        hasher.update(code.as_ref());
-        hasher.digest().to_string()
-    }
+
 }
 
 impl BotMongoDb {
@@ -87,7 +84,7 @@ impl BotMongoDb {
         let collection = self
             .db
             .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
-        let hashed_code = RegisteredGuild::hash_code(code);
+        let hashed_code = hash_string(code);
         let filter = doc! {"hashed_verification_code": hashed_code, "clan_name": clan_name};
         Ok(collection
             .find_one(filter, None)

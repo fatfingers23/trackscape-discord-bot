@@ -6,6 +6,7 @@ use crate::ge_api::ge_api::{get_item_mapping, GeItemMapping};
 use anyhow::anyhow;
 use mongodb::Database;
 use serenity::async_trait;
+use serenity::http::HttpBuilder;
 use serenity::model::application::interaction::Interaction;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
@@ -204,5 +205,6 @@ async fn serenity(
         })
         .await
         .expect("Err creating client");
+    
     Ok(client.into())
 }
