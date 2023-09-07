@@ -1,4 +1,4 @@
-/target
+target
 .idea
 Secrets.toml
-/shuttle_persist
+shuttle_persist

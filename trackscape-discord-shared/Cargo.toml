@@ -1,0 +1,18 @@
+[package]
+name = "trackscape-discord-shared"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tracing = "0.1.37"
+num-format = "0.4.4"
+rand = "0.8.5"
+regex = "1.9.4"
+reqwest = {version = "0.11.20", features = ["json"]}
+xxhash-rust = {version = "0.8.6", features = ["xxh3", "const_xxh3"]}
+serde = { version = "1.0.188", features = ["derive"] }
+serde_json = "1.0.105"
+mongodb = "2.4.0"
+urlencoding = "2.1.3"

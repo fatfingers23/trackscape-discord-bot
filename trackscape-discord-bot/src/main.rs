@@ -1,9 +1,7 @@
 mod commands;
-mod database;
-mod ge_api;
-mod osrs_broadcast_extractor;
 
-use crate::database::BotMongoDb;
+use trackscape_discord_shared::{database, ge_api};
+
 use crate::ge_api::ge_api::{get_item_mapping, GeItemMapping};
 use anyhow::anyhow;
 use mongodb::Database;
@@ -17,6 +15,7 @@ use serenity::prelude::*;
 use shuttle_persist::PersistInstance;
 use shuttle_secrets::SecretStore;
 use tracing::info;
+use trackscape_discord_shared::database::BotMongoDb;
 
 struct Bot {
     persist: PersistInstance,
