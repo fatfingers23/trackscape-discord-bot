@@ -1,7 +1,7 @@
 use crate::cache::Cache;
-use actix_web::dev::JsonBody::Error;
-use actix_web::error::ErrorForbidden;
-use actix_web::{error, get, post, web, web::ServiceConfig, HttpRequest, Scope};
+
+
+use actix_web::{error, post, web, HttpRequest, Scope};
 use futures_util::TryFutureExt;
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
@@ -9,7 +9,7 @@ use serenity::json;
 use serenity::json::Value;
 use shuttle_persist::PersistInstance;
 use shuttle_runtime::tracing::info;
-use trackscape_discord_shared::database::{BotMongoDb, RegisteredGuild};
+use trackscape_discord_shared::database::{BotMongoDb};
 use trackscape_discord_shared::ge_api::ge_api::GeItemMapping;
 use trackscape_discord_shared::helpers::hash_string;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
