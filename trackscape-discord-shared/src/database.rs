@@ -5,6 +5,7 @@ use rand::Rng;
 use regex::Error;
 use serde::{Deserialize, Serialize};
 use std::string::ToString;
+use async_recursion::async_recursion;
 use tracing::info;
 use xxhash_rust::xxh3::Xxh3;
 use crate::helpers::hash_string;
@@ -21,7 +22,7 @@ pub struct RegisteredGuild {
     pub broadcast_channel: Option<u64>,
     //Channel to send clan chats messages
     pub clan_chat_channel: Option<u64>,
-    pub drop_price_threshold: Option<u64>,
+    pub drop_price_threshold: Option<i64>,
     pub allowed_broadcast_types: Option<Vec<BroadcastType>>,
     pub verification_code: String,
     pub hashed_verification_code: String,
@@ -69,13 +70,44 @@ impl BotMongoDb {
     }
 
     pub async fn save_new_guild(&self, guild_id: u64) {
-        let guild = RegisteredGuild::new(guild_id);
-        let collection = self.db.collection(RegisteredGuild::COLLECTION_NAME);
-        collection
-            .insert_one(guild, None)
-            .await
-            .expect("Failed to insert document for a new guild.");
+        let mut guild = RegisteredGuild::new(guild_id);
+        let check_for_unique_code = self
+            .recursive_check_for_unique_code(guild.verification_code.clone())
+            .await;
+        match check_for_unique_code {
+            Ok(code) => {
+                guild.verification_code = code.clone();
+                guild.hashed_verification_code = hash_string(code.clone());
+                let collection = self.db.collection(RegisteredGuild::COLLECTION_NAME);
+                collection
+                    .insert_one(guild, None)
+                    .await
+                    .expect("Failed to insert document for a new guild.");
+            }
+            Err(_) => {}
+        }
     }
+
+    #[async_recursion]
+    pub async fn recursive_check_for_unique_code(&self, code: String) -> Result<String, Error> {
+        let collection = self
+            .db
+            .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
+        let hashed_code = hash_string(code.clone());
+        let filter = doc! {"hashed_verification_code": hashed_code};
+        let result = collection
+            .find_one(filter, None)
+            .await
+            .expect("Was an error checking for unique code.");
+        match result {
+            Some(_) => {
+                let new_code = RegisteredGuild::generate_code();
+                self.recursive_check_for_unique_code(new_code).await
+            }
+            None => Ok(code),
+        }
+    }
+
     pub async fn get_guild_by_code_and_clan_name(
         &self,
         code: String,
@@ -92,16 +124,40 @@ impl BotMongoDb {
             .expect("Failed to find document for the Discord guild."))
     }
 
-    pub async fn get_by_guild_id(&self, id: u64) -> Result<Option<RegisteredGuild>, Error> {
+    pub async fn get_guild_by_code(
+        &self,
+        code: String,
+    ) -> Result<Option<RegisteredGuild>, Error> {
+        let collection = self
+            .db
+            .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
+        let hashed_code = hash_string(code);
+        let filter = doc! {"hashed_verification_code": hashed_code};
+        Ok(collection
+            .find_one(filter, None)
+            .await
+            .expect("Failed to find document for the Discord guild."))
+    }
+
+    pub async fn get_by_guild_id(&self, id: u64) -> Result<Option<RegisteredGuild>, mongodb::error::Error> {
         let collection = self
             .db
             .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
         info!("Getting guild by id: {}", id);
         let filter = doc! { "guild_id": bson::to_bson(&id).unwrap()};
-        Ok(collection
-            .find_one(filter, None)
-            .await
-            .expect("Failed to find document for the Discord guild."))
+        let result = collection
+            .find_one(filter.clone(), None)
+            .await;
+        info!("Result: {:?}", result);
+        return match result {
+            Ok(possible_guild) => {
+                Ok(possible_guild)
+            }
+            Err(e) => {
+                Err(e)
+            }
+        }
+
     }
 
     pub async fn update_guild(&self, guild: RegisteredGuild) {

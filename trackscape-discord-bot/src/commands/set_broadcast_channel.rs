@@ -12,12 +12,12 @@ pub fn register(
     command: &mut builder::CreateApplicationCommand,
 ) -> &mut builder::CreateApplicationCommand {
     command
-        .name("set_clan_chat_channel")
-        .description("This channel will set the channel in game CC messages are sent to.")
+        .name("set_broadcast_channel")
+        .description("Sets a Channel to receive broadcasts. This will get embed messages for Pets, drops, pks, quests, etc")
         .create_option(|option| {
             option
                 .name("channel")
-                .description("The channel to set as the CC channel.")
+                .description("The discord channel to get broadcast messages in.")
                 .kind(CommandOptionType::Channel)
                 .required(true)
         })
@@ -42,29 +42,28 @@ pub async fn run(
         info!("Channel: {:?}", channel);
         let saved_guild_query = db.get_by_guild_id(guild_id).await;
 
-        info!("Saved Guild: {:?}", saved_guild_query);
         return match saved_guild_query {
             Ok(possible_guild) => match possible_guild {
                 Some(mut saved_guild) => {
-                    saved_guild.clan_chat_channel = Some(channel.id.0);
+                    saved_guild.broadcast_channel = Some(channel.id.0);
                     db.update_guild(saved_guild).await;
-                    let result = channel
+                    let send_message = channel
                         .id
                         .send_message(&ctx.http, |m| {
                             m.content(format!(
-                                "This channel has been set as the clan chat channel."
+                                "This channel has been set as the broadcast chat channel."
                             ))
                         })
                         .await;
 
-                    match result {
+                    match send_message {
                         Ok(_) => {}
                         Err(error) => {
                             info!("Error sending message: {}", error);
                             return Some(error.to_string());
                         }
                     }
-                    Some("The channel has been set succesfully".parse().unwrap())
+                    Some("The channel has been set successfully".parse().unwrap())
                 }
                 None => {
                     Some("Error finding your server as registered. Try kicking and re adding the bot please.".to_string())

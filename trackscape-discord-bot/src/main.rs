@@ -15,7 +15,7 @@ use serenity::model::id::GuildId;
 use serenity::prelude::*;
 use shuttle_persist::PersistInstance;
 use shuttle_secrets::SecretStore;
-use tracing::info;
+use tracing::{error, info};
 use trackscape_discord_shared::database::BotMongoDb;
 
 struct Bot {
@@ -111,16 +111,22 @@ impl EventHandler for Bot {
         let guild_id = GuildId(1148645741653393408);
 
         let commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
-            commands.create_application_command(|command| {
-                commands::set_clan_chat_channel::register(command)
-            })
+            commands
+                .create_application_command(|command| {
+                    commands::set_clan_chat_channel::register(command)
+                })
+                .create_application_command(|command| {
+                    commands::set_broadcast_channel::register(command)
+                })
         })
         .await;
 
-        // println!(
-        //     "I now have the following guild slash commands: {:#?}",
-        //     commands
-        // );
+        match commands {
+            Ok(_) => {}
+            Err(e) => {
+                error!("Error creating guild commands: {}", e)
+            }
+        }
 
         //Use this for global commands
         // let guild_command = Command::create_global_application_command(&ctx.http, |command| {
@@ -138,6 +144,15 @@ impl EventHandler for Bot {
             let content = match command.data.name.as_str() {
                 "set_clan_chat_channel" => {
                     commands::set_clan_chat_channel::run(
+                        &command.data.options,
+                        &ctx,
+                        &self.mongo_db,
+                        command.guild_id.unwrap().0,
+                    )
+                    .await
+                }
+                "set_broadcast_channel" => {
+                    commands::set_broadcast_channel::run(
                         &command.data.options,
                         &ctx,
                         &self.mongo_db,
@@ -205,6 +220,6 @@ async fn serenity(
         })
         .await
         .expect("Err creating client");
-    
+
     Ok(client.into())
 }
