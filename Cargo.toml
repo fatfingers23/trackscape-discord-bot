@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "trackscape-discord-api",
+    "trackscape-discord-bot",
+    "trackscape-discord-shared",
+]
+
+[workspace.package]
+edition = "2021"

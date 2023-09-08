@@ -1,5 +1,8 @@
 use crate::cache::Cache;
-use actix_web::{error, get, post, web, web::ServiceConfig, Scope};
+use actix_web::dev::JsonBody::Error;
+use actix_web::error::ErrorForbidden;
+use actix_web::{error, get, post, web, web::ServiceConfig, HttpRequest, Scope};
+use futures_util::TryFutureExt;
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
 use serenity::json;
@@ -13,16 +16,27 @@ use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extracto
     extract_message, ClanMessage,
 };
 
+#[derive(Debug)]
+struct MyError {
+    message: &'static str,
+}
+
 #[post("/new-message")]
 async fn hello_world(
+    req: HttpRequest,
     discord_http_client: web::Data<Http>,
     cache: web::Data<Cache>,
     new_chat: web::Json<ClanMessage>,
     mongodb: web::Data<BotMongoDb>,
     persist: web::Data<PersistInstance>,
 ) -> actix_web::Result<String> {
-    //TODO add middle ware that checks the header for the confirmation code
-    let code = "843-062-581";
+    let possible_verification_code = req.headers().get("verification-code");
+    if let None = possible_verification_code {
+        let result = Err(MyError {
+            message: "No verification code was set",
+        });
+        return result.map_err(|err| error::ErrorBadRequest(err.message));
+    }
 
     //Checks to make sure the message has not already been process since multiple people could be submitting them
     let message_content_hash = hash_string(new_chat.message.clone());
@@ -34,9 +48,11 @@ async fn hello_world(
                 .await;
         }
     }
-
+    let verification_code = possible_verification_code.unwrap().to_str().unwrap();
     //checks to make sure the registered guild exists for the RuneScape clan
-    let registered_guild_query = mongodb.get_guild_by_code(code.to_string()).await;
+    let registered_guild_query = mongodb
+        .get_guild_by_code(verification_code.to_string())
+        .await;
 
     let registered_guild_successful_query = if let Ok(registered_guild) = registered_guild_query {
         registered_guild
@@ -47,7 +63,10 @@ async fn hello_world(
     let registered_guild = if let Some(registered_guild) = registered_guild_successful_query {
         registered_guild
     } else {
-        return Ok("No guild found".to_string());
+        let result = Err(MyError {
+            message: "The verification code was not found",
+        });
+        return result.map_err(|err| error::ErrorBadRequest(err.message));
     };
 
     match registered_guild.clan_chat_channel {
