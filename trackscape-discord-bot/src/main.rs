@@ -26,28 +26,26 @@ struct Bot {
 #[async_trait]
 impl EventHandler for Bot {
     async fn guild_create(&self, ctx: Context, guild: Guild, is_new: bool) {
-        if let Some(guild_system_channel) = guild.system_channel_id {
-            guild_system_channel
-                .send_message(&ctx.http, |m| {
-                    m.embed(|e| {
-                        e.title("Welcome to TrackScape!")
-                            .description("Thanks for adding TrackScape to your server! For this to work, make sure to install the TrackScape Connector plugin in RuneLite. This is how TrackScape gets the messages to send in discord.")
-                            .image("https://cdn.discordapp.com/attachments/961769668866088970/980601140603412510/220406_Trackscape_Logo-13.png")
-                            .field("Features", "* Sends in game clan chat to a discord channel of your choice
-* Sends embedded broadcasts of your clan's achievements. Including Pet Drops, High Value ", false)
-                            .field("Setup", "`/set_broadcast_channel` and `/'set_clan_chat_channel` to make sure you have your channels set up to receive messages from the bot!", false)
-                            .color(0x0000FF);
-                        e
-                    })
-                })
-                .await
-                .expect("Not able to send welcome message to system channel.");
-        }
-
         if is_new {
             //This fires if it's a new guild it's been added to
             self.mongo_db.save_new_guild(guild.id.0).await;
-
+            if let Some(guild_system_channel) = guild.system_channel_id {
+                guild_system_channel
+                    .send_message(&ctx.http, |m| {
+                        m.embed(|e| {
+                            e.title("Welcome to TrackScape!")
+                                .description("Thanks for adding TrackScape to your server! For this to work, make sure to install the TrackScape Connector plugin in RuneLite. This is how TrackScape gets the messages to send in discord.")
+                                .image("https://cdn.discordapp.com/attachments/961769668866088970/980601140603412510/220406_Trackscape_Logo-13.png")
+                                .field("Features", "* Sends in game clan chat to a discord channel of your choice
+* Sends embedded broadcasts of your clan's achievements. Including Pet Drops, High Value ", false)
+                                .field("Setup", "`/set_broadcast_channel` and `/set_clan_chat_channel` to make sure you have your channels set up to receive messages from the bot! When you set up either a Clan Chat or Broadcast channel a Code will be given. You will enter this in the settings of the RuneLite plugin.", false)
+                                .color(0x0000FF);
+                            e
+                        })
+                    })
+                    .await
+                    .expect("Not able to send welcome message to system channel.");
+            }
             info!(
                 "Joined a new Discord Server Id: {} and name {}",
                 guild.id.0, guild.name
@@ -66,63 +64,7 @@ impl EventHandler for Bot {
     // async fn guild_delete(&self, _ctx: Context, _incomplete: serenity::model::guild::UnavailableGuild) {
     //     info!("We've been removed from a guild {}", _incomplete.id);
     // }
-    async fn message(&self, ctx: Context, msg: Message) {
-        // self.mongo_db.get_or_set_server();
-        //in game chat channel
-        // if msg.channel_id == self.channel_to_check {
-        //     info!("New message!\n");
-        //     if msg.embeds.iter().count() > 0 {
-        //         let author = msg.embeds[0].author.as_ref().unwrap().name.clone();
-        //         let message = msg.embeds[0].description.as_ref().unwrap().clone();
-        //         let clan_message = ClanMessage {
-        //             author,
-        //             message: message.clone(),
-        //         };
-        //         if clan_message.author == "Insomniacs" {
-        //             let item_mapping_from_state = self
-        //                 .persist
-        //                 .load::<GeItemMapping>("mapping")
-        //                 .map_err(|e| info!("Saving Item Mapping Error: {e}"));
-        //             let possible_response =
-        //                 extract_message(clan_message, item_mapping_from_state).await;
-        //             match possible_response {
-        //                 None => {}
-        //                 Some(response) => {
-        //                     //Achievement Channel Id
-        //                     info!("{}\n", message.clone());
-        //
-        //                     if response.item_value.is_some() {
-        //                         if response.item_value.unwrap() < self.drop_price_threshold as i64 {
-        //                             info!("The Item value is less than threshold, not sending message\n");
-        //                             return;
-        //                         }
-        //                     }
-        //
-        //                     let channel = ctx.http.get_channel(self.channel_to_send).await.unwrap();
-        //                     channel
-        //                         .id()
-        //                         .send_message(&ctx.http, |m| {
-        //                             m.embed(|e| {
-        //                                 e.title(response.title)
-        //                                     .description(response.message)
-        //                                     .color(0x0000FF);
-        //                                 match response.icon_url {
-        //                                     None => {}
-        //                                     Some(icon_url) => {
-        //                                         e.image(icon_url);
-        //                                     }
-        //                                 }
-        //                                 e
-        //                             })
-        //                         })
-        //                         .await
-        //                         .unwrap();
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-    }
+    async fn message(&self, ctx: Context, msg: Message) {}
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
@@ -136,6 +78,9 @@ impl EventHandler for Bot {
                 })
                 .create_application_command(|command| {
                     commands::set_broadcast_channel::register(command)
+                })
+                .create_application_command(|command| {
+                    commands::get_verifcation_code::register(command)
                 })
         })
         .await;
@@ -179,6 +124,15 @@ impl EventHandler for Bot {
                     )
                     .await
                 }
+                "get_verification_code" => {
+                    commands::get_verifcation_code::run(
+                        &command.data.options,
+                        &ctx,
+                        &self.mongo_db,
+                        command.guild_id.unwrap().0,
+                    )
+                    .await
+                }
                 _ => {
                     info!("not implemented :(");
                     None
@@ -190,9 +144,9 @@ impl EventHandler for Bot {
                     None => response.interaction_response_data(|message| {
                         message.content("Command Completed Successfully.")
                     }),
-                    Some(reply) => {
-                        response.interaction_response_data(|message| message.content(reply))
-                    }
+                    Some(reply) => response.interaction_response_data(|message| {
+                        message.content(reply).ephemeral(true)
+                    }),
                 })
                 .await
             {

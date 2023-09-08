@@ -46,6 +46,7 @@ pub async fn run(
         return match saved_guild_query {
             Ok(possible_guild) => match possible_guild {
                 Some(mut saved_guild) => {
+                    let saved_guild_code = saved_guild.verification_code.clone();
                     saved_guild.clan_chat_channel = Some(channel.id.0);
                     db.update_guild(saved_guild).await;
                     let result = channel
@@ -65,7 +66,7 @@ pub async fn run(
                         }
                     }
                     //TODO: Send message to channel with verfication code and a picture of where to add it
-                    Some("The channel has been set successfully".parse().unwrap())
+                    Some(format!("The channel has been set successfully. Please use the code: `{}` in the TrackScape Connection RuneLite Plugin to begin receiving messages in the selected channel.", saved_guild_code))
                 }
                 None => {
                     Some("Error finding your server as registered. Try kicking and re adding the bot please.".to_string())
