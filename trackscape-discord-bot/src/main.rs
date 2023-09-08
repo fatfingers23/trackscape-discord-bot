@@ -1,11 +1,9 @@
 mod commands;
 
-use trackscape_discord_shared::{database, ge_api};
-
-use crate::ge_api::ge_api::{get_item_mapping, GeItemMapping};
 use anyhow::anyhow;
 use mongodb::Database;
 use serenity::async_trait;
+use trackscape_discord_shared::database;
 
 use serenity::model::application::interaction::Interaction;
 use serenity::model::channel::Message;
@@ -13,13 +11,11 @@ use serenity::model::gateway::Ready;
 use serenity::model::guild::Guild;
 use serenity::model::id::GuildId;
 use serenity::prelude::*;
-use shuttle_persist::PersistInstance;
 use shuttle_secrets::SecretStore;
 use tracing::{error, info};
 use trackscape_discord_shared::database::BotMongoDb;
 
 struct Bot {
-    persist: PersistInstance,
     mongo_db: BotMongoDb,
 }
 
@@ -159,7 +155,6 @@ impl EventHandler for Bot {
 #[shuttle_runtime::main]
 async fn serenity(
     #[shuttle_secrets::Secrets] secret_store: SecretStore,
-    #[shuttle_persist::Persist] persist: PersistInstance,
     #[shuttle_shared_db::MongoDb] db: Database,
 ) -> shuttle_serenity::ShuttleSerenity {
     // Get the discord token set in `Secrets.toml`as
@@ -170,25 +165,12 @@ async fn serenity(
         return Err(anyhow!("'DISCORD_TOKEN' was not found").into());
     };
 
-    let ge_mapping_request = get_item_mapping().await;
-    match ge_mapping_request {
-        Ok(ge_mapping) => {
-            let _state = persist
-                .save::<GeItemMapping>("mapping", ge_mapping.clone())
-                .map_err(|e| info!("Saving Item Mapping Error: {e}"));
-        }
-        Err(error) => {
-            info!("Error getting ge mapping: {}", error)
-        }
-    }
-
     // Set gateway intents, which decides what events the bot will be notified about
     let intents =
         GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT | GatewayIntents::GUILDS;
 
     let client = Client::builder(&token, intents)
         .event_handler(Bot {
-            persist,
             mongo_db: BotMongoDb::new(db),
         })
         .await

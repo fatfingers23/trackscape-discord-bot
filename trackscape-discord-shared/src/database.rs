@@ -8,7 +8,6 @@ use regex::Error;
 use serde::{Deserialize, Serialize};
 use std::string::ToString;
 use tracing::info;
-use xxhash_rust::xxh3::Xxh3;
 
 pub struct BotMongoDb {
     db: Database,
