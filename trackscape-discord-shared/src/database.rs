@@ -1,20 +1,20 @@
+use crate::helpers::hash_string;
 use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::BroadcastType;
+use async_recursion::async_recursion;
 use mongodb::bson::doc;
 use mongodb::{bson, Database};
 use rand::Rng;
 use regex::Error;
 use serde::{Deserialize, Serialize};
 use std::string::ToString;
-use async_recursion::async_recursion;
 use tracing::info;
 use xxhash_rust::xxh3::Xxh3;
-use crate::helpers::hash_string;
 
 pub struct BotMongoDb {
     db: Database,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RegisteredGuild {
     pub guild_id: u64,
     //Channel to send broadcast messages
@@ -60,8 +60,6 @@ impl RegisteredGuild {
         }
         code
     }
-
-
 }
 
 impl BotMongoDb {
@@ -124,10 +122,7 @@ impl BotMongoDb {
             .expect("Failed to find document for the Discord guild."))
     }
 
-    pub async fn get_guild_by_code(
-        &self,
-        code: String,
-    ) -> Result<Option<RegisteredGuild>, Error> {
+    pub async fn get_guild_by_code(&self, code: String) -> Result<Option<RegisteredGuild>, Error> {
         let collection = self
             .db
             .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
@@ -139,25 +134,21 @@ impl BotMongoDb {
             .expect("Failed to find document for the Discord guild."))
     }
 
-    pub async fn get_by_guild_id(&self, id: u64) -> Result<Option<RegisteredGuild>, mongodb::error::Error> {
+    pub async fn get_by_guild_id(
+        &self,
+        id: u64,
+    ) -> Result<Option<RegisteredGuild>, mongodb::error::Error> {
         let collection = self
             .db
             .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
         info!("Getting guild by id: {}", id);
         let filter = doc! { "guild_id": bson::to_bson(&id).unwrap()};
-        let result = collection
-            .find_one(filter.clone(), None)
-            .await;
+        let result = collection.find_one(filter.clone(), None).await;
         info!("Result: {:?}", result);
         return match result {
-            Ok(possible_guild) => {
-                Ok(possible_guild)
-            }
-            Err(e) => {
-                Err(e)
-            }
-        }
-
+            Ok(possible_guild) => Ok(possible_guild),
+            Err(e) => Err(e),
+        };
     }
 
     pub async fn update_guild(&self, guild: RegisteredGuild) {

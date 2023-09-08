@@ -29,7 +29,7 @@ pub mod osrs_broadcast_extractor {
         pub item_icon: Option<String>,
     }
 
-    #[derive(PartialEq, Deserialize, Serialize, Debug)]
+    #[derive(PartialEq, Deserialize, Serialize, Debug, Clone)]
     pub enum BroadcastType {
         ItemDrop,
         PetDrop,

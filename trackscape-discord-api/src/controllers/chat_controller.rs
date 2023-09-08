@@ -60,7 +60,7 @@ async fn hello_world(
         registered_guild_query.map_err(|err| error::ErrorInternalServerError(err))?
     };
 
-    let registered_guild = if let Some(registered_guild) = registered_guild_successful_query {
+    let mut registered_guild = if let Some(registered_guild) = registered_guild_successful_query {
         registered_guild
     } else {
         let result = Err(MyError {
@@ -68,6 +68,11 @@ async fn hello_world(
         });
         return result.map_err(|err| error::ErrorBadRequest(err.message));
     };
+
+    if let None = registered_guild.clan_name {
+        registered_guild.clan_name = Some(new_chat.clan_name.clone());
+        mongodb.update_guild(registered_guild.clone()).await
+    }
 
     match registered_guild.clan_chat_channel {
         Some(channel_id) => {
@@ -96,8 +101,6 @@ async fn hello_world(
 
     if let Some(broadcast_channel_id) = registered_guild.broadcast_channel {
         let possible_broadcast = extract_message(new_chat.clone(), item_mapping_from_state).await;
-
-        //TODO this should prob run after the message is sent to discord channel
         match possible_broadcast {
             None => {}
             Some(broadcast) => {
