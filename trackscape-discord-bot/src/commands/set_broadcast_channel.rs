@@ -63,6 +63,7 @@ pub async fn run(
                             return Some(error.to_string());
                         }
                     }
+                    //TODO: Send message to channel with verfication code and a picture of where to add it
                     Some("The channel has been set successfully".parse().unwrap())
                 }
                 None => {

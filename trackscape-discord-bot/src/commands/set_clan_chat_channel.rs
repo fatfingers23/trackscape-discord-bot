@@ -1,12 +1,10 @@
 use crate::database::BotMongoDb;
-use mongodb::error::Error;
 use serenity::builder;
 use serenity::client::Context;
 use serenity::model::channel::ChannelType;
 use serenity::model::prelude::application_command::{CommandDataOption, CommandDataOptionValue};
 use serenity::model::prelude::command::CommandOptionType;
 use tracing::info;
-use trackscape_discord_shared::database::RegisteredGuild;
 
 pub fn register(
     command: &mut builder::CreateApplicationCommand,
@@ -64,7 +62,8 @@ pub async fn run(
                             return Some(error.to_string());
                         }
                     }
-                    Some("The channel has been set succesfully".parse().unwrap())
+                    //TODO: Send message to channel with verfication code and a picture of where to add it
+                    Some("The channel has been set successfully".parse().unwrap())
                 }
                 None => {
                     Some("Error finding your server as registered. Try kicking and re adding the bot please.".to_string())
