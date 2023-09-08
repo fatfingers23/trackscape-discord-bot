@@ -3,10 +3,9 @@ use crate::database::BotMongoDb;
 use serenity::builder;
 use serenity::client::Context;
 
-use serenity::model::prelude::application_command::{CommandDataOption};
+use serenity::model::prelude::application_command::CommandDataOption;
 
 use serenity::model::prelude::Permissions;
-
 
 pub fn register(
     command: &mut builder::CreateApplicationCommand,
