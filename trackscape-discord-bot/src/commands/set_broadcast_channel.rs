@@ -1,5 +1,5 @@
 use crate::database::BotMongoDb;
-use mongodb::error::Error;
+
 use serenity::builder;
 use serenity::client::Context;
 use serenity::model::channel::ChannelType;

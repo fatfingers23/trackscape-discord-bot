@@ -6,7 +6,7 @@ use crate::ge_api::ge_api::{get_item_mapping, GeItemMapping};
 use anyhow::anyhow;
 use mongodb::Database;
 use serenity::async_trait;
-use serenity::http::HttpBuilder;
+
 use serenity::model::application::interaction::Interaction;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
@@ -64,7 +64,7 @@ impl EventHandler for Bot {
     // async fn guild_delete(&self, _ctx: Context, _incomplete: serenity::model::guild::UnavailableGuild) {
     //     info!("We've been removed from a guild {}", _incomplete.id);
     // }
-    async fn message(&self, ctx: Context, msg: Message) {}
+    async fn message(&self, _ctx: Context, _msg: Message) {}
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);

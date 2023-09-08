@@ -1,12 +1,12 @@
 use crate::database::BotMongoDb;
-use mongodb::error::Error;
+
 use serenity::builder;
 use serenity::client::Context;
-use serenity::model::channel::ChannelType;
-use serenity::model::prelude::application_command::{CommandDataOption, CommandDataOptionValue};
-use serenity::model::prelude::command::CommandOptionType;
+
+use serenity::model::prelude::application_command::{CommandDataOption};
+
 use serenity::model::prelude::Permissions;
-use tracing::info;
+
 
 pub fn register(
     command: &mut builder::CreateApplicationCommand,
@@ -18,7 +18,7 @@ pub fn register(
 }
 
 pub async fn run(
-    options: &[CommandDataOption],
+    _options: &[CommandDataOption],
     _ctx: &Context,
     db: &BotMongoDb,
     guild_id: u64,
@@ -27,7 +27,7 @@ pub async fn run(
 
     return match saved_guild_query {
         Ok(possible_guild) => match possible_guild {
-            Some(mut saved_guild) => {
+            Some(saved_guild) => {
                 let saved_guild_code = saved_guild.verification_code.clone();
                 Some(format!("The clan's verification code is: `{}`", saved_guild_code))
             }
