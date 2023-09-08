@@ -5,8 +5,8 @@ use serenity::client::Context;
 use serenity::model::channel::ChannelType;
 use serenity::model::prelude::application_command::{CommandDataOption, CommandDataOptionValue};
 use serenity::model::prelude::command::CommandOptionType;
+use serenity::model::prelude::Permissions;
 use tracing::info;
-use trackscape_discord_shared::database::RegisteredGuild;
 
 pub fn register(
     command: &mut builder::CreateApplicationCommand,
@@ -14,6 +14,7 @@ pub fn register(
     command
         .name("set_broadcast_channel")
         .description("Sets a Channel to receive broadcasts. This will get embed messages for Pets, drops, pks, quests, etc")
+        .default_member_permissions(Permissions::MANAGE_GUILD)
         .create_option(|option| {
             option
                 .name("channel")

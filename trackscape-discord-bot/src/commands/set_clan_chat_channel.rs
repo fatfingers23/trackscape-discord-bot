@@ -4,6 +4,7 @@ use serenity::client::Context;
 use serenity::model::channel::ChannelType;
 use serenity::model::prelude::application_command::{CommandDataOption, CommandDataOptionValue};
 use serenity::model::prelude::command::CommandOptionType;
+use serenity::model::prelude::Permissions;
 use tracing::info;
 
 pub fn register(
@@ -12,6 +13,7 @@ pub fn register(
     command
         .name("set_clan_chat_channel")
         .description("This channel will set the channel in game CC messages are sent to.")
+        .default_member_permissions(Permissions::MANAGE_GUILD)
         .create_option(|option| {
             option
                 .name("channel")
