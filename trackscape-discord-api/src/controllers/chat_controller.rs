@@ -1,16 +1,14 @@
 use crate::cache::Cache;
-use crate::{handler, ChatServer, ChatServerHandle, ConnId};
+use crate::websocket_server::DiscordToClanChatMessage;
+use crate::{handler, ChatServerHandle, ConnId};
 use actix_web::{error, post, web, Error, HttpRequest, HttpResponse, Scope};
-use chrono::Utc;
-use futures_util::SinkExt;
+use serde::{Deserialize, Serialize};
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
 use serenity::json;
 use serenity::json::Value;
 use shuttle_persist::PersistInstance;
-use shuttle_runtime::tracing::{error, info};
-use std::sync::Arc;
-use tokio::sync::watch;
+use shuttle_runtime::tracing::info;
 use tokio::task::spawn_local;
 use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::GeItemMapping;
@@ -24,8 +22,53 @@ struct MyError {
     message: &'static str,
 }
 
+#[post("/new-discord-message")]
+async fn new_discord_message(
+    req: HttpRequest,
+    chat_server: web::Data<ChatServerHandle>,
+    new_chat: web::Json<DiscordToClanChatMessage>,
+    mongodb: web::Data<BotMongoDb>,
+) -> actix_web::Result<String> {
+    let possible_verification_code = req.headers().get("verification-code");
+
+    if let None = possible_verification_code {
+        let result = Err(MyError {
+            message: "No verification code was set",
+        });
+        return result.map_err(|err| error::ErrorBadRequest(err.message));
+    }
+
+    let verification_code = possible_verification_code.unwrap().to_str().unwrap();
+
+    let registered_guild_query = mongodb
+        .get_guild_by_code(verification_code.to_string())
+        .await;
+
+    let registered_guild_successful_query = if let Ok(registered_guild) = registered_guild_query {
+        registered_guild
+    } else {
+        registered_guild_query.map_err(|err| error::ErrorInternalServerError(err))?
+    };
+
+    if let None = registered_guild_successful_query {
+        let result = Err(MyError {
+            message: "The verification code was not found",
+        });
+        return result.map_err(|err| error::ErrorBadRequest(err.message));
+    }
+
+    chat_server
+        .send_discord_message_to_clan_chat(
+            new_chat.sender.clone(),
+            new_chat.message.clone(),
+            verification_code.to_string(),
+        )
+        .await;
+    Ok("".to_string())
+}
+
 #[post("/new-message")]
-async fn hello_world(
+async fn new_clan_chats(
     req: HttpRequest,
     discord_http_client: web::Data<Http>,
     cache: web::Data<Cache>,
@@ -63,15 +106,8 @@ async fn hello_world(
         });
         return result.map_err(|err| error::ErrorBadRequest(err.message));
     };
-    //This is the hashed verification code btw
-    let connId = 13025004057888928349 as ConnId;
-    for chat in new_chat.clone() {
-        // let session = chat_server.sessions.get(&connId);
-        // _ = session.unwrap().send(chat.message.clone());
-        chat_server
-            .send_message(connId, chat.message.clone(), verification_code.to_string())
-            .await;
 
+    for chat in new_chat.clone() {
         //Checks to make sure the message has not already been process since multiple people could be submitting them
         let message_content_hash = hash_string(chat.message.clone());
         match cache.get_value(message_content_hash.clone()).await {
@@ -168,6 +204,11 @@ async fn chat_ws(
     let (res, session, msg_stream) = actix_ws::handle(&req, stream).expect("Failed to start WS");
     let possible_verification_code = req.headers().get("verification-code");
 
+    //TODO
+    // 1. Strip out the commands to structs that make sense
+    // 2. Change connids to uuids
+    // 3. Verify the verification code is a real one and matches clan name on chat_ws command
+    // 4. Make a method to send a message without conn from above method. Pretty sure it just needs one there cause it uses it to skip
     if let None = possible_verification_code {
         let result = MyError {
             message: "No verification code was set",
@@ -191,6 +232,7 @@ async fn chat_ws(
 
 pub fn chat_controller() -> Scope {
     web::scope("/chat")
-        .service(hello_world)
+        .service(new_clan_chats)
+        .service(new_discord_message)
         .service(web::resource("/ws").route(web::get().to(chat_ws)))
 }

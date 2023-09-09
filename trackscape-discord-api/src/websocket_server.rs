@@ -10,10 +10,17 @@ use std::{
 };
 
 use rand::{thread_rng, Rng as _};
+use serde::{Deserialize, Serialize};
 use shuttle_runtime::tracing::{info, log};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{ConnId, Msg, RoomId};
+
+#[derive(Serialize, Deserialize)]
+pub struct DiscordToClanChatMessage {
+    pub sender: String,
+    pub message: String,
+}
 
 /// A command received by the [`ChatServer`].
 #[derive(Debug)]
@@ -41,6 +48,12 @@ enum Command {
     Message {
         msg: Msg,
         conn: ConnId,
+        res_tx: oneshot::Sender<()>,
+        verification_code: String,
+    },
+    ClanChat {
+        sender: String,
+        msg: Msg,
         res_tx: oneshot::Sender<()>,
         verification_code: String,
     },
@@ -101,6 +114,19 @@ impl ChatServer {
                     let _ = tx.send(msg.clone());
                 }
                 // }
+            }
+        }
+    }
+
+    /// Send message to users connected to a clan via the `verification_code`.
+    async fn send_clan_chat(&self, verification_code: &str, json_msg: impl Into<String>) {
+        if let Some(sessions) = self.rooms.get(verification_code) {
+            let msg = json_msg.into();
+            for conn_id in sessions {
+                if let Some(tx) = self.sessions.get(conn_id) {
+                    // errors if client disconnected abruptly and hasn't been timed-out yet
+                    let _ = tx.send(msg.clone()).expect("Failed to send message");
+                }
             }
         }
     }
@@ -234,6 +260,27 @@ impl ChatServer {
                     self.send_message(conn, msg).await;
                     let _ = res_tx.send(());
                 }
+                Command::ClanChat {
+                    sender,
+                    msg,
+                    res_tx,
+                    verification_code,
+                } => {
+                    info!("attempting to Sending message to: {}", verification_code);
+                    let discord_to_clan_chat_message = DiscordToClanChatMessage {
+                        sender: sender.clone(),
+                        message: msg.clone(),
+                    };
+                    self.send_clan_chat(
+                        &verification_code,
+                        serde_json::to_string(&discord_to_clan_chat_message).unwrap(),
+                    )
+                    .await;
+                    // self.send_system_message(&verification_code, 0, msg.clone())
+                    //     .await;
+                    // self.send_message(0, msg).await;
+                    let _ = res_tx.send(());
+                }
             }
         }
 
@@ -297,6 +344,23 @@ impl ChatServerHandle {
 
         // unwrap: chat server does not drop our response channel
         res_rx.await.unwrap();
+    }
+
+    pub async fn send_discord_message_to_clan_chat(
+        &self,
+        sender: String,
+        msg: Msg,
+        verification_code: String,
+    ) {
+        let (res_tx, res_rx) = oneshot::channel();
+        self.cmd_tx
+            .send(Command::ClanChat {
+                sender,
+                msg,
+                res_tx,
+                verification_code,
+            })
+            .unwrap();
     }
 
     /// Broadcast message to current room.

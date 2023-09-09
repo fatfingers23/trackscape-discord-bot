@@ -1,7 +1,7 @@
 mod cache;
 mod controllers;
 mod handler;
-mod websocket;
+mod websocket_server;
 
 use crate::cache::Cache;
 use crate::controllers::chat_controller::chat_controller;
@@ -26,7 +26,7 @@ use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::{get_item_mapping, GeItemMapping};
 
 const PAUSE_SECS: u64 = 15;
-pub use self::websocket::{ChatServer, ChatServerHandle};
+pub use self::websocket_server::{ChatServer, ChatServerHandle};
 /// Connection ID.
 pub type ConnId = usize;
 
