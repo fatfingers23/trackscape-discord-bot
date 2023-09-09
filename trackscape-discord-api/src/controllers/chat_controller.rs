@@ -11,7 +11,7 @@ use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::GeItemMapping;
 use trackscape_discord_shared::helpers::hash_string;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-    extract_message, ClanMessage,
+    extract_message, get_wiki_clan_rank_image_url, ClanMessage,
 };
 
 #[derive(Debug)]
@@ -24,11 +24,12 @@ async fn hello_world(
     req: HttpRequest,
     discord_http_client: web::Data<Http>,
     cache: web::Data<Cache>,
-    new_chat: web::Json<ClanMessage>,
+    new_chat: web::Json<Vec<ClanMessage>>,
     mongodb: web::Data<BotMongoDb>,
     persist: web::Data<PersistInstance>,
 ) -> actix_web::Result<String> {
     let possible_verification_code = req.headers().get("verification-code");
+
     if let None = possible_verification_code {
         let result = Err(MyError {
             message: "No verification code was set",
@@ -36,16 +37,6 @@ async fn hello_world(
         return result.map_err(|err| error::ErrorBadRequest(err.message));
     }
 
-    //Checks to make sure the message has not already been process since multiple people could be submitting them
-    let message_content_hash = hash_string(new_chat.message.clone());
-    match cache.get_value(message_content_hash.clone()).await {
-        Some(_) => return Ok("Message already processed".to_string()),
-        None => {
-            cache
-                .set_value(message_content_hash.clone(), "true".to_string())
-                .await;
-        }
-    }
     let verification_code = possible_verification_code.unwrap().to_str().unwrap();
     //checks to make sure the registered guild exists for the RuneScape clan
     let registered_guild_query = mongodb
@@ -67,72 +58,91 @@ async fn hello_world(
         return result.map_err(|err| error::ErrorBadRequest(err.message));
     };
 
-    if let None = registered_guild.clan_name {
-        registered_guild.clan_name = Some(new_chat.clan_name.clone());
-        mongodb.update_guild(registered_guild.clone()).await
-    }
-
-    match registered_guild.clan_chat_channel {
-        Some(channel_id) => {
-            let mut clan_chat_to_discord = CreateMessage::default();
-            clan_chat_to_discord.embed(|e| {
-                e.title("")
-                    .author(|a| {
-                        a.name(new_chat.author.clone())
-                            .icon_url("https://oldschool.runescape.wiki/images/Clan_icon_-_Dogsbody.png?b0561")
-                    })
-                    .description(new_chat.message.clone())
-                    .color(0x0000FF)
-            });
-            let map = json::hashmap_to_json_map(clan_chat_to_discord.0);
-            discord_http_client
-                .send_message(channel_id, &Value::from(map))
-                .await
-                .unwrap();
+    for chat in new_chat.clone() {
+        //Checks to make sure the message has not already been process since multiple people could be submitting them
+        let message_content_hash = hash_string(chat.message.clone());
+        match cache.get_value(message_content_hash.clone()).await {
+            Some(_) => continue,
+            None => {
+                cache
+                    .set_value(message_content_hash.clone(), "true".to_string())
+                    .await;
+            }
         }
-        _ => {}
-    }
 
-    let item_mapping_from_state = persist
-        .load::<GeItemMapping>("mapping")
-        .map_err(|e| info!("Saving Item Mapping Error: {e}"));
+        if let None = registered_guild.clan_name {
+            registered_guild.clan_name = Some(chat.clan_name.clone());
+            mongodb.update_guild(registered_guild.clone()).await
+        }
 
-    if let Some(broadcast_channel_id) = registered_guild.broadcast_channel {
-        let possible_broadcast = extract_message(new_chat.clone(), item_mapping_from_state).await;
-        match possible_broadcast {
-            None => {}
-            Some(broadcast) => {
-                info!("{}\n", new_chat.message.clone());
-
-                if broadcast.item_value.is_some() {
-                    if let Some(drop_threshold) = registered_guild.drop_price_threshold {
-                        if broadcast.item_value.unwrap() < drop_threshold {
-                            //Item is above treshhold
-                        }
+        match registered_guild.clan_chat_channel {
+            Some(channel_id) => {
+                let mut clan_chat_to_discord = CreateMessage::default();
+                let author_image = match chat.clan_name.clone() == chat.sender.clone() {
+                    true => {
+                        "https://oldschool.runescape.wiki/images/Your_Clan_icon.png".to_string()
                     }
-                }
-                let mut create_message = CreateMessage::default();
-                create_message.embed(|e| {
-                    e.title(broadcast.title)
-                        .description(broadcast.message)
-                        .color(0x0000FF);
-                    match broadcast.icon_url {
-                        None => {}
-                        Some(icon_url) => {
-                            e.image(icon_url);
-                        }
-                    }
-                    e
+                    false => get_wiki_clan_rank_image_url(chat.rank.clone()),
+                };
+
+                clan_chat_to_discord.embed(|e| {
+                    e.title("")
+                        .author(|a| a.name(chat.sender.clone()).icon_url(author_image))
+                        .description(chat.message.clone())
+                        .color(0x0000FF)
                 });
-
-                let map = json::hashmap_to_json_map(create_message.0);
+                let map = json::hashmap_to_json_map(clan_chat_to_discord.0);
                 discord_http_client
-                    .send_message(broadcast_channel_id, &Value::from(map))
+                    .send_message(channel_id, &Value::from(map))
                     .await
                     .unwrap();
             }
-        };
+            _ => {}
+        }
+
+        if let Some(broadcast_channel_id) = registered_guild.broadcast_channel {
+            let item_mapping_from_state = persist
+                .load::<GeItemMapping>("mapping")
+                .map_err(|e| info!("Saving Item Mapping Error: {e}"));
+
+            let possible_broadcast = extract_message(chat.clone(), item_mapping_from_state).await;
+            match possible_broadcast {
+                None => {}
+                Some(broadcast) => {
+                    info!("{}\n", chat.message.clone());
+
+                    if broadcast.item_value.is_some() {
+                        if let Some(drop_threshold) = registered_guild.drop_price_threshold {
+                            if broadcast.item_value.unwrap() < drop_threshold {
+                                //Item is above treshhold
+                                //TODO i dont think this is working
+                            }
+                        }
+                    }
+                    let mut create_message = CreateMessage::default();
+                    create_message.embed(|e| {
+                        e.title(broadcast.title)
+                            .description(broadcast.message)
+                            .color(0x0000FF);
+                        match broadcast.icon_url {
+                            None => {}
+                            Some(icon_url) => {
+                                e.image(icon_url);
+                            }
+                        }
+                        e
+                    });
+
+                    let map = json::hashmap_to_json_map(create_message.0);
+                    discord_http_client
+                        .send_message(broadcast_channel_id, &Value::from(map))
+                        .await
+                        .unwrap();
+                }
+            };
+        }
     }
+
     return Ok("Message processed".to_string());
 }
 

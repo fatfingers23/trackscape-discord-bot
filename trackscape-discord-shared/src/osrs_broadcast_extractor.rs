@@ -6,7 +6,7 @@ pub mod osrs_broadcast_extractor {
 
     #[derive(Deserialize, Clone)]
     pub struct ClanMessage {
-        pub author: String,
+        pub sender: String,
         pub message: String,
         pub clan_name: String,
         pub rank: String,
@@ -237,12 +237,25 @@ pub mod osrs_broadcast_extractor {
         return BroadcastType::Unknown;
     }
 
-    fn get_wiki_image_url(item_name: String) -> String {
+    fn format_wiki_image_name(item_name: String) -> String {
         let replace_spaces = item_name.replace(" ", "_");
         let encoded_item_name = urlencoding::encode(replace_spaces.as_str());
+        encoded_item_name.parse().unwrap()
+    }
+
+    fn get_wiki_image_url(item_name: String) -> String {
+        let image_name = format_wiki_image_name(item_name);
         format!(
             "https://oldschool.runescape.wiki/images/{}_detail.png",
-            encoded_item_name
+            image_name
+        )
+    }
+
+    pub fn get_wiki_clan_rank_image_url(rank: String) -> String {
+        let image_name = format_wiki_image_name(rank);
+        format!(
+            "https://oldschool.runescape.wiki/images/Clan_icon_-_{}.png",
+            image_name
         )
     }
 }
@@ -360,7 +373,7 @@ mod tests {
             let get_item_mapping = Ok(ge_item_mapping);
             let extracted_message = osrs_broadcast_extractor::extract_message(
                 ClanMessage {
-                    author: "Insomniacs".to_string(),
+                    sender: "Insomniacs".to_string(),
                     message: possible_drop_broadcast.message.clone(),
                     clan_name: "Insomniacs".to_string(),
                     rank: "Recruit".to_string(),
