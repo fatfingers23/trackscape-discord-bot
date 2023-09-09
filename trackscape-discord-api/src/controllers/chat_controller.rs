@@ -1,12 +1,17 @@
 use crate::cache::Cache;
-
-use actix_web::{error, post, web, HttpRequest, Scope};
+use crate::{handler, ChatServer, ChatServerHandle, ConnId};
+use actix_web::{error, post, web, Error, HttpRequest, HttpResponse, Scope};
+use chrono::Utc;
+use futures_util::SinkExt;
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
 use serenity::json;
 use serenity::json::Value;
 use shuttle_persist::PersistInstance;
-use shuttle_runtime::tracing::info;
+use shuttle_runtime::tracing::{error, info};
+use std::sync::Arc;
+use tokio::sync::watch;
+use tokio::task::spawn_local;
 use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::GeItemMapping;
 use trackscape_discord_shared::helpers::hash_string;
@@ -27,6 +32,7 @@ async fn hello_world(
     new_chat: web::Json<Vec<ClanMessage>>,
     mongodb: web::Data<BotMongoDb>,
     persist: web::Data<PersistInstance>,
+    chat_server: web::Data<ChatServerHandle>,
 ) -> actix_web::Result<String> {
     let possible_verification_code = req.headers().get("verification-code");
 
@@ -57,8 +63,15 @@ async fn hello_world(
         });
         return result.map_err(|err| error::ErrorBadRequest(err.message));
     };
-
+    //This is the hashed verification code btw
+    let connId = 13025004057888928349 as ConnId;
     for chat in new_chat.clone() {
+        // let session = chat_server.sessions.get(&connId);
+        // _ = session.unwrap().send(chat.message.clone());
+        chat_server
+            .send_message(connId, chat.message.clone(), verification_code.to_string())
+            .await;
+
         //Checks to make sure the message has not already been process since multiple people could be submitting them
         let message_content_hash = hash_string(chat.message.clone());
         match cache.get_value(message_content_hash.clone()).await {
@@ -146,6 +159,38 @@ async fn hello_world(
     return Ok("Message processed".to_string());
 }
 
+/// Handshake and start WebSocket handler with heartbeats.
+async fn chat_ws(
+    req: HttpRequest,
+    stream: web::Payload,
+    chat_server: web::Data<ChatServerHandle>,
+) -> Result<HttpResponse, Error> {
+    let (res, session, msg_stream) = actix_ws::handle(&req, stream).expect("Failed to start WS");
+    let possible_verification_code = req.headers().get("verification-code");
+
+    if let None = possible_verification_code {
+        let result = MyError {
+            message: "No verification code was set",
+        };
+        return Err(error::ErrorBadRequest(result.message));
+        // error::ErrorBadRequest(Error::from(result)));
+        // return result.map_err(|err| error::ErrorBadRequest(err.message));
+    }
+    let verification_code = possible_verification_code.unwrap().to_str().unwrap();
+
+    // spawn websocket handler (and don't await it) so that the response is returned immediately
+    spawn_local(handler::chat_ws(
+        (**chat_server).clone(),
+        session,
+        msg_stream,
+        verification_code.to_string(),
+    ));
+
+    Ok(res)
+}
+
 pub fn chat_controller() -> Scope {
-    web::scope("/chat").service(hello_world)
+    web::scope("/chat")
+        .service(hello_world)
+        .service(web::resource("/ws").route(web::get().to(chat_ws)))
 }
