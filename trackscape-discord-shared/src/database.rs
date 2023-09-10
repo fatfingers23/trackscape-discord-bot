@@ -105,6 +105,19 @@ impl BotMongoDb {
         }
     }
 
+    pub async fn get_guild_by_discord_id(
+        &self,
+        discord_id: u64,
+    ) -> Result<Option<RegisteredGuild>, Error> {
+        let collection = self
+            .db
+            .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
+        let filter = doc! {"guild_id": bson::to_bson(&discord_id).unwrap()};
+        Ok(collection
+            .find_one(filter, None)
+            .await
+            .expect("Failed to find document for the Discord guild."))
+    }
     pub async fn get_guild_by_code_and_clan_name(
         &self,
         code: String,

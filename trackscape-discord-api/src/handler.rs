@@ -5,7 +5,7 @@ use futures_util::{
     future::{select, Either},
     StreamExt as _,
 };
-use serde_json::{json, Value};
+use serde_json::Value;
 use shuttle_runtime::tracing::{debug, error, log};
 use tokio::{pin, sync::mpsc, time::interval};
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::ClanMessage;

@@ -1,5 +1,6 @@
 # TrackScape Discord Bot
 
+![TrackScape Logo](images/trackscape_logo.png)
 
 ## Features
 * Receive in game Clan Chat messages in Discord via the RuneLite TrackScape Connector plugin

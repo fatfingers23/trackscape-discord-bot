@@ -3,6 +3,8 @@ mod commands;
 use anyhow::anyhow;
 use mongodb::Database;
 use serenity::async_trait;
+use serenity::http::CacheHttp;
+use std::collections::HashMap;
 use trackscape_discord_shared::database;
 
 use serenity::model::application::interaction::Interaction;
@@ -14,6 +16,8 @@ use serenity::prelude::*;
 use shuttle_secrets::SecretStore;
 use tracing::{error, info};
 use trackscape_discord_shared::database::BotMongoDb;
+
+const BASE_API_URL: &str = "http://localhost:8001";
 
 struct Bot {
     mongo_db: BotMongoDb,
@@ -49,18 +53,62 @@ impl EventHandler for Bot {
         }
     }
 
-    async fn guild_member_addition(
-        &self,
-        _ctx: Context,
-        _new_member: serenity::model::guild::Member,
-    ) {
-        info!("New member added to guild {}", _new_member.user.name);
-    }
+    async fn message(&self, ctx: Context, msg: Message) {
+        let possible_guild_id = msg.guild_id;
+        if msg.author.bot {
+            return;
+        }
+        match possible_guild_id {
+            None => {}
+            Some(guild_id) => {
+                let guild_id = guild_id.0;
+                let guild = self.mongo_db.get_guild_by_discord_id(guild_id).await;
+                match guild {
+                    Ok(guild) => {
+                        if guild.is_none() {
+                            return;
+                        }
+                        let unwrapped_guild = guild.unwrap();
+                        if unwrapped_guild.clan_chat_channel.is_none() {
+                            return;
+                        }
+                        info!("Got guild: {:?}", unwrapped_guild);
+                        if unwrapped_guild.clan_chat_channel.unwrap() == msg.channel_id.0 {
+                            let mut map = HashMap::new();
+                            map.insert("message", msg.content.clone());
+                            let nick_name = msg.author_nick(&ctx.http).await;
+                            if let None = nick_name {
+                                map.insert("sender", msg.author.name);
+                            } else {
+                                map.insert("sender", nick_name.unwrap());
+                            }
 
-    // async fn guild_delete(&self, _ctx: Context, _incomplete: serenity::model::guild::UnavailableGuild) {
-    //     info!("We've been removed from a guild {}", _incomplete.id);
-    // }
-    async fn message(&self, _ctx: Context, _msg: Message) {}
+                            let client = reqwest::Client::new();
+
+                            let resp = client
+                                .post(
+                                    format!("{}{}", BASE_API_URL, "/api/chat/new-discord-message")
+                                        .as_str(),
+                                )
+                                .header("verification-code", unwrapped_guild.verification_code)
+                                .json(&map)
+                                .send()
+                                .await;
+                            if resp.is_err() {
+                                error!(
+                                    "Error sending message to api: {}",
+                                    resp.err().expect("Error getting a error from the error for an api call for new discord chat")
+                                );
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error!("Error getting guild: {}", e)
+                    }
+                }
+            }
+        }
+    }
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
