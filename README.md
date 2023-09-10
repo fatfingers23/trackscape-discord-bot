@@ -5,7 +5,7 @@
 ## Features
 * Receive in game Clan Chat messages in Discord via the RuneLite TrackScape Connector plugin
 * Send messages to the In Game Clan Chat via Discord. This uses the RuneLite TrackScape Connector plugin to send messages to the Clan Chat.
-* Send Embed and styled Broadcast Messages to a Discord Channel.
+* The bot sends embed and styled Broadcast Messages to a Discord Channel.
   * Any drop from raid or monsters that is sent to CC
   * Pet drops
   * Level up messages

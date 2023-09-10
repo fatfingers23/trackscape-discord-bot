@@ -3,10 +3,6 @@ mod commands;
 use anyhow::anyhow;
 use mongodb::Database;
 use serenity::async_trait;
-use serenity::http::CacheHttp;
-use std::collections::HashMap;
-use trackscape_discord_shared::database;
-
 use serenity::model::application::interaction::Interaction;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
@@ -14,13 +10,14 @@ use serenity::model::guild::Guild;
 use serenity::model::id::GuildId;
 use serenity::prelude::*;
 use shuttle_secrets::SecretStore;
+use std::collections::HashMap;
 use tracing::{error, info};
+use trackscape_discord_shared::database;
 use trackscape_discord_shared::database::BotMongoDb;
-
-const BASE_API_URL: &str = "http://localhost:8001";
 
 struct Bot {
     mongo_db: BotMongoDb,
+    trackscape_base_api: String,
 }
 
 #[async_trait]
@@ -72,7 +69,6 @@ impl EventHandler for Bot {
                         if unwrapped_guild.clan_chat_channel.is_none() {
                             return;
                         }
-                        info!("Got guild: {:?}", unwrapped_guild);
                         if unwrapped_guild.clan_chat_channel.unwrap() == msg.channel_id.0 {
                             let mut map = HashMap::new();
                             map.insert("message", msg.content.clone());
@@ -87,8 +83,11 @@ impl EventHandler for Bot {
 
                             let resp = client
                                 .post(
-                                    format!("{}{}", BASE_API_URL, "/api/chat/new-discord-message")
-                                        .as_str(),
+                                    format!(
+                                        "{}{}",
+                                        self.trackscape_base_api, "/api/chat/new-discord-message"
+                                    )
+                                    .as_str(),
                                 )
                                 .header("verification-code", unwrapped_guild.verification_code)
                                 .json(&map)
@@ -213,6 +212,12 @@ async fn serenity(
         return Err(anyhow!("'DISCORD_TOKEN' was not found").into());
     };
 
+    let api_base = if let Some(api_base) = secret_store.get("TRACKSCAPE_API_BASE") {
+        api_base
+    } else {
+        return Err(anyhow!("'TRACKSCAPE_API_BASE' was not found").into());
+    };
+
     // Set gateway intents, which decides what events the bot will be notified about
     let intents =
         GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT | GatewayIntents::GUILDS;
@@ -220,6 +225,7 @@ async fn serenity(
     let client = Client::builder(&token, intents)
         .event_handler(Bot {
             mongo_db: BotMongoDb::new(db),
+            trackscape_base_api: api_base,
         })
         .await
         .expect("Err creating client");

@@ -66,7 +66,7 @@ async fn new_discord_message(
     Ok("".to_string())
 }
 
-#[post("/new-message")]
+#[post("/new-discord-message")]
 async fn new_clan_chats(
     req: HttpRequest,
     discord_http_client: web::Data<Http>,
