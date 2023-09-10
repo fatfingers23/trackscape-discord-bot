@@ -7,7 +7,6 @@ use crate::cache::Cache;
 use crate::controllers::chat_controller::chat_controller;
 use actix_web::{web, web::ServiceConfig};
 use anyhow::anyhow;
-use mongodb::Database;
 use serenity::http::HttpBuilder;
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_persist::PersistInstance;
@@ -33,7 +32,6 @@ pub type Msg = String;
 #[shuttle_runtime::main]
 async fn actix_web(
     #[shuttle_secrets::Secrets] secret_store: SecretStore,
-    #[shuttle_shared_db::MongoDb(local_uri = "{secrets.MONGO_DB_URL}")] db: Database,
     #[shuttle_persist::Persist] persist: PersistInstance,
 ) -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
     let discord_token = if let Some(token) = secret_store.get("DISCORD_TOKEN") {
@@ -41,6 +39,14 @@ async fn actix_web(
     } else {
         return Err(anyhow!("'DISCORD_TOKEN' was not found").into());
     };
+
+    let mongodb_url = if let Some(mongodb_url) = secret_store.get("MONGO_DB_URL") {
+        mongodb_url
+    } else {
+        return Err(anyhow!("'MONGO_DB_URL' was not found").into());
+    };
+
+    let db = BotMongoDb::new_db(mongodb_url).await;
 
     let ge_mapping_request = get_item_mapping().await;
     match ge_mapping_request {
@@ -70,7 +76,7 @@ async fn actix_web(
             // .app_data(web::Data::new(Arc::new(chat_server.clone())))
             .app_data(web::Data::new(cache_clone))
             .app_data(web::Data::new(HttpBuilder::new(discord_token).build()))
-            .app_data(web::Data::new(BotMongoDb::new(db)))
+            .app_data(web::Data::new(db))
             .app_data(web::Data::new(persist.clone()));
     };
     Ok(config.into())

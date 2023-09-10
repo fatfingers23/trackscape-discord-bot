@@ -2,6 +2,7 @@ use crate::helpers::hash_string;
 use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::BroadcastType;
 use async_recursion::async_recursion;
 use mongodb::bson::doc;
+use mongodb::options::ClientOptions;
 use mongodb::{bson, Database};
 use rand::Rng;
 use regex::Error;
@@ -9,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::string::ToString;
 use tracing::info;
 
+#[derive(Clone)]
 pub struct BotMongoDb {
     db: Database,
 }
@@ -64,6 +66,17 @@ impl RegisteredGuild {
 impl BotMongoDb {
     pub fn new(mongodb: Database) -> Self {
         Self { db: mongodb }
+    }
+
+    pub async fn new_db(db_url: String) -> Self {
+        let client_options = ClientOptions::parse(db_url.as_str())
+            .await
+            .expect("Could not connect to the mongo db");
+        let client = mongodb::Client::with_options(client_options)
+            .expect("Could not parse the mongod db url");
+
+        let db = client.database("TrackScapeDB");
+        Self { db }
     }
 
     pub async fn save_new_guild(&self, guild_id: u64) {
