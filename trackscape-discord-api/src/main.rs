@@ -17,11 +17,12 @@ use std::time::Duration;
 use tokio::spawn;
 use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::{get_item_mapping, GeItemMapping};
+use uuid::Uuid;
 
 pub use self::websocket_server::{ChatServer, ChatServerHandle};
 
 /// Connection ID.
-pub type ConnId = usize;
+pub type ConnId = Uuid;
 
 /// Used to create a chat room for a clan
 pub type VerificationCode = String;

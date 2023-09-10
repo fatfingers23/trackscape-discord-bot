@@ -6,10 +6,10 @@ use std::{
     sync::{atomic::AtomicUsize, Arc},
 };
 
-use rand::{thread_rng, Rng as _};
 use serde::{Deserialize, Serialize};
 use shuttle_runtime::tracing::{info, log};
 use tokio::sync::{mpsc, oneshot};
+use uuid::Uuid;
 
 use crate::{ConnId, Msg, VerificationCode};
 
@@ -150,9 +150,8 @@ impl ChatServer {
     ) -> ConnId {
         log::info!("Someone joined");
 
-        //TODO change to uuid
         // register session with random connection ID
-        let id = thread_rng().gen::<usize>();
+        let id = Uuid::new_v4();
 
         self.sessions.insert(id, tx);
 

@@ -5,12 +5,13 @@ use futures_util::{
     future::{select, Either},
     StreamExt as _,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
 use shuttle_runtime::tracing::{debug, error, log};
 use tokio::{pin, sync::mpsc, time::interval};
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::ClanMessage;
 
 use crate::websocket_server::WebSocketMessage;
+use crate::websocket_server::WebSocketMessageType::FromClanChat;
 use crate::{ChatServerHandle, ConnId};
 
 /// How often heartbeat pings are sent
@@ -150,8 +151,13 @@ async fn process_text_msg(
                     serde_json::from_str(msg);
                 match websocket_message {
                     Ok(message) => {
+                        let message_to_send = WebSocketMessage {
+                            message_type: FromClanChat,
+                            message: message.message,
+                        };
+                        let json_message = serde_json::to_string(&message_to_send).unwrap();
                         chat_server
-                            .send_message_to_connected_clan(conn, message.message.message)
+                            .send_message_to_connected_clan(conn, json_message)
                             .await;
                     }
                     Err(_) => {}

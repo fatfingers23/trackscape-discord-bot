@@ -3160,6 +3160,7 @@ dependencies = [
  "shuttle-shared-db",
  "tokio",
  "trackscape-discord-shared",
+ "uuid",
 ]
 
 [[package]]

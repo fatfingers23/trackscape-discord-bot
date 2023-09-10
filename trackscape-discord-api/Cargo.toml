@@ -22,3 +22,4 @@ tokio = "1.26.0"
 rand = "0.8.5"
 trackscape-discord-shared = { path = "../trackscape-discord-shared" }
 futures-util = "0.3.28"
+uuid = {version = "1.4.1", features = [ "v4"] }

@@ -4,7 +4,7 @@ pub mod osrs_broadcast_extractor {
     use serde::{Deserialize, Serialize};
     use tracing::info;
 
-    #[derive(Deserialize, Clone)]
+    #[derive(Deserialize, Serialize, Clone)]
     pub struct ClanMessage {
         pub sender: String,
         pub message: String,
