@@ -1,8 +1,7 @@
 use crate::cache::Cache;
 use crate::websocket_server::DiscordToClanChatMessage;
-use crate::{handler, ChatServerHandle, ConnId};
+use crate::{handler, ChatServerHandle};
 use actix_web::{error, post, web, Error, HttpRequest, HttpResponse, Scope};
-use serde::{Deserialize, Serialize};
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
 use serenity::json;
@@ -75,7 +74,6 @@ async fn new_clan_chats(
     new_chat: web::Json<Vec<ClanMessage>>,
     mongodb: web::Data<BotMongoDb>,
     persist: web::Data<PersistInstance>,
-    chat_server: web::Data<ChatServerHandle>,
 ) -> actix_web::Result<String> {
     let possible_verification_code = req.headers().get("verification-code");
 
@@ -200,6 +198,7 @@ async fn chat_ws(
     req: HttpRequest,
     stream: web::Payload,
     chat_server: web::Data<ChatServerHandle>,
+    mongodb: web::Data<BotMongoDb>,
 ) -> Result<HttpResponse, Error> {
     let (res, session, msg_stream) = actix_ws::handle(&req, stream).expect("Failed to start WS");
     let possible_verification_code = req.headers().get("verification-code");
@@ -214,10 +213,25 @@ async fn chat_ws(
             message: "No verification code was set",
         };
         return Err(error::ErrorBadRequest(result.message));
-        // error::ErrorBadRequest(Error::from(result)));
-        // return result.map_err(|err| error::ErrorBadRequest(err.message));
     }
     let verification_code = possible_verification_code.unwrap().to_str().unwrap();
+
+    let registered_guild_query = mongodb
+        .get_guild_by_code(verification_code.to_string())
+        .await;
+
+    let registered_guild_successful_query = if let Ok(registered_guild) = registered_guild_query {
+        registered_guild
+    } else {
+        registered_guild_query.map_err(|err| error::ErrorInternalServerError(err))?
+    };
+
+    if let None = registered_guild_successful_query {
+        let result = Err(MyError {
+            message: "The verification code was not found",
+        });
+        return result.map_err(|err| error::ErrorBadRequest(err.message));
+    }
 
     // spawn websocket handler (and don't await it) so that the response is returned immediately
     spawn_local(handler::chat_ws(

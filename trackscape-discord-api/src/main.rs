@@ -5,35 +5,28 @@ mod websocket_server;
 
 use crate::cache::Cache;
 use crate::controllers::chat_controller::chat_controller;
-use actix_web::http::Error;
-use actix_web::middleware::Logger;
-use actix_web::{web, web::ServiceConfig, HttpRequest, HttpResponse};
+use actix_web::{web, web::ServiceConfig};
 use anyhow::anyhow;
-use chrono::Utc;
 use mongodb::Database;
 use serenity::http::HttpBuilder;
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_persist::PersistInstance;
-use shuttle_runtime::tracing::{error, info};
+use shuttle_runtime::tracing::info;
 use shuttle_secrets::SecretStore;
-use std::sync::atomic::AtomicUsize;
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::spawn;
-use tokio::sync::{mpsc, watch};
-use tokio::task::spawn_local;
 use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::{get_item_mapping, GeItemMapping};
 
-const PAUSE_SECS: u64 = 15;
 pub use self::websocket_server::{ChatServer, ChatServerHandle};
+
 /// Connection ID.
 pub type ConnId = usize;
 
-/// Room ID.
-pub type RoomId = String;
+/// Used to create a chat room for a clan
+pub type VerificationCode = String;
 
-/// Message sent to a room/client.
+/// Message sent to a clan/client.
 pub type Msg = String;
 
 #[shuttle_runtime::main]
@@ -62,13 +55,13 @@ async fn actix_web(
 
     let mut cache = Cache::new(Duration::from_secs(10));
     let cache_clone = cache.clone();
-    tokio::spawn(async move {
+    spawn(async move {
         cache.clean_expired().await;
     });
 
     let (chat_server, server_tx) = ChatServer::new();
 
-    let chat_server = spawn(chat_server.run());
+    let _ = spawn(chat_server.run());
 
     let config = move |cfg: &mut ServiceConfig| {
         cfg.service(web::scope("/api").service(chat_controller()))

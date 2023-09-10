@@ -5,19 +5,21 @@ use futures_util::{
     future::{select, Either},
     StreamExt as _,
 };
-use shuttle_runtime::tracing::{info, log};
+use serde_json::Value;
+use shuttle_runtime::tracing::{debug, error, log};
 use tokio::{pin, sync::mpsc, time::interval};
+use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::ClanMessage;
 
+use crate::websocket_server::WebSocketMessage;
 use crate::{ChatServerHandle, ConnId};
 
 /// How often heartbeat pings are sent
-const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(10);
 
 /// How long before lack of client response causes a timeout
-const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
+const CLIENT_TIMEOUT: Duration = Duration::from_secs(60);
 
-/// Echo text & binary messages received from the client, respond to ping messages, and monitor
-/// connection health to detect network issues and free up resources.
+/// This will handle messages being sent from the websocket
 pub async fn chat_ws(
     chat_server: ChatServerHandle,
     mut session: actix_ws::Session,
@@ -50,36 +52,30 @@ pub async fn chat_ws(
 
         match select(messages, tick).await {
             // commands & messages received from client
-            Either::Left((Either::Left((Some(Ok(msg)), _)), _)) => {
-                log::debug!("msg: {msg:?}");
-
-                match msg {
-                    Message::Ping(bytes) => {
-                        last_heartbeat = Instant::now();
-                        // unwrap:
-                        session.pong(&bytes).await.unwrap();
-                    }
-
-                    Message::Pong(_) => {
-                        last_heartbeat = Instant::now();
-                    }
-
-                    Message::Text(text) => {
-                        process_text_msg(&chat_server, &mut session, &text, conn_id, &mut name)
-                            .await;
-                    }
-
-                    Message::Binary(_bin) => {
-                        log::warn!("unexpected binary message");
-                    }
-
-                    Message::Close(reason) => break reason,
-
-                    _ => {
-                        break None;
-                    }
+            Either::Left((Either::Left((Some(Ok(msg)), _)), _)) => match msg {
+                Message::Ping(bytes) => {
+                    last_heartbeat = Instant::now();
+                    session.pong(&bytes).await.expect("failed to send pong");
                 }
-            }
+
+                Message::Pong(_) => {
+                    last_heartbeat = Instant::now();
+                }
+
+                Message::Text(text) => {
+                    process_text_msg(&chat_server, &mut session, &text, conn_id, &mut name).await;
+                }
+
+                Message::Binary(_bin) => {
+                    log::warn!("unexpected binary message");
+                }
+
+                Message::Close(reason) => break reason,
+
+                _ => {
+                    break None;
+                }
+            },
 
             // client WebSocket stream error
             Either::Left((Either::Left((Some(Err(err)), _)), _)) => {
@@ -92,7 +88,11 @@ pub async fn chat_ws(
 
             // chat messages received from other room participants
             Either::Left((Either::Right((Some(chat_msg), _)), _)) => {
-                session.text(chat_msg).await.unwrap();
+                //Todo possibly see about a queue for messages. This can get overloaded in testing but takes thousands of messages at once
+                session
+                    .text(chat_msg)
+                    .await
+                    .expect("failed to send message to client");
             }
 
             // all connection's message senders were dropped
@@ -122,70 +122,46 @@ pub async fn chat_ws(
     let _ = session.close(close_reason).await;
 }
 
+/// Process websocket messages that are to be sent to the server.
 async fn process_text_msg(
     chat_server: &ChatServerHandle,
-    session: &mut actix_ws::Session,
+    _session: &mut actix_ws::Session,
     text: &str,
     conn: ConnId,
-    name: &mut Option<String>,
+    _name: &mut Option<String>,
 ) {
     // strip leading and trailing whitespace (spaces, newlines, etc.)
     let msg = text.trim();
-    info!("made it here");
-    // we check for /<cmd> type of messages
-    if msg.starts_with('/') {
-        let mut cmd_args = msg.splitn(2, ' ');
 
-        // unwrap: we have guaranteed non-zero string length already
-        match cmd_args.next().unwrap() {
-            "/list" => {
-                log::info!("conn {conn}: listing rooms");
+    let request_from_client: Result<Value, _> = serde_json::from_str(msg);
+    if request_from_client.is_err() {
+        error!("error parsing json");
+        return;
+    }
+    let check_for_type = &request_from_client.unwrap()["message_type"];
+    if check_for_type.is_null() {
+        return;
+    }
 
-                let rooms = chat_server.list_rooms().await;
-
-                for room in rooms {
-                    session.text(room).await.unwrap();
+    if let Some(message_type) = check_for_type.as_str() {
+        match message_type {
+            "ToClanChat" => {
+                let websocket_message: Result<WebSocketMessage<ClanMessage>, _> =
+                    serde_json::from_str(msg);
+                match websocket_message {
+                    Ok(message) => {
+                        chat_server
+                            .send_message_to_connected_clan(conn, message.message.message)
+                            .await;
+                    }
+                    Err(_) => {}
                 }
+                return;
             }
-
-            "/join" => match cmd_args.next() {
-                Some(room) => {
-                    log::info!("conn {conn}: joining room {room}");
-
-                    chat_server.join_room(conn, room).await;
-
-                    session.text(format!("joined {room}")).await.unwrap();
-                }
-
-                None => {
-                    session.text("!!! room name is required").await.unwrap();
-                }
-            },
-
-            "/name" => match cmd_args.next() {
-                Some(new_name) => {
-                    log::info!("conn {conn}: setting name to: {new_name}");
-                    name.replace(new_name.to_owned());
-                }
-                None => {
-                    session.text("!!! name is required").await.unwrap();
-                }
-            },
-
             _ => {
-                session
-                    .text(format!("!!! unknown command: {msg}"))
-                    .await
-                    .unwrap();
+                debug!("Unknown message type");
+                return;
             }
         }
-    } else {
-        // prefix message with our name, if assigned
-        let msg = match name {
-            Some(ref name) => format!("{name}: {msg}"),
-            None => msg.to_owned(),
-        };
-        info!("and here");
-        chat_server.send_message(conn, msg, "".to_string()).await
     }
 }
