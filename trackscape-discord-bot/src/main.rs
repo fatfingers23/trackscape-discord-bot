@@ -1,6 +1,5 @@
 mod commands;
 
-use anyhow::anyhow;
 use dotenv::dotenv;
 use serenity::async_trait;
 use serenity::model::application::interaction::Interaction;
@@ -9,7 +8,6 @@ use serenity::model::gateway::Ready;
 use serenity::model::guild::Guild;
 use serenity::model::id::GuildId;
 use serenity::prelude::*;
-use shuttle_secrets::SecretStore;
 use std::collections::HashMap;
 use std::env;
 use tracing::{error, info};
@@ -201,9 +199,7 @@ impl EventHandler for Bot {
 }
 
 #[shuttle_runtime::main]
-async fn serenity(
-    #[shuttle_secrets::Secrets] secret_store: SecretStore,
-) -> shuttle_serenity::ShuttleSerenity {
+async fn serenity() -> shuttle_serenity::ShuttleSerenity {
     dotenv().ok();
     let token = env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN not set!");
     let api_base = env::var("TRACKSCAPE_API_BASE").expect("TRACKSCAPE_API_BASE not set!");

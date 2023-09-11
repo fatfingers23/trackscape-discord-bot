@@ -15,8 +15,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 shuttle-actix-web = "0.25.0"
 shuttle-runtime = "0.25.0"
-shuttle-shared-db = { version = "0.25.0", features = ["mongodb"] }
-shuttle-secrets = "0.25.0"
 shuttle-persist = "0.25.0"
 serenity = { version = "0.11.5", default-features = false, features = ["http",  "rustls_backend", "model",] }
 tokio = "1.26.0"

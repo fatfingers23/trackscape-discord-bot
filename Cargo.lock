@@ -2592,17 +2592,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "shuttle-secrets"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a485ac7b3dc6d18aea681089c0816302237e2d91fc090f26ff05a2983ec92f9"
-dependencies = [
- "async-trait",
- "serde",
- "shuttle-service",
-]
-
-[[package]]
 name = "shuttle-serenity"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2624,18 +2613,6 @@ dependencies = [
  "shuttle-common",
  "strfmt",
  "thiserror",
-]
-
-[[package]]
-name = "shuttle-shared-db"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "900f9cbfc8192cda53f1a1e3933a97c8435a3e997e9695df068633a51bbda396"
-dependencies = [
- "async-trait",
- "mongodb",
- "serde",
- "shuttle-service",
 ]
 
 [[package]]
@@ -3163,8 +3140,6 @@ dependencies = [
  "shuttle-actix-web",
  "shuttle-persist",
  "shuttle-runtime",
- "shuttle-secrets",
- "shuttle-shared-db",
  "tokio",
  "trackscape-discord-shared",
  "uuid",
@@ -3186,9 +3161,7 @@ dependencies = [
  "serenity",
  "shuttle-persist",
  "shuttle-runtime",
- "shuttle-secrets",
  "shuttle-serenity",
- "shuttle-shared-db",
  "tokio",
  "tracing",
  "trackscape-discord-shared",

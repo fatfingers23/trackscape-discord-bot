@@ -17,6 +17,8 @@ services:
       - '8001:8001'
     environment:
       MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@host.docker.internal:27017'
+      DISCORD_TOKEN: '${DISCORD_TOKEN}'
+      TRACKSCAPE_API_URL: '${TRACKSCAPE_API_URL}}'
     depends_on:
       - mongo
     networks:

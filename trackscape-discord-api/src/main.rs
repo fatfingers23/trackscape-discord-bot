@@ -34,7 +34,6 @@ pub type Msg = String;
 
 #[shuttle_runtime::main]
 async fn actix_web(
-    #[shuttle_secrets::Secrets] secret_store: SecretStore,
     #[shuttle_persist::Persist] persist: PersistInstance,
 ) -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
     dotenv().ok();
