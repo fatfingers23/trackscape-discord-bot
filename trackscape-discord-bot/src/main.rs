@@ -23,6 +23,7 @@ struct Bot {
 impl EventHandler for Bot {
     async fn guild_create(&self, ctx: Context, guild: Guild, is_new: bool) {
         if is_new {
+            //TODO need to make sure commands get registered here too
             //This fires if it's a new guild it's been added to
             self.mongo_db.save_new_guild(guild.id.0).await;
             if let Some(guild_system_channel) = guild.system_channel_id {
