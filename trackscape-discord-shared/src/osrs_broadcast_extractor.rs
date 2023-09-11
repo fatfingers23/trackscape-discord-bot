@@ -21,7 +21,7 @@ pub mod osrs_broadcast_extractor {
         pub item_value: Option<i64>,
     }
 
-    pub struct DropItem {
+    pub struct DropItemBroadcast {
         pub player_it_happened_to: String,
         pub item_name: String,
         pub item_quantity: i64,
@@ -29,7 +29,7 @@ pub mod osrs_broadcast_extractor {
         pub item_icon: Option<String>,
     }
 
-    pub struct PetDropItem {
+    pub struct PetDropBroadcast {
         pub player_it_happened_to: String,
         pub pet_name: String,
         pub pet_icon: Option<String>,
@@ -195,7 +195,7 @@ pub mod osrs_broadcast_extractor {
         }
     }
 
-    pub fn raid_broadcast_extractor(message: String) -> Option<DropItem> {
+    pub fn raid_broadcast_extractor(message: String) -> Option<DropItemBroadcast> {
         let re = regex::Regex::new(
             r#"^(?P<player_name>.*?) received special loot from a raid: (?P<item>.*?)([.]|$)"#,
         )
@@ -205,7 +205,7 @@ pub mod osrs_broadcast_extractor {
             let player_name = caps.name("player_name").unwrap().as_str();
             let item = caps.name("item").unwrap().as_str();
 
-            Some(DropItem {
+            Some(DropItemBroadcast {
                 player_it_happened_to: player_name.to_string(),
                 item_name: item.to_string(),
                 item_quantity: 1,
@@ -217,7 +217,7 @@ pub mod osrs_broadcast_extractor {
         };
     }
 
-    pub fn drop_broadcast_extractor(message: String) -> Option<DropItem> {
+    pub fn drop_broadcast_extractor(message: String) -> Option<DropItemBroadcast> {
         let re = regex::Regex::new(r#"^(?P<player_name>.*?) received a drop: (?:((?P<quantity>[,\d]+) x )?)(?P<item>.*?)(?: \((?P<value>[,\d]+) coins\))?[.]?$"#).unwrap();
 
         return if let Some(caps) = re.captures(message.as_str()) {
@@ -233,7 +233,7 @@ pub mod osrs_broadcast_extractor {
             let value_with_commas = caps.name("value").map_or("", |m| m.as_str());
             let value: i64 = value_with_commas.replace(",", "").parse().unwrap_or(0);
 
-            Some(DropItem {
+            Some(DropItemBroadcast {
                 player_it_happened_to: player_name.to_string(),
                 item_name: item_name.to_string(),
                 item_quantity: quantity,
@@ -245,8 +245,8 @@ pub mod osrs_broadcast_extractor {
         };
     }
 
-    pub fn pet_broadcast_extractor(message: String) -> Option<PetDropItem> {
-        Some(PetDropItem {
+    pub fn pet_broadcast_extractor(message: String) -> Option<PetDropBroadcast> {
+        Some(PetDropBroadcast {
             player_it_happened_to: "Needs name from message".to_string(),
             pet_name: "Needs pet name from message".to_string(),
             pet_icon: get_wiki_image_url("Needs pet name from message".to_string())
@@ -298,7 +298,9 @@ pub mod osrs_broadcast_extractor {
 mod tests {
     use super::*;
     use crate::ge_api::ge_api::GetItem;
-    use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{ClanMessage, PetDropItem};
+    use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
+        ClanMessage, PetDropBroadcast,
+    };
     use tracing::info;
 
     #[test]
@@ -495,7 +497,7 @@ mod tests {
 
     struct PetDropTest {
         message: String,
-        pet_drop: PetDropItem,
+        pet_drop: PetDropBroadcast,
     }
 
     fn get_raid_messages() -> Vec<ItemMessageTest> {
@@ -557,7 +559,7 @@ mod tests {
             message:
                 "Runescape Player has a funny feeling like he's being followed: Butch at 194 kills."
                     .to_string(),
-            pet_drop: PetDropItem {
+            pet_drop: PetDropBroadcast {
                 player_it_happened_to: "Runescape Player".to_string(),
                 pet_name: "Butch".to_string(),
                 pet_icon: Some(
@@ -572,7 +574,7 @@ mod tests {
             message:
             "Runescape Vision has a funny feeling like she would have been followed: Heron at 11,212,255 XP."
                 .to_string(),
-            pet_drop: PetDropItem {
+            pet_drop: PetDropBroadcast {
                 player_it_happened_to: "Runescape Vision".to_string(),
                 pet_name: "Heron".to_string(),
                 pet_icon: Some("https://oldschool.runescape.wiki/images/Heron_detail.png".to_string()),
@@ -583,7 +585,7 @@ mod tests {
 
         possible_pet_broadcasts.push(PetDropTest {
             message: "Runescape Player feels something weird sneaking into her backpack: Abyssal protector at 543 rift searches.".to_string(),
-            pet_drop: PetDropItem {
+            pet_drop: PetDropBroadcast {
                 player_it_happened_to: "Runescape Player".to_string(),
                 pet_name: "Abyssal protector".to_string(),
                 pet_icon: Some("https://oldschool.runescape.wiki/images/Abyssal_protector_detail.png".to_string()),
@@ -594,7 +596,7 @@ mod tests {
 
         possible_pet_broadcasts.push(PetDropTest {
             message: "Runescape Player has a funny feeling like she's being followed: Tiny tempor at 1,061 permits.".to_string(),
-            pet_drop: PetDropItem {
+            pet_drop: PetDropBroadcast {
                 player_it_happened_to: "Runescape Player".to_string(),
                 pet_name: "Tiny tempor".to_string(),
                 pet_icon: Some("https://oldschool.runescape.wiki/images/Tiny_tempor_detail.png".to_string()),
@@ -605,7 +607,7 @@ mod tests {
 
         possible_pet_broadcasts.push(PetDropTest {
             message: "Runescape Player has a funny feeling like she's being followed: Unknown Pet at 1,061 Fake Currency.".to_string(),
-            pet_drop: PetDropItem {
+            pet_drop: PetDropBroadcast {
                 player_it_happened_to: "Runescape Player".to_string(),
                 pet_name: "Unknown Pet".to_string(),
                 pet_icon: Some("https://oldschool.runescape.wiki/images/Unknown_Pet_detail.png".to_string()),
