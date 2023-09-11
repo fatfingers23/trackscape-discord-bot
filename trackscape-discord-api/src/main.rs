@@ -38,12 +38,8 @@ async fn actix_web(
     #[shuttle_persist::Persist] persist: PersistInstance,
 ) -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
     dotenv().ok();
-    let discord_token = if let Some(token) = secret_store.get("DISCORD_TOKEN") {
-        token
-    } else {
-        return Err(anyhow!("'DISCORD_TOKEN' was not found").into());
-    };
 
+    let discord_token = env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN not set!");
     let mongodb_url = env::var("MONGO_DB_URL").expect("MONGO_DB_URL not set!");
     let db = BotMongoDb::new_db(mongodb_url).await;
 

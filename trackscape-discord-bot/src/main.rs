@@ -205,20 +205,8 @@ async fn serenity(
     #[shuttle_secrets::Secrets] secret_store: SecretStore,
 ) -> shuttle_serenity::ShuttleSerenity {
     dotenv().ok();
-    // Get the discord token set in `Secrets.toml`as
-    // Get the discord token set in `Secrets.toml`as
-    let token = if let Some(token) = secret_store.get("DISCORD_TOKEN") {
-        token
-    } else {
-        return Err(anyhow!("'DISCORD_TOKEN' was not found").into());
-    };
-
-    let api_base = if let Some(api_base) = secret_store.get("TRACKSCAPE_API_BASE") {
-        api_base
-    } else {
-        return Err(anyhow!("'TRACKSCAPE_API_BASE' was not found").into());
-    };
-
+    let token = env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN not set!");
+    let api_base = env::var("TRACKSCAPE_API_BASE").expect("TRACKSCAPE_API_BASE not set!");
     let mongodb_url = env::var("MONGO_DB_URL").expect("MONGO_DB_URL not set!");
     let db = BotMongoDb::new_db(mongodb_url).await;
 
