@@ -1,6 +1,7 @@
 mod commands;
 
 use anyhow::anyhow;
+use dotenv::dotenv;
 use serenity::async_trait;
 use serenity::model::application::interaction::Interaction;
 use serenity::model::channel::Message;
@@ -10,6 +11,7 @@ use serenity::model::id::GuildId;
 use serenity::prelude::*;
 use shuttle_secrets::SecretStore;
 use std::collections::HashMap;
+use std::env;
 use tracing::{error, info};
 use trackscape_discord_shared::database;
 use trackscape_discord_shared::database::BotMongoDb;
@@ -202,8 +204,9 @@ impl EventHandler for Bot {
 async fn serenity(
     #[shuttle_secrets::Secrets] secret_store: SecretStore,
 ) -> shuttle_serenity::ShuttleSerenity {
+    dotenv().ok();
     // Get the discord token set in `Secrets.toml`as
-
+    // Get the discord token set in `Secrets.toml`as
     let token = if let Some(token) = secret_store.get("DISCORD_TOKEN") {
         token
     } else {
@@ -216,12 +219,7 @@ async fn serenity(
         return Err(anyhow!("'TRACKSCAPE_API_BASE' was not found").into());
     };
 
-    let mongodb_url = if let Some(mongodb_url) = secret_store.get("MONGO_DB_URL") {
-        mongodb_url
-    } else {
-        return Err(anyhow!("'MONGO_DB_URL' was not found").into());
-    };
-
+    let mongodb_url = env::var("MONGO_DB_URL").expect("MONGO_DB_URL not set!");
     let db = BotMongoDb::new_db(mongodb_url).await;
 
     // Set gateway intents, which decides what events the bot will be notified about

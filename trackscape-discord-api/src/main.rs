@@ -1,3 +1,4 @@
+extern crate dotenv;
 mod cache;
 mod controllers;
 mod handler;
@@ -7,11 +8,13 @@ use crate::cache::Cache;
 use crate::controllers::chat_controller::chat_controller;
 use actix_web::{web, web::ServiceConfig};
 use anyhow::anyhow;
+use dotenv::dotenv;
 use serenity::http::HttpBuilder;
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_persist::PersistInstance;
 use shuttle_runtime::tracing::info;
 use shuttle_secrets::SecretStore;
+use std::env;
 use std::time::Duration;
 use tokio::spawn;
 use trackscape_discord_shared::database::BotMongoDb;
@@ -34,18 +37,14 @@ async fn actix_web(
     #[shuttle_secrets::Secrets] secret_store: SecretStore,
     #[shuttle_persist::Persist] persist: PersistInstance,
 ) -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
+    dotenv().ok();
     let discord_token = if let Some(token) = secret_store.get("DISCORD_TOKEN") {
         token
     } else {
         return Err(anyhow!("'DISCORD_TOKEN' was not found").into());
     };
 
-    let mongodb_url = if let Some(mongodb_url) = secret_store.get("MONGO_DB_URL") {
-        mongodb_url
-    } else {
-        return Err(anyhow!("'MONGO_DB_URL' was not found").into());
-    };
-
+    let mongodb_url = env::var("MONGO_DB_URL").expect("MONGO_DB_URL not set!");
     let db = BotMongoDb::new_db(mongodb_url).await;
 
     let ge_mapping_request = get_item_mapping().await;

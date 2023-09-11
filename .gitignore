@@ -3,3 +3,4 @@ target
 Secrets.toml
 shuttle_persist
 Secrets.dev.toml
+.env

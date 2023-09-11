@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  mongo:
+    image: mongo:5.0.10
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: '${MONGO_USERNAME}'
+      MONGO_INITDB_ROOT_PASSWORD: '${MONGO_PASSWORD}'
+      MONGO_INITDB_DATABASE: "TrackScapeDB"
+    volumes:
+      - trackscape-db:/data/db
+  shuttle:
+    build: .
+    ports:
+      - '8000:8000'
+      - '8001:8001'
+    environment:
+      MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@host.docker.internal:27017'
+    depends_on:
+      - mongo
+    networks:
+      - trackscape-network
+    command: "cargo shuttle run --release --external --working-directory /app"
+volumes:
+    trackscape-db:
+      driver: local
+networks:
+    trackscape-network:
+      driver: bridge
+
