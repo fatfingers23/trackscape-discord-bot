@@ -23,9 +23,9 @@ struct Bot {
 impl EventHandler for Bot {
     async fn guild_create(&self, ctx: Context, guild: Guild, is_new: bool) {
         if is_new {
-            //TODO need to make sure commands get registered here too
             //This fires if it's a new guild it's been added to
-            self.mongo_db.save_new_guild(guild.id.0).await;
+            self.mongo_db.save_new_guild(guild.id.0.clone()).await;
+            create_commands_for_guild(&guild.id, ctx.clone()).await;
             if let Some(guild_system_channel) = guild.system_channel_id {
                 guild_system_channel
                     .send_message(&ctx.http, |m| {
@@ -111,37 +111,8 @@ impl EventHandler for Bot {
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
-
-        let guild_id = GuildId(1148645741653393408);
-
-        let commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
-            commands
-                .create_application_command(|command| {
-                    commands::set_clan_chat_channel::register(command)
-                })
-                .create_application_command(|command| {
-                    commands::set_broadcast_channel::register(command)
-                })
-                .create_application_command(|command| {
-                    commands::get_verifcation_code::register(command)
-                })
-        })
-        .await;
-
-        match commands {
-            Ok(_) => {}
-            Err(e) => {
-                error!("Error creating guild commands: {}", e)
-            }
-        }
-
-        //Use this for global commands
-        // let guild_command = Command::create_global_application_command(&ctx.http, |command| {
-        //     commands::wonderful_command::register(command)
-        // })
-        //     .await;
-        //
-        // println!("I created the following global slash command: {:#?}", guild_command);
+        //TODO development code
+        create_commands_for_guild(&GuildId(1148645741653393408), ctx.clone()).await;
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
@@ -195,6 +166,26 @@ impl EventHandler for Bot {
             {
                 println!("Cannot respond to slash command: {}", why);
             }
+        }
+    }
+}
+
+pub async fn create_commands_for_guild(guild_id: &GuildId, ctx: Context) {
+    let commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
+        commands
+            .create_application_command(|command| {
+                commands::set_clan_chat_channel::register(command)
+            })
+            .create_application_command(|command| {
+                commands::set_broadcast_channel::register(command)
+            })
+            .create_application_command(|command| commands::get_verifcation_code::register(command))
+    })
+    .await;
+    match commands {
+        Ok(_) => {}
+        Err(e) => {
+            error!("Error creating guild commands: {}", e)
         }
     }
 }

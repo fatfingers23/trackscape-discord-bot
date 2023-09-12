@@ -85,8 +85,11 @@ pub mod osrs_broadcast_extractor {
         PetDrop,
         Quest,
         Diary,
-        Pk,
         RaidDrop,
+        Pk,
+        NewMember,
+        XP,
+        LevelMilestone,
         Unknown,
     }
 
