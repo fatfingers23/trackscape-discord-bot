@@ -2,7 +2,7 @@ pub mod osrs_broadcast_extractor {
     use crate::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
     use num_format::{Locale, ToFormattedString};
     use serde::{Deserialize, Serialize};
-    use tracing::{error, info};
+    use tracing::error;
 
     #[derive(Deserialize, Serialize, Clone)]
     pub struct ClanMessage {
@@ -79,6 +79,28 @@ pub mod osrs_broadcast_extractor {
         pub diary_tier: DiaryTier,
     }
 
+    // KANlEL OUTIS has been defeated by Veljenpojat in The Wilderness and lost (953,005 coins) worth of loot.
+    // KANlEL OUTIS has defeated Emperor KB and received (972,728 coins) worth of loot!
+    // Main Dangler has been defeated by Koishi Fumo in The Wilderness.
+    // tikkok ALT has been defeated by WhatsA Dad in The Wilderness and lost (462,128 coins) worth of loot. Clearly tikkok ALT struggles with clicking.
+    pub struct PkBroadcast {
+        pub winner: String,
+        pub loser: String,
+        //Name of the clan mate it happen to, this will also be the winner or loser
+        pub clan_mate: String,
+        //Amount of gp exchanged or gained
+        pub gp_exchanged: Option<i64>,
+        //If the clan mate was the winner or loser. True for winner, false for a lost
+        pub clan_mate_won: bool,
+    }
+
+    // KANlEL OUTIS has opened a loot key worth 1,148,040 coins!
+    // Med-iocore has opened a loot key worth 489,181 coins!
+    pub struct LootKey {
+        pub player: String,
+        pub value: i64,
+    }
+
     #[derive(PartialEq, Deserialize, Serialize, Debug, Clone)]
     pub enum BroadcastType {
         ItemDrop,
@@ -87,6 +109,7 @@ pub mod osrs_broadcast_extractor {
         Diary,
         RaidDrop,
         Pk,
+        LootKey,
         NewMember,
         XP,
         LevelMilestone,
@@ -278,6 +301,28 @@ pub mod osrs_broadcast_extractor {
                     }),
                 }
             }
+            BroadcastType::Pk => {
+                let possible_pk_broadcast = pk_broadcast_extractor(message.message.clone());
+                match possible_pk_broadcast {
+                    None => {
+                        error!(
+                            "Failed to extract pk info from message: {}",
+                            message.message.clone()
+                        );
+                        None
+                    }
+                    Some(pk_broadcast) => Some(BroadcastMessageToDiscord {
+                        type_of_broadcast: BroadcastType::Pk,
+                        player_it_happened_to: pk_broadcast.winner,
+                        message: message.message,
+                        icon_url: Some(
+                            "https://oldschool.runescape.wiki/images/Skull.png".to_string(),
+                        ),
+                        title: ":crossed_swords: New PK!".to_string(),
+                        item_value: None,
+                    }),
+                }
+            }
             _ => None,
         }
     }
@@ -390,6 +435,17 @@ pub mod osrs_broadcast_extractor {
         };
     }
 
+    pub fn pk_broadcast_extractor(message: String) -> Option<PkBroadcast> {
+        //TODO I am the method that needs to be written
+        Some(PkBroadcast {
+            winner: "winner".to_string(),
+            loser: "loser".to_string(),
+            clan_mate: "clan_mate".to_string(),
+            gp_exchanged: None,
+            clan_mate_won: true,
+        })
+    }
+
     pub fn get_broadcast_type(message_content: String) -> BroadcastType {
         if message_content.contains("received a drop:") {
             return BroadcastType::ItemDrop;
@@ -409,6 +465,7 @@ pub mod osrs_broadcast_extractor {
         if message_content.contains("has completed the") && message_content.contains("diary") {
             return BroadcastType::Diary;
         }
+        //TODO Need to find the broadcast type here
         return BroadcastType::Unknown;
     }
 
@@ -448,7 +505,8 @@ mod tests {
     use super::*;
     use crate::ge_api::ge_api::GetItem;
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-        ClanMessage, DiaryCompletedBroadcast, DiaryTier, PetDropBroadcast, QuestCompletedBroadcast,
+        ClanMessage, DiaryCompletedBroadcast, DiaryTier, PetDropBroadcast, PkBroadcast,
+        QuestCompletedBroadcast,
     };
     use tracing::info;
 
@@ -517,6 +575,20 @@ mod tests {
             assert!(matches!(
                 broadcast_type,
                 osrs_broadcast_extractor::BroadcastType::Diary
+            ));
+        }
+    }
+
+    #[test]
+    fn test_get_pk_type_broadcast() {
+        //TODO this test is failing and should not need changing. The method get_broadcast_type needs to be changed
+        let possible_pk_broadcasts = get_pk_messages();
+        for possible_pk_broadcast in possible_pk_broadcasts {
+            let broadcast_type =
+                osrs_broadcast_extractor::get_broadcast_type(possible_pk_broadcast.message);
+            assert!(matches!(
+                broadcast_type,
+                osrs_broadcast_extractor::BroadcastType::Pk
             ));
         }
     }
@@ -742,6 +814,45 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_pk_broadcast_extractor() {
+        //TODO this is a failing test need to implement pk_broadcast_extractor and it should past this test
+        let possible_pk_broadcasts = get_pk_messages();
+        for possible_pk_broadcast in possible_pk_broadcasts {
+            let possible_pk_extract = osrs_broadcast_extractor::pk_broadcast_extractor(
+                possible_pk_broadcast.message.clone(),
+            );
+            match possible_pk_extract {
+                None => {
+                    info!(
+                        "Failed to extract pk from message: {}",
+                        possible_pk_broadcast.message.clone()
+                    );
+                    assert!(false);
+                }
+                Some(pk_broadcast) => {
+                    assert_eq!(
+                        pk_broadcast.winner,
+                        possible_pk_broadcast.pk_broadcast.winner
+                    );
+                    assert_eq!(pk_broadcast.loser, possible_pk_broadcast.pk_broadcast.loser);
+                    assert_eq!(
+                        pk_broadcast.clan_mate,
+                        possible_pk_broadcast.pk_broadcast.clan_mate
+                    );
+                    assert_eq!(
+                        pk_broadcast.gp_exchanged,
+                        possible_pk_broadcast.pk_broadcast.gp_exchanged
+                    );
+                    assert_eq!(
+                        pk_broadcast.clan_mate_won,
+                        possible_pk_broadcast.pk_broadcast.clan_mate_won
+                    );
+                }
+            }
+        }
+    }
+
     //Test data setup
     struct ItemMessageTest {
         message: String,
@@ -769,6 +880,11 @@ mod tests {
     struct DiaryCompletedBroadcastTest {
         message: String,
         diary_completed: DiaryCompletedBroadcast,
+    }
+
+    struct PkBroadcastTest {
+        message: String,
+        pk_broadcast: PkBroadcast,
     }
 
     fn get_raid_messages() -> Vec<ItemMessageTest> {
@@ -1072,5 +1188,60 @@ mod tests {
         });
 
         possible_diary_completed_broadcasts
+    }
+
+    fn get_pk_messages() -> Vec<PkBroadcastTest> {
+        let mut possible_pk_broadcasts: Vec<PkBroadcastTest> = Vec::new();
+        // KANlEL OUTIS has been defeated by Veljenpojat in The Wilderness and lost (953,005 coins) worth of loot.
+        // KANlEL OUTIS has defeated Emperor KB and received (972,728 coins) worth of loot!
+        // Main Dangler has been defeated by Koishi Fumo in The Wilderness.
+        // tikkok ALT has been defeated by WhatsA Dad in The Wilderness and lost (462,128 coins) worth of loot. Clearly tikkok ALT struggles with clicking.
+        possible_pk_broadcasts.push(PkBroadcastTest{
+            message: "KANlEL OUTIS has been defeated by Veljenpojat in The Wilderness and lost (953,005 coins) worth of loot.".to_string(),
+            pk_broadcast: PkBroadcast {
+                winner: "Veljenpojat".to_string(),
+                loser: "KANlEL OUTIS".to_string(),
+                clan_mate: "KANlEL OUTIS".to_string(),
+                gp_exchanged: Some(953_005),
+                clan_mate_won: false,
+            }
+        });
+
+        possible_pk_broadcasts.push(PkBroadcastTest {
+            message:
+                "KANlEL OUTIS has defeated Emperor KB and received (972,728 coins) worth of loot!"
+                    .to_string(),
+            pk_broadcast: PkBroadcast {
+                winner: "KANlEL OUTIS".to_string(),
+                loser: "Emperor KB".to_string(),
+                clan_mate: "KANlEL OUTIS".to_string(),
+                gp_exchanged: Some(972_728),
+                clan_mate_won: true,
+            },
+        });
+
+        possible_pk_broadcasts.push(PkBroadcastTest {
+            message: "Main Dangler has been defeated by Koishi Fumo in The Wilderness.".to_string(),
+            pk_broadcast: PkBroadcast {
+                winner: "Koishi Fumo".to_string(),
+                loser: "Main Dangler".to_string(),
+                clan_mate: "Main Dangler".to_string(),
+                gp_exchanged: None,
+                clan_mate_won: false,
+            },
+        });
+
+        possible_pk_broadcasts.push(PkBroadcastTest {
+            message:
+                "tikkok ALT has been defeated by WhatsA Dad in The Wilderness and lost (462,128 coins) worth of loot. Clearly tikkok ALT struggles with clicking.".to_string(),
+            pk_broadcast: PkBroadcast {
+                winner: "WhatsA Dad".to_string(),
+                loser: "tikkok ALT".to_string(),
+                clan_mate: "tikkok ALT".to_string(),
+                gp_exchanged: Some(462_128),
+                clan_mate_won: false,
+            },
+        });
+        possible_pk_broadcasts
     }
 }
