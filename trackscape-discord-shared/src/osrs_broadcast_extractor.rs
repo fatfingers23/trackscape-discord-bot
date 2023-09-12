@@ -160,7 +160,7 @@ pub mod osrs_broadcast_extractor {
                 let drop_item = drop_broadcast_extractor(message.message.clone());
                 match drop_item {
                     None => {
-                        info!(
+                        error!(
                             "Failed to extract drop item from message: {}",
                             message.message.clone()
                         );
