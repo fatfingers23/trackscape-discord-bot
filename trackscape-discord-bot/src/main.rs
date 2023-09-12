@@ -1,5 +1,7 @@
 mod commands;
+mod on_boarding_message;
 
+use crate::on_boarding_message::send_on_boarding;
 use dotenv::dotenv;
 use serenity::async_trait;
 use serenity::model::application::interaction::Interaction;
@@ -27,21 +29,7 @@ impl EventHandler for Bot {
             self.mongo_db.save_new_guild(guild.id.0.clone()).await;
             create_commands_for_guild(&guild.id, ctx.clone()).await;
             if let Some(guild_system_channel) = guild.system_channel_id {
-                guild_system_channel
-                    .send_message(&ctx.http, |m| {
-                        m.embed(|e| {
-                            e.title("Welcome to TrackScape!")
-                                .description("Thanks for adding TrackScape to your server! For this to work, make sure to install the TrackScape Connector plugin in RuneLite. This is how TrackScape gets the messages to send in discord.")
-                                .image("https://cdn.discordapp.com/attachments/961769668866088970/980601140603412510/220406_Trackscape_Logo-13.png")
-                                .field("Features", "* Sends in game clan chat to a discord channel of your choice
-* Sends embedded broadcasts of your clan's achievements. Including Pet Drops, High Value ", false)
-                                .field("Setup", "`/set_broadcast_channel` and `/set_clan_chat_channel` to make sure you have your channels set up to receive messages from the bot! When you set up either a Clan Chat or Broadcast channel a Code will be given. You will enter this in the settings of the RuneLite plugin.", false)
-                                .color(0x0000FF);
-                            e
-                        })
-                    })
-                    .await
-                    .expect("Not able to send welcome message to system channel.");
+                send_on_boarding(guild_system_channel, &ctx).await;
             }
             info!(
                 "Joined a new Discord Server Id: {} and name {}",
@@ -147,6 +135,9 @@ impl EventHandler for Bot {
                     )
                     .await
                 }
+                "info" => {
+                    commands::info::run(&command.data.options, &ctx, command.channel_id).await
+                }
                 _ => {
                     info!("not implemented :(");
                     None
@@ -180,6 +171,7 @@ pub async fn create_commands_for_guild(guild_id: &GuildId, ctx: Context) {
                 commands::set_broadcast_channel::register(command)
             })
             .create_application_command(|command| commands::get_verifcation_code::register(command))
+            .create_application_command(|command| commands::info::register(command))
     })
     .await;
     match commands {
