@@ -437,13 +437,37 @@ pub mod osrs_broadcast_extractor {
 
     pub fn pk_broadcast_extractor(message: String) -> Option<PkBroadcast> {
         //TODO I am the method that needs to be written
-        Some(PkBroadcast {
-            winner: "winner".to_string(),
-            loser: "loser".to_string(),
-            clan_mate: "clan_mate".to_string(),
-            gp_exchanged: None,
-            clan_mate_won: true,
-        })
+        let mut re = regex::Regex::new(r#"^(?P<winner_name>.*?) has defeated (?P<loser_name>.*?) and received \((?P<gp_value>[0-9,]+) coins\) worth of loot!"#).unwrap();
+        if message.contains("defeated by"){
+            re = regex::Regex::new(r#"^(?P<loser_name>.*?) has been defeated by (?P<winner_name>.*?) in The Wilderness(?: and lost \((?P<gp_value>[0-9,]+) coins\) worth of loot)?[!.]"#).unwrap();
+        };
+        return if let Some(caps) = re.captures(message.as_str()) {
+            let winner_name = caps.name("winner_name").unwrap().as_str();
+            let loser_name = caps.name("loser_name").unwrap().as_str();
+            let mut clan_mate_name = caps.name("winner_name").unwrap().as_str();
+            let mut clan_mate_winner = true;
+            if message.contains("defeated by"){
+                clan_mate_winner = false;
+                clan_mate_name = caps.name("loser_name").unwrap().as_str();
+            };
+            let gp_value_str = caps.name("gp_value").map_or("", |m| m.as_str());
+            let int_value: i64 = gp_value_str.replace(",","").parse().unwrap_or(0);
+            let mut gp_value = Some(0);
+            if int_value == 0{
+                gp_value = None
+            }else {
+                gp_value = Some(int_value)
+            }
+            Some(PkBroadcast {
+                winner: winner_name.to_string(),
+                loser: loser_name.to_string(),
+                clan_mate: clan_mate_name.to_string(),
+                gp_exchanged: gp_value,
+                clan_mate_won: clan_mate_winner,
+            })
+        } else {
+            None
+        };
     }
 
     pub fn get_broadcast_type(message_content: String) -> BroadcastType {
@@ -466,6 +490,9 @@ pub mod osrs_broadcast_extractor {
             return BroadcastType::Diary;
         }
         //TODO Need to find the broadcast type here
+        if message_content.contains("has defeated") || message_content.contains("defeated by") {
+            return BroadcastType::Pk;
+        }
         return BroadcastType::Unknown;
     }
 
@@ -817,36 +844,32 @@ mod tests {
     #[test]
     fn test_pk_broadcast_extractor() {
         //TODO this is a failing test need to implement pk_broadcast_extractor and it should past this test
-        let possible_pk_broadcasts = get_pk_messages();
-        for possible_pk_broadcast in possible_pk_broadcasts {
-            let possible_pk_extract = osrs_broadcast_extractor::pk_broadcast_extractor(
-                possible_pk_broadcast.message.clone(),
-            );
+        let test_pk_broadcasts = get_pk_messages();
+        for test_pk_broadcast in test_pk_broadcasts {
+            let possible_pk_extract =
+                osrs_broadcast_extractor::pk_broadcast_extractor(test_pk_broadcast.message.clone());
             match possible_pk_extract {
                 None => {
                     info!(
                         "Failed to extract pk from message: {}",
-                        possible_pk_broadcast.message.clone()
+                        test_pk_broadcast.message.clone()
                     );
                     assert!(false);
                 }
                 Some(pk_broadcast) => {
-                    assert_eq!(
-                        pk_broadcast.winner,
-                        possible_pk_broadcast.pk_broadcast.winner
-                    );
-                    assert_eq!(pk_broadcast.loser, possible_pk_broadcast.pk_broadcast.loser);
+                    assert_eq!(pk_broadcast.winner, test_pk_broadcast.pk_broadcast.winner);
+                    assert_eq!(pk_broadcast.loser, test_pk_broadcast.pk_broadcast.loser);
                     assert_eq!(
                         pk_broadcast.clan_mate,
-                        possible_pk_broadcast.pk_broadcast.clan_mate
+                        test_pk_broadcast.pk_broadcast.clan_mate
                     );
                     assert_eq!(
                         pk_broadcast.gp_exchanged,
-                        possible_pk_broadcast.pk_broadcast.gp_exchanged
+                        test_pk_broadcast.pk_broadcast.gp_exchanged
                     );
                     assert_eq!(
                         pk_broadcast.clan_mate_won,
-                        possible_pk_broadcast.pk_broadcast.clan_mate_won
+                        test_pk_broadcast.pk_broadcast.clan_mate_won
                     );
                 }
             }
@@ -1242,6 +1265,20 @@ mod tests {
                 clan_mate_won: false,
             },
         });
+
+        possible_pk_broadcasts.push(PkBroadcastTest {
+            message:
+                "KANlEL OUTIS has been defeated by sha huss in The Wilderness and lost (948,980 coins) worth of loot....and now everyone knows.".to_string(),
+            pk_broadcast: PkBroadcast {
+                winner: "sha huss".to_string(),
+                loser: "KANlEL OUTIS".to_string(),
+                clan_mate: "KANlEL OUTIS".to_string(),
+                gp_exchanged: Some(948_980),
+                clan_mate_won: false,
+            },
+        });
+
+        
         possible_pk_broadcasts
     }
 }
