@@ -20,7 +20,7 @@
         TrackScape is a Discord bot that allows you to connect in ways never before possible with Discord and your OSRS clan.
       </p>
       <a
-        href="https://discord.com/invite/YOUR_DISCORD_LINK"
+        href="https://discord.com/api/oauth2/authorize?client_id=864626697327869952&permissions=2147568704&scope=bot"
         target="_blank"
         class="btn btn-primary btn-outline"
       >Invite to Discord <img
