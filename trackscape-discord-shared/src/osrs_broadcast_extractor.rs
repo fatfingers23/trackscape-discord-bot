@@ -94,6 +94,16 @@ pub mod osrs_broadcast_extractor {
         pub clan_mate_won: bool,
     }
 
+    // Victor Locke has been invited into the clan by IRuneNakey.
+    // KingConley has been invited into the clan by kanga roe.
+    // RUKAl has been invited into the clan by l cant see.
+    pub struct InviteBroadcast {
+        //name of clan mate that sent the clan invite
+        pub clan_mate: String,
+        //name of new account invited to clan
+        pub new_clan_mate: String,
+    }
+
     // KANlEL OUTIS has opened a loot key worth 1,148,040 coins!
     // Med-iocore has opened a loot key worth 489,181 coins!
     pub struct LootKey {
@@ -109,8 +119,8 @@ pub mod osrs_broadcast_extractor {
         Diary,
         RaidDrop,
         Pk,
+        Invite,
         LootKey,
-        NewMember,
         XP,
         LevelMilestone,
         Unknown,
@@ -323,6 +333,28 @@ pub mod osrs_broadcast_extractor {
                     }),
                 }
             }
+            BroadcastType::Invite => {
+                let possible_invite_broadcast = invite_broadcast_extractor(message.message.clone());
+                match possible_invite_broadcast {
+                    None => {
+                        error!(
+                            "Failed to extract invite info from message: {}",
+                            message.message.clone()
+                        );
+                        None
+                    }
+                    Some(invite_broadcast) => Some(BroadcastMessageToDiscord {
+                        type_of_broadcast: BroadcastType::Invite,
+                        player_it_happened_to: invite_broadcast.clan_mate,
+                        message: message.message,
+                        icon_url: Some(
+                            "https://oldschool.runescape.wiki/images/Your_Clan_icon.png".to_string(),
+                        ),
+                        title: ":wave: New Invite!".to_string(),
+                        item_value: None,
+                    }),
+                }
+            }
             _ => None,
         }
     }
@@ -436,14 +468,52 @@ pub mod osrs_broadcast_extractor {
     }
 
     pub fn pk_broadcast_extractor(message: String) -> Option<PkBroadcast> {
-        //TODO I am the method that needs to be written
-        Some(PkBroadcast {
-            winner: "winner".to_string(),
-            loser: "loser".to_string(),
-            clan_mate: "clan_mate".to_string(),
-            gp_exchanged: None,
-            clan_mate_won: true,
-        })
+        let mut re = regex::Regex::new(r#"^(?P<winner_name>.*?) has defeated (?P<loser_name>.*?) and received \((?P<gp_value>[0-9,]+) coins\) worth of loot!"#).unwrap();
+        if message.contains("defeated by"){
+            re = regex::Regex::new(r#"^(?P<loser_name>.*?) has been defeated by (?P<winner_name>.*?) in The Wilderness(?: and lost \((?P<gp_value>[0-9,]+) coins\) worth of loot)?[!.]"#).unwrap();
+        };
+        return if let Some(caps) = re.captures(message.as_str()) {
+            let winner_name = caps.name("winner_name").unwrap().as_str();
+            let loser_name = caps.name("loser_name").unwrap().as_str();
+            let mut clan_mate_name = caps.name("winner_name").unwrap().as_str();
+            let mut clan_mate_winner = true;
+            if message.contains("defeated by"){
+                clan_mate_winner = false;
+                clan_mate_name = caps.name("loser_name").unwrap().as_str();
+            };
+            let gp_value_str = caps.name("gp_value").map_or("", |m| m.as_str());
+            let int_value: i64 = gp_value_str.replace(",","").parse().unwrap_or(0);
+            let gp_value = 
+            if int_value == 0{
+                None
+            }else {
+                Some(int_value)
+            };
+            Some(PkBroadcast {
+                winner: winner_name.to_string(),
+                loser: loser_name.to_string(),
+                clan_mate: clan_mate_name.to_string(),
+                gp_exchanged: gp_value,
+                clan_mate_won: clan_mate_winner,
+            })
+        } else {
+            None
+        };
+    }
+
+    pub fn invite_broadcast_extractor(message: String) -> Option<InviteBroadcast> {
+        let re = regex::Regex::new(r#"^(?P<clan_joiner>.*?) has been invited into the clan by (?P<clan_inviter>.*?).$"#).unwrap();
+
+        return if let Some(caps) = re.captures(message.as_str()) {
+            let clan_mate = caps.name("clan_inviter").unwrap().as_str();
+            let new_clan_mate = caps.name("clan_joiner").unwrap().as_str();
+            Some(InviteBroadcast {
+                clan_mate: clan_mate.to_string(),
+                new_clan_mate: new_clan_mate.to_string(),
+            })
+        } else {
+            None
+        };
     }
 
     pub fn get_broadcast_type(message_content: String) -> BroadcastType {
@@ -465,7 +535,12 @@ pub mod osrs_broadcast_extractor {
         if message_content.contains("has completed the") && message_content.contains("diary") {
             return BroadcastType::Diary;
         }
-        //TODO Need to find the broadcast type here
+        if message_content.contains("has defeated") || message_content.contains("defeated by") {
+            return BroadcastType::Pk;
+        }
+        if message_content.contains("has been invited") {
+            return BroadcastType::Invite;
+        }
         return BroadcastType::Unknown;
     }
 
@@ -506,7 +581,7 @@ mod tests {
     use crate::ge_api::ge_api::GetItem;
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
         ClanMessage, DiaryCompletedBroadcast, DiaryTier, PetDropBroadcast, PkBroadcast,
-        QuestCompletedBroadcast,
+        QuestCompletedBroadcast, InviteBroadcast,
     };
     use tracing::info;
 
@@ -581,7 +656,6 @@ mod tests {
 
     #[test]
     fn test_get_pk_type_broadcast() {
-        //TODO this test is failing and should not need changing. The method get_broadcast_type needs to be changed
         let possible_pk_broadcasts = get_pk_messages();
         for possible_pk_broadcast in possible_pk_broadcasts {
             let broadcast_type =
@@ -589,6 +663,19 @@ mod tests {
             assert!(matches!(
                 broadcast_type,
                 osrs_broadcast_extractor::BroadcastType::Pk
+            ));
+        }
+    }
+
+    #[test]
+    fn test_get_invite_type_broadcast() {
+        let possible_invite_broadcasts = get_invite_messages();
+        for possible_invite_broadcast in possible_invite_broadcasts {
+            let broadcast_type =
+                osrs_broadcast_extractor::get_broadcast_type(possible_invite_broadcast.message);
+            assert!(matches!(
+                broadcast_type,
+                osrs_broadcast_extractor::BroadcastType::Invite
             ));
         }
     }
@@ -816,38 +903,55 @@ mod tests {
 
     #[test]
     fn test_pk_broadcast_extractor() {
-        //TODO this is a failing test need to implement pk_broadcast_extractor and it should past this test
-        let possible_pk_broadcasts = get_pk_messages();
-        for possible_pk_broadcast in possible_pk_broadcasts {
-            let possible_pk_extract = osrs_broadcast_extractor::pk_broadcast_extractor(
-                possible_pk_broadcast.message.clone(),
-            );
+        let test_pk_broadcasts = get_pk_messages();
+        for test_pk_broadcast in test_pk_broadcasts {
+            let possible_pk_extract =
+                osrs_broadcast_extractor::pk_broadcast_extractor(test_pk_broadcast.message.clone());
             match possible_pk_extract {
                 None => {
                     info!(
                         "Failed to extract pk from message: {}",
-                        possible_pk_broadcast.message.clone()
+                        test_pk_broadcast.message.clone()
                     );
                     assert!(false);
                 }
                 Some(pk_broadcast) => {
-                    assert_eq!(
-                        pk_broadcast.winner,
-                        possible_pk_broadcast.pk_broadcast.winner
-                    );
-                    assert_eq!(pk_broadcast.loser, possible_pk_broadcast.pk_broadcast.loser);
+                    assert_eq!(pk_broadcast.winner, test_pk_broadcast.pk_broadcast.winner);
+                    assert_eq!(pk_broadcast.loser, test_pk_broadcast.pk_broadcast.loser);
                     assert_eq!(
                         pk_broadcast.clan_mate,
-                        possible_pk_broadcast.pk_broadcast.clan_mate
+                        test_pk_broadcast.pk_broadcast.clan_mate
                     );
                     assert_eq!(
                         pk_broadcast.gp_exchanged,
-                        possible_pk_broadcast.pk_broadcast.gp_exchanged
+                        test_pk_broadcast.pk_broadcast.gp_exchanged
                     );
                     assert_eq!(
                         pk_broadcast.clan_mate_won,
-                        possible_pk_broadcast.pk_broadcast.clan_mate_won
+                        test_pk_broadcast.pk_broadcast.clan_mate_won
                     );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_invite_broadcast_extractor() {
+        let test_invite_broadcasts = get_invite_messages();
+        for test_invite_broadcast in test_invite_broadcasts {
+            let possible_invite_extract =
+                osrs_broadcast_extractor::invite_broadcast_extractor(test_invite_broadcast.message.clone());
+            match possible_invite_extract {
+                None => {
+                    info!(
+                        "Failed to extract invite from message: {}",
+                        test_invite_broadcast.message.clone()
+                    );
+                    assert!(false);
+                }
+                Some(invite_broadcast) => {
+                    assert_eq!(invite_broadcast.clan_mate, test_invite_broadcast.invite_broadcast.clan_mate);
+                    assert_eq!(invite_broadcast.new_clan_mate, test_invite_broadcast.invite_broadcast.new_clan_mate);
                 }
             }
         }
@@ -885,6 +989,11 @@ mod tests {
     struct PkBroadcastTest {
         message: String,
         pk_broadcast: PkBroadcast,
+    }
+
+    struct InviteBroadcastTest {
+        message: String,
+        invite_broadcast: InviteBroadcast,
     }
 
     fn get_raid_messages() -> Vec<ItemMessageTest> {
@@ -1242,6 +1351,52 @@ mod tests {
                 clan_mate_won: false,
             },
         });
+
+        possible_pk_broadcasts.push(PkBroadcastTest {
+            message:
+                "KANlEL OUTIS has been defeated by sha huss in The Wilderness and lost (948,980 coins) worth of loot....and now everyone knows.".to_string(),
+            pk_broadcast: PkBroadcast {
+                winner: "sha huss".to_string(),
+                loser: "KANlEL OUTIS".to_string(),
+                clan_mate: "KANlEL OUTIS".to_string(),
+                gp_exchanged: Some(948_980),
+                clan_mate_won: false,
+            },
+        });
+
+        
         possible_pk_broadcasts
+    }
+
+    fn get_invite_messages() -> Vec<InviteBroadcastTest> {
+        let mut possible_invite_broadcasts: Vec<InviteBroadcastTest> = Vec::new();
+        // Victor Locke has been invited into the clan by IRuneNakey.
+        // KingConley has been invited into the clan by kanga roe.
+        // RUKAl has been invited into the clan by l cant see.
+        possible_invite_broadcasts.push(InviteBroadcastTest{
+            message: "Victor Locke has been invited into the clan by IRuneNakey.".to_string(),
+            invite_broadcast: InviteBroadcast {
+                clan_mate: "IRuneNakey".to_string(),
+                new_clan_mate: "Victor Locke".to_string(),
+            }
+        });
+
+        possible_invite_broadcasts.push(InviteBroadcastTest{
+            message: "KingConley has been invited into the clan by kanga roe.".to_string(),
+            invite_broadcast: InviteBroadcast {
+                clan_mate: "kanga roe".to_string(),
+                new_clan_mate: "KingConley".to_string(),
+            }
+        });
+
+        possible_invite_broadcasts.push(InviteBroadcastTest{
+            message: "RUKAl has been invited into the clan by l cant see.".to_string(),
+            invite_broadcast: InviteBroadcast {
+                clan_mate: "l cant see".to_string(),
+                new_clan_mate: "RUKAl".to_string(),
+            }
+        });
+        
+        possible_invite_broadcasts
     }
 }
