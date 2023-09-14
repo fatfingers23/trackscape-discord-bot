@@ -470,7 +470,7 @@ pub mod osrs_broadcast_extractor {
     pub fn pk_broadcast_extractor(message: String) -> Option<PkBroadcast> {
         let mut re = regex::Regex::new(r#"^(?P<winner_name>.*?) has defeated (?P<loser_name>.*?) and received \((?P<gp_value>[0-9,]+) coins\) worth of loot!"#).unwrap();
         if message.contains("defeated by"){
-            re = regex::Regex::new(r#"^(?P<loser_name>.*?) has been defeated by (?P<winner_name>.*?) in The Wilderness(?: and lost \((?P<gp_value>[0-9,]+) coins\) worth of loot)?[!.]"#).unwrap();
+            re = regex::Regex::new(r#"^(?P<loser_name>.*?) has been defeated by (?P<winner_name>.*?)(?: in (?P<location>The Wilderness))?(?: and lost \((?P<gp_value>[0-9,]+) coins\) worth of loot)?[!.]"#).unwrap();
         };
         return if let Some(caps) = re.captures(message.as_str()) {
             let winner_name = caps.name("winner_name").unwrap().as_str();
@@ -1364,6 +1364,18 @@ mod tests {
             },
         });
 
+        possible_pk_broadcasts.push(PkBroadcastTest {
+            message:
+                "KANlEL OUTIS has been defeated by Omar and lost (14,548,386 coins) worth of loot."
+                    .to_string(),
+            pk_broadcast: PkBroadcast {
+                winner: "Omar".to_string(),
+                loser: "KANlEL OUTIS".to_string(),
+                clan_mate: "KANlEL OUTIS".to_string(),
+                gp_exchanged: Some(14_548_386),
+                clan_mate_won: false,
+            },
+        });
         
         possible_pk_broadcasts
     }
