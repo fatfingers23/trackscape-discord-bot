@@ -121,7 +121,6 @@ pub mod osrs_broadcast_extractor {
         Pk,
         Invite,
         LootKey,
-        NewMember,
         XP,
         LevelMilestone,
         Unknown,
@@ -351,7 +350,7 @@ pub mod osrs_broadcast_extractor {
                         icon_url: Some(
                             "https://oldschool.runescape.wiki/images/Your_Clan_icon.png".to_string(),
                         ),
-                        title: ":crossed_swords: New Invite!".to_string(),
+                        title: ":wave: New Invite!".to_string(),
                         item_value: None,
                     }),
                 }
@@ -503,7 +502,6 @@ pub mod osrs_broadcast_extractor {
     }
 
     pub fn invite_broadcast_extractor(message: String) -> Option<InviteBroadcast> {
-        //TODO complete this method to extract Invite broadcast
         let re = regex::Regex::new(r#"^(?P<clan_joiner>.*?) has been invited into the clan by (?P<clan_inviter>.*?).$"#).unwrap();
 
         return if let Some(caps) = re.captures(message.as_str()) {
@@ -540,7 +538,6 @@ pub mod osrs_broadcast_extractor {
         if message_content.contains("has defeated") || message_content.contains("defeated by") {
             return BroadcastType::Pk;
         }
-        //TODO find Invite Broadcast type
         if message_content.contains("has been invited") {
             return BroadcastType::Invite;
         }
@@ -672,7 +669,6 @@ mod tests {
 
     #[test]
     fn test_get_invite_type_broadcast() {
-        //TODO this test is failing for Invites and should not need changing. The method get_broadcast_type needs to be changed
         let possible_invite_broadcasts = get_invite_messages();
         for possible_invite_broadcast in possible_invite_broadcasts {
             let broadcast_type =
@@ -941,7 +937,6 @@ mod tests {
 
     #[test]
     fn test_invite_broadcast_extractor() {
-        //TODO this is a failing test need to implement invite_broadcast_extractor and it should past this test
         let test_invite_broadcasts = get_invite_messages();
         for test_invite_broadcast in test_invite_broadcasts {
             let possible_invite_extract =
