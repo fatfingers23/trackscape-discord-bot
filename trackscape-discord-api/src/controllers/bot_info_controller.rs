@@ -1,4 +1,4 @@
-use actix_web::{get, web, Error, HttpRequest, HttpResponse, Responder, Scope};
+use actix_web::{get, post, web, Error, HttpRequest, HttpResponse, Responder, Scope};
 use serde::{Deserialize, Serialize};
 use serenity::http::{CacheHttp, Http};
 
@@ -20,6 +20,8 @@ async fn get_landing_page_info(
         connected_users: 0,
     }))
 }
+
+// #[post("/set-server-count")]
 
 pub fn info_controller(cfg: &mut actix_web::web::ServiceConfig) -> Scope {
     web::scope("/info").service(get_landing_page_info)

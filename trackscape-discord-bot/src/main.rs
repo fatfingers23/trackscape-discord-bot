@@ -7,11 +7,13 @@ use serenity::async_trait;
 use serenity::model::application::interaction::Interaction;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
-use serenity::model::guild::Guild;
+use serenity::model::guild::{Guild, UnavailableGuild};
 use serenity::model::id::GuildId;
 use serenity::prelude::*;
 use std::collections::HashMap;
 use std::env;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use tracing::{error, info};
 use trackscape_discord_shared::database;
 use trackscape_discord_shared::database::BotMongoDb;
@@ -21,9 +23,30 @@ struct Bot {
     trackscape_base_api: String,
 }
 
+struct ServerCount;
+
+impl TypeMapKey for ServerCount {
+    // While you will be using RwLock or Mutex most of the time you want to modify data,
+    // sometimes it's not required; like for example, with static data, or if you are using other
+    // kinds of atomic operators.
+    //
+    // Arc should stay, to allow for the data lock to be closed early.
+    type Value = Arc<AtomicUsize>;
+}
+
 #[async_trait]
 impl EventHandler for Bot {
     async fn guild_create(&self, ctx: Context, guild: Guild, is_new: bool) {
+        info!("Guild: {}", guild.name);
+        let server_count = {
+            let data_read = ctx.data.read().await;
+            data_read
+                .get::<ServerCount>()
+                .expect("Expected ServerCount in TypeMap.")
+                .clone()
+        };
+        server_count.fetch_add(1, Ordering::SeqCst);
+        info!("Server Count: {}", server_count.load(Ordering::SeqCst));
         if is_new {
             //This fires if it's a new guild it's been added to
             self.mongo_db.save_new_guild(guild.id.0.clone()).await;
@@ -36,6 +59,30 @@ impl EventHandler for Bot {
                 guild.id.0, guild.name
             );
         }
+    }
+
+    async fn guild_delete(
+        &self,
+        _ctx: Context,
+        _incomplete: UnavailableGuild,
+        full: Option<Guild>,
+    ) {
+        if full.is_none() {
+            info!("Removed from a guild that we don't have access to")
+        } else {
+            let full = full.unwrap();
+            info!("Removed from the guild: {}", full.name)
+        }
+
+        let server_count = {
+            let data_read = _ctx.data.read().await;
+            data_read
+                .get::<ServerCount>()
+                .expect("Expected ServerCount in TypeMap.")
+                .clone()
+        };
+        server_count.fetch_sub(1, Ordering::SeqCst);
+        info!("Server Count: {}", server_count.load(Ordering::SeqCst));
     }
 
     async fn message(&self, ctx: Context, msg: Message) {
@@ -201,6 +248,11 @@ async fn serenity() -> shuttle_serenity::ShuttleSerenity {
         })
         .await
         .expect("Err creating client");
+    {
+        // Open the data lock in write mode, so keys can be inserted to it.
+        let mut data = client.data.write().await;
 
+        data.insert::<ServerCount>(Arc::new(AtomicUsize::new(0)));
+    }
     Ok(client.into())
 }
