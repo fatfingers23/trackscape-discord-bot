@@ -120,6 +120,20 @@ pub mod osrs_broadcast_extractor {
         pub skill_icon: Option<String>,
     }
 
+    // Noble Five has reached 78,000,000 XP in Fishing.
+    // Matrese has reached 15,000,000 XP in Fishing.
+    // Marsel has reached 200,000,000 XP in Cooking.
+    pub struct XPMilestoneBroadcast {
+        //name of clan mate that levelled up
+        pub clan_mate: String,
+        //name of skill that was levelled
+        pub skill: String,
+        //new level of the skill that was levelled up
+        pub new_skill_xp: String,
+        //icon for skill
+        pub skill_icon: Option<String>,
+    }
+
     // KANlEL OUTIS has opened a loot key worth 1,148,040 coins!
     // Med-iocore has opened a loot key worth 489,181 coins!
     pub struct LootKey {
@@ -137,7 +151,7 @@ pub mod osrs_broadcast_extractor {
         Pk,
         Invite,
         LootKey,
-        XP,
+        XPMilestone,
         LevelMilestone,
         Unknown,
     }
@@ -391,6 +405,26 @@ pub mod osrs_broadcast_extractor {
                     }),
                 }
             }
+            BroadcastType::XPMilestone => {
+                let possible_xpmilestone_broadcast = xpmilestone_broadcast_extractor(message.message.clone());
+                match possible_xpmilestone_broadcast {
+                    None => {
+                        error!(
+                            "Failed to extract xp milestone info from message: {}",
+                            message.message.clone()
+                        );
+                        None
+                    }
+                    Some(xpmilestone_broadcast) => Some(BroadcastMessageToDiscord {
+                        type_of_broadcast: BroadcastType::XPMilestone,
+                        player_it_happened_to: xpmilestone_broadcast.clan_mate,
+                        message: message.message,
+                        icon_url: xpmilestone_broadcast.skill_icon,
+                        title: ":tada: New XP Milestone reached!".to_string(),
+                        item_value: None,
+                    }),
+                }
+            }
             _ => None,
         }
     }
@@ -570,6 +604,25 @@ pub mod osrs_broadcast_extractor {
         };
     }
 
+    pub fn xpmilestone_broadcast_extractor(message: String) -> Option<XPMilestoneBroadcast> {
+        //TODO
+        let re = regex::Regex::new(r#"^(?P<clan_member>.*?) has reached (?P<xp>.*?) XP in (?P<skill>.*?)[!.]"#).unwrap();
+
+        return if let Some(caps) = re.captures(message.as_str()) {
+            let clan_mate = caps.name("clan_member").unwrap().as_str();
+            let skill = caps.name("skill").unwrap().as_str();
+            let new_skill_xp = caps.name("xp").unwrap().as_str();
+            Some(XPMilestoneBroadcast {
+                clan_mate: clan_mate.to_string(),
+                skill: skill.to_string(),
+                new_skill_xp: new_skill_xp.to_string(),
+                skill_icon: Some(get_skill_icon(skill.to_string())),
+            })
+        } else {
+            None
+        };
+    }
+
     pub fn get_broadcast_type(message_content: String) -> BroadcastType {
         if message_content.contains("received a drop:") {
             return BroadcastType::ItemDrop;
@@ -597,6 +650,9 @@ pub mod osrs_broadcast_extractor {
         }
         if message_content.contains("has reached") && message_content.contains("level") {
             return BroadcastType::LevelMilestone;
+        }
+        if message_content.contains("has reached") && message_content.contains("XP in") {
+            return BroadcastType::XPMilestone;
         }
         return BroadcastType::Unknown;
     }
@@ -646,7 +702,7 @@ mod tests {
     use crate::ge_api::ge_api::GetItem;
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
         ClanMessage, DiaryCompletedBroadcast, DiaryTier, PetDropBroadcast, PkBroadcast,
-        QuestCompletedBroadcast, InviteBroadcast, LevelMilestoneBroadcast,
+        QuestCompletedBroadcast, InviteBroadcast, LevelMilestoneBroadcast, XPMilestoneBroadcast,
     };
     use tracing::info;
 
@@ -754,6 +810,19 @@ mod tests {
             assert!(matches!(
                 broadcast_type,
                 osrs_broadcast_extractor::BroadcastType::LevelMilestone
+            ));
+        }
+    }
+
+    #[test]
+    fn test_get_xpmilestone_type_broadcast() {
+        let possible_xpmilestone_broadcasts = get_xpmilestone_messages();
+        for possible_xpmilestone_broadcast in possible_xpmilestone_broadcasts {
+            let broadcast_type =
+                osrs_broadcast_extractor::get_broadcast_type(possible_xpmilestone_broadcast.message);
+            assert!(matches!(
+                broadcast_type,
+                osrs_broadcast_extractor::BroadcastType::XPMilestone
             ));
         }
     }
@@ -1059,6 +1128,30 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_xpmilestone_broadcast_extractor() {
+        let test_xpmilestone_broadcasts = get_xpmilestone_messages();
+        for test_xpmilestone_broadcast in test_xpmilestone_broadcasts {
+            let possible_xpmilestone_extract =
+                osrs_broadcast_extractor::xpmilestone_broadcast_extractor(test_xpmilestone_broadcast.message.clone());
+            match possible_xpmilestone_extract {
+                None => {
+                    info!(
+                        "Failed to extract xp milestone from message: {}",
+                        test_xpmilestone_broadcast.message.clone()
+                    );
+                    assert!(false);
+                }
+                Some(xpmilestone_broadcast) => {
+                    assert_eq!(xpmilestone_broadcast.clan_mate, test_xpmilestone_broadcast.xpmilestone_broadcast.clan_mate);
+                    assert_eq!(xpmilestone_broadcast.skill, test_xpmilestone_broadcast.xpmilestone_broadcast.skill);
+                    assert_eq!(xpmilestone_broadcast.new_skill_xp, test_xpmilestone_broadcast.xpmilestone_broadcast.new_skill_xp);
+                    assert_eq!(xpmilestone_broadcast.skill_icon, test_xpmilestone_broadcast.xpmilestone_broadcast.skill_icon);
+                }
+            }
+        }
+    }
+
     //Test data setup
     struct ItemMessageTest {
         message: String,
@@ -1101,6 +1194,11 @@ mod tests {
     struct LevelMilestoneBroadcastTest {
         message: String,
         levelmilestone_broadcast: LevelMilestoneBroadcast,
+    }
+
+    struct XPMilestoneBroadcastTest {
+        message: String,
+        xpmilestone_broadcast: XPMilestoneBroadcast,
     }
 
     fn get_raid_messages() -> Vec<ItemMessageTest> {
@@ -1521,11 +1619,11 @@ mod tests {
 
     fn get_levelmilestone_messages() -> Vec<LevelMilestoneBroadcastTest> {
         let mut possible_levelmilestone_broadcasts: Vec<LevelMilestoneBroadcastTest> = Vec::new();
-            // Th3TRiPPyOn3 has reached Defence level 70.
-            // MechaPanzer has reached combat level 104.
-            // I Vision I has reached a total level of 2225.
-            // Zillamanjaro has reached the highest possible combat level of 126!
-            // Sad Bug has reached the highest possible total level of 2277!
+        // Th3TRiPPyOn3 has reached Defence level 70.
+        // MechaPanzer has reached combat level 104.
+        // I Vision I has reached a total level of 2225.
+        // Zillamanjaro has reached the highest possible combat level of 126!
+        // Sad Bug has reached the highest possible total level of 2277!
         possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest{
             message: "Th3TRiPPyOn3 has reached Defence level 70.".to_string(),
             levelmilestone_broadcast: LevelMilestoneBroadcast {
@@ -1577,5 +1675,43 @@ mod tests {
         });
         
         possible_levelmilestone_broadcasts
+    }
+
+    fn get_xpmilestone_messages() -> Vec<XPMilestoneBroadcastTest> {
+        let mut possible_xpmilestone_broadcasts: Vec<XPMilestoneBroadcastTest> = Vec::new();
+        // Noble Five has reached 78,000,000 XP in Fishing.
+        // Matrese has reached 15,000,000 XP in Fishing.
+        // Marsel has reached 200,000,000 XP in Cooking.
+        possible_xpmilestone_broadcasts.push(XPMilestoneBroadcastTest{
+            message: "Noble Five has reached 78,000,000 XP in Fishing.".to_string(),
+            xpmilestone_broadcast: XPMilestoneBroadcast {
+                clan_mate: "Noble Five".to_string(),
+                skill: "Fishing".to_string(),
+                new_skill_xp: "78,000,000".to_string(),
+                skill_icon: Some("https://oldschool.runescape.wiki/images/Fishing_icon_(detail).png".to_string()),
+            }
+        });
+
+        possible_xpmilestone_broadcasts.push(XPMilestoneBroadcastTest{
+            message: "Matrese has reached 15,000,000 XP in Fishing.".to_string(),
+            xpmilestone_broadcast: XPMilestoneBroadcast {
+                clan_mate: "Matrese".to_string(),
+                skill: "Fishing".to_string(),
+                new_skill_xp: "15,000,000".to_string(),
+                skill_icon: Some("https://oldschool.runescape.wiki/images/Fishing_icon_(detail).png".to_string()),
+            }
+        });
+
+        possible_xpmilestone_broadcasts.push(XPMilestoneBroadcastTest{
+            message: "Marsel has reached 200,000,000 XP in Cooking.".to_string(),
+            xpmilestone_broadcast: XPMilestoneBroadcast {
+                clan_mate: "Marsel".to_string(),
+                skill: "Cooking".to_string(),
+                new_skill_xp: "200,000,000".to_string(),
+                skill_icon: Some("https://oldschool.runescape.wiki/images/Cooking_icon_(detail).png".to_string()),
+            }
+        });
+        
+        possible_xpmilestone_broadcasts
     }
 }
