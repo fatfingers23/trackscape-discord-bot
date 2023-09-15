@@ -104,6 +104,22 @@ pub mod osrs_broadcast_extractor {
         pub new_clan_mate: String,
     }
 
+    // Th3TRiPPyOn3 has reached Defence level 70.
+    // MechaPanzer has reached combat level 104.
+    // I Vision I has reached a total level of 2225.
+    // Zillamanjaro has reached the highest possible combat level of 126!
+    // Sad Bug has reached the highest possible total level of 2277!
+    pub struct LevelMilestoneBroadcast {
+        //name of clan mate that levelled up
+        pub clan_mate: String,
+        //name of skill that was levelled
+        pub skill_levelled: String,
+        //new level of the skill that was levelled up
+        pub new_skill_level: String,
+        //icon for skill levelled
+        pub skill_icon: Option<String>,
+    }
+
     // KANlEL OUTIS has opened a loot key worth 1,148,040 coins!
     // Med-iocore has opened a loot key worth 489,181 coins!
     pub struct LootKey {
@@ -355,6 +371,26 @@ pub mod osrs_broadcast_extractor {
                     }),
                 }
             }
+            BroadcastType::LevelMilestone => {
+                let possible_levelmilestone_broadcast = levelmilestone_broadcast_extractor(message.message.clone());
+                match possible_levelmilestone_broadcast {
+                    None => {
+                        error!(
+                            "Failed to extract level milestone info from message: {}",
+                            message.message.clone()
+                        );
+                        None
+                    }
+                    Some(levelmilestone_broadcast) => Some(BroadcastMessageToDiscord {
+                        type_of_broadcast: BroadcastType::LevelMilestone,
+                        player_it_happened_to: levelmilestone_broadcast.clan_mate,
+                        message: message.message,
+                        icon_url: levelmilestone_broadcast.skill_icon,
+                        title: ":tada: New Level Milestone reached!".to_string(),
+                        item_value: None,
+                    }),
+                }
+            }
             _ => None,
         }
     }
@@ -516,6 +552,24 @@ pub mod osrs_broadcast_extractor {
         };
     }
 
+    pub fn levelmilestone_broadcast_extractor(message: String) -> Option<LevelMilestoneBroadcast> {
+        let re = regex::Regex::new(r#"^(?P<clan_mate>.*?) has reached (?:a )?(?:the highest possible )?(?P<skill>.*?) level(?: of)? (?P<level>.*?)[!.]"#).unwrap();
+
+        return if let Some(caps) = re.captures(message.as_str()) {
+            let clan_mate = caps.name("clan_mate").unwrap().as_str();
+            let skill_levelled = caps.name("skill").unwrap().as_str();
+            let new_skill_level = caps.name("level").unwrap().as_str();
+            Some(LevelMilestoneBroadcast {
+                clan_mate: clan_mate.to_string(),
+                skill_levelled: skill_levelled.to_string(),
+                new_skill_level: new_skill_level.to_string(),
+                skill_icon: Some(get_skill_icon(skill_levelled.to_string())),
+            })
+        } else {
+            None
+        };
+    }
+
     pub fn get_broadcast_type(message_content: String) -> BroadcastType {
         if message_content.contains("received a drop:") {
             return BroadcastType::ItemDrop;
@@ -540,6 +594,9 @@ pub mod osrs_broadcast_extractor {
         }
         if message_content.contains("has been invited") {
             return BroadcastType::Invite;
+        }
+        if message_content.contains("has reached") && message_content.contains("level") {
+            return BroadcastType::LevelMilestone;
         }
         return BroadcastType::Unknown;
     }
@@ -573,6 +630,14 @@ pub mod osrs_broadcast_extractor {
             image_name
         )
     }
+
+    pub fn get_skill_icon(skill: String) -> String {
+        let image_name = format_wiki_image_name(skill);
+        format!(
+            "https://oldschool.runescape.wiki/images/{}_icon_(detail).png",
+            image_name
+        )
+    }
 }
 
 #[cfg(test)]
@@ -581,7 +646,7 @@ mod tests {
     use crate::ge_api::ge_api::GetItem;
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
         ClanMessage, DiaryCompletedBroadcast, DiaryTier, PetDropBroadcast, PkBroadcast,
-        QuestCompletedBroadcast, InviteBroadcast,
+        QuestCompletedBroadcast, InviteBroadcast, LevelMilestoneBroadcast,
     };
     use tracing::info;
 
@@ -676,6 +741,19 @@ mod tests {
             assert!(matches!(
                 broadcast_type,
                 osrs_broadcast_extractor::BroadcastType::Invite
+            ));
+        }
+    }
+
+    #[test]
+    fn test_get_levelmilestone_type_broadcast() {
+        let possible_levelmilestone_broadcasts = get_levelmilestone_messages();
+        for possible_levelmilestone_broadcast in possible_levelmilestone_broadcasts {
+            let broadcast_type =
+                osrs_broadcast_extractor::get_broadcast_type(possible_levelmilestone_broadcast.message);
+            assert!(matches!(
+                broadcast_type,
+                osrs_broadcast_extractor::BroadcastType::LevelMilestone
             ));
         }
     }
@@ -957,6 +1035,30 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_levelmilestone_broadcast_extractor() {
+        let test_levelmilestone_broadcasts = get_levelmilestone_messages();
+        for test_levelmilestone_broadcast in test_levelmilestone_broadcasts {
+            let possible_levelmilestone_extract =
+                osrs_broadcast_extractor::levelmilestone_broadcast_extractor(test_levelmilestone_broadcast.message.clone());
+            match possible_levelmilestone_extract {
+                None => {
+                    info!(
+                        "Failed to extract level milestone from message: {}",
+                        test_levelmilestone_broadcast.message.clone()
+                    );
+                    assert!(false);
+                }
+                Some(levelmilestone_broadcast) => {
+                    assert_eq!(levelmilestone_broadcast.clan_mate, test_levelmilestone_broadcast.levelmilestone_broadcast.clan_mate);
+                    assert_eq!(levelmilestone_broadcast.skill_levelled, test_levelmilestone_broadcast.levelmilestone_broadcast.skill_levelled);
+                    assert_eq!(levelmilestone_broadcast.new_skill_level, test_levelmilestone_broadcast.levelmilestone_broadcast.new_skill_level);
+                    assert_eq!(levelmilestone_broadcast.skill_icon, test_levelmilestone_broadcast.levelmilestone_broadcast.skill_icon);
+                }
+            }
+        }
+    }
+
     //Test data setup
     struct ItemMessageTest {
         message: String,
@@ -994,6 +1096,11 @@ mod tests {
     struct InviteBroadcastTest {
         message: String,
         invite_broadcast: InviteBroadcast,
+    }
+
+    struct LevelMilestoneBroadcastTest {
+        message: String,
+        levelmilestone_broadcast: LevelMilestoneBroadcast,
     }
 
     fn get_raid_messages() -> Vec<ItemMessageTest> {
@@ -1410,5 +1517,65 @@ mod tests {
         });
         
         possible_invite_broadcasts
+    }
+
+    fn get_levelmilestone_messages() -> Vec<LevelMilestoneBroadcastTest> {
+        let mut possible_levelmilestone_broadcasts: Vec<LevelMilestoneBroadcastTest> = Vec::new();
+            // Th3TRiPPyOn3 has reached Defence level 70.
+            // MechaPanzer has reached combat level 104.
+            // I Vision I has reached a total level of 2225.
+            // Zillamanjaro has reached the highest possible combat level of 126!
+            // Sad Bug has reached the highest possible total level of 2277!
+        possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest{
+            message: "Th3TRiPPyOn3 has reached Defence level 70.".to_string(),
+            levelmilestone_broadcast: LevelMilestoneBroadcast {
+                clan_mate: "Th3TRiPPyOn3".to_string(),
+                skill_levelled: "Defence".to_string(),
+                new_skill_level: "70".to_string(),
+                skill_icon: Some("https://oldschool.runescape.wiki/images/Defence_icon_(detail).png".to_string()),
+            }
+        });
+
+        possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest{
+            message: "MechaPanzer has reached combat level 104.".to_string(),
+            levelmilestone_broadcast: LevelMilestoneBroadcast {
+                clan_mate: "MechaPanzer".to_string(),
+                skill_levelled: "combat".to_string(),
+                new_skill_level: "104".to_string(),
+                skill_icon: Some("https://oldschool.runescape.wiki/images/combat_icon_(detail).png".to_string()),
+            }
+        });
+
+        possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest{
+            message: "I Vision I has reached a total level of 2225.".to_string(),
+            levelmilestone_broadcast: LevelMilestoneBroadcast {
+                clan_mate: "I Vision I".to_string(),
+                skill_levelled: "total".to_string(),
+                new_skill_level: "2225".to_string(),
+                skill_icon: Some("https://oldschool.runescape.wiki/images/total_icon_(detail).png".to_string()),
+            }
+        });
+
+        possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest{
+            message: "Zillamanjaro has reached the highest possible combat level of 126!".to_string(),
+            levelmilestone_broadcast: LevelMilestoneBroadcast {
+                clan_mate: "Zillamanjaro".to_string(),
+                skill_levelled: "combat".to_string(),
+                new_skill_level: "126".to_string(),
+                skill_icon: Some("https://oldschool.runescape.wiki/images/combat_icon_(detail).png".to_string()),
+            }
+        });
+
+        possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest{
+            message: "Sad Bug has reached the highest possible total level of 2277!".to_string(),
+            levelmilestone_broadcast: LevelMilestoneBroadcast {
+                clan_mate: "Sad Bug".to_string(),
+                skill_levelled: "total".to_string(),
+                new_skill_level: "2277".to_string(),
+                skill_icon: Some("https://oldschool.runescape.wiki/images/total_icon_(detail).png".to_string()),
+            }
+        });
+        
+        possible_levelmilestone_broadcasts
     }
 }
