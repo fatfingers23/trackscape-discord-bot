@@ -1,9 +1,10 @@
 //! A multi-room chat server.
 
+use actix_web::web::Data;
+use std::sync::Mutex;
 use std::{
     collections::{HashMap, HashSet},
     io,
-    sync::{atomic::AtomicUsize, Arc},
 };
 
 use serde::{Deserialize, Serialize};
@@ -68,15 +69,15 @@ pub struct ChatServer {
     /// Map of room name to participant IDs in that room.
     clan_chat_channels: HashMap<VerificationCode, HashSet<ConnId>>,
 
-    /// Tracks total number of historical connections established.
-    visitor_count: Arc<AtomicUsize>,
-
     /// Command receiver.
     cmd_rx: mpsc::UnboundedReceiver<Command>,
+
+    ///visitor count
+    connected_chatters_count: Data<Mutex<usize>>,
 }
 
 impl ChatServer {
-    pub fn new() -> (Self, ChatServerHandle) {
+    pub fn new(connected_chatters_count: Data<Mutex<usize>>) -> (Self, ChatServerHandle) {
         // create empty server
         let rooms = HashMap::with_capacity(4);
 
@@ -86,8 +87,8 @@ impl ChatServer {
             Self {
                 sessions: HashMap::new(),
                 clan_chat_channels: rooms,
-                visitor_count: Arc::new(AtomicUsize::new(0)),
                 cmd_rx,
+                connected_chatters_count,
             },
             ChatServerHandle { cmd_tx },
         )
@@ -159,33 +160,15 @@ impl ChatServer {
             .entry(verification_code.clone())
             .or_default()
             .insert(id);
-        self.visitor_count
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
-        let count = self
-            .visitor_count
-            .load(std::sync::atomic::Ordering::Relaxed);
-        info!("Total Connected Clients now: {}", count);
+        *self.connected_chatters_count.lock().unwrap() += 1;
+
+        info!(
+            "Total Connected Clients now: {}",
+            self.connected_chatters_count.lock().unwrap()
+        );
 
         id
-    }
-
-    /// Unregister connection from room map and broadcast disconnection message.
-    async fn disconnect(&mut self, conn_id: ConnId) {
-        println!("Someone disconnected");
-        // remove sender
-        if self.sessions.remove(&conn_id).is_some() {
-            // remove session from all rooms
-            for (_, sessions) in &mut self.clan_chat_channels {
-                sessions.remove(&conn_id);
-            }
-        }
-        self.visitor_count
-            .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
-        let count = self
-            .visitor_count
-            .load(std::sync::atomic::Ordering::Relaxed);
-        info!("Total Connected Clients now: {}", count);
     }
 
     pub async fn run(mut self) -> io::Result<()> {
@@ -232,6 +215,23 @@ impl ChatServer {
         }
 
         Ok(())
+    }
+
+    /// Unregister connection from room map and broadcast disconnection message.
+    async fn disconnect(&mut self, conn_id: ConnId) {
+        println!("Someone disconnected");
+        // remove sender
+        if self.sessions.remove(&conn_id).is_some() {
+            // remove session from all rooms
+            for (_, sessions) in &mut self.clan_chat_channels {
+                sessions.remove(&conn_id);
+            }
+        }
+        *self.connected_chatters_count.lock().unwrap() -= 1;
+        info!(
+            "Total Connected Clients now: {}",
+            self.connected_chatters_count.lock().unwrap()
+        );
     }
 }
 

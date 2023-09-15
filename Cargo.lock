@@ -3132,6 +3132,7 @@ dependencies = [
  "dotenv",
  "futures",
  "futures-util",
+ "log",
  "mongodb",
  "rand",
  "serde",

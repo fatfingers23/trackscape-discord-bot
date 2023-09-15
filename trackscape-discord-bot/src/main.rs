@@ -224,7 +224,7 @@ pub async fn create_commands_for_guild(guild_id: &GuildId, ctx: Context) {
     match commands {
         Ok(_) => {}
         Err(e) => {
-            error!("Error creating guild commands: {}", e)
+            error!("Error creating guild commands: {}, for: {}", e, guild_id)
         }
     }
 }

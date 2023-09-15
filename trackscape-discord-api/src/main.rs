@@ -5,7 +5,9 @@ mod handler;
 mod websocket_server;
 
 use crate::cache::Cache;
+use crate::controllers::bot_info_controller::info_controller;
 use crate::controllers::chat_controller::chat_controller;
+use actix_web::web::Data;
 use actix_web::{web, web::ServiceConfig};
 use dotenv::dotenv;
 use serenity::http::HttpBuilder;
@@ -13,6 +15,8 @@ use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_persist::PersistInstance;
 use shuttle_runtime::tracing::info;
 use std::env;
+use std::sync::atomic::{AtomicI64, AtomicUsize};
+use std::sync::Mutex;
 use std::time::Duration;
 use tokio::spawn;
 use trackscape_discord_shared::database::BotMongoDb;
@@ -24,7 +28,7 @@ pub use self::websocket_server::{ChatServer, ChatServerHandle};
 /// Connection ID.
 pub type ConnId = Uuid;
 
-/// Used to create a chat room for a clan
+/// Used to create a chat room for a cla
 pub type VerificationCode = String;
 
 /// Message sent to a clan/client.
@@ -58,18 +62,27 @@ async fn actix_web(
         cache.clean_expired().await;
     });
 
-    let (chat_server, server_tx) = ChatServer::new();
+    #[allow(clippy::mutex_atomic)] // it's intentional.
+    let connected_websockets_counter = Data::new(Mutex::new(0usize));
+    let connected_discord_servers = Data::new(AtomicI64::new(0));
+
+    let (chat_server, server_tx) = ChatServer::new(connected_websockets_counter.clone());
 
     let _ = spawn(chat_server.run());
 
     let config = move |cfg: &mut ServiceConfig| {
-        cfg.service(web::scope("/api").service(chat_controller()))
-            .app_data(web::Data::new(server_tx.clone()))
-            // .app_data(web::Data::new(Arc::new(chat_server.clone())))
-            .app_data(web::Data::new(cache_clone))
-            .app_data(web::Data::new(HttpBuilder::new(discord_token).build()))
-            .app_data(web::Data::new(db))
-            .app_data(web::Data::new(persist.clone()));
+        cfg.service(
+            web::scope("/api")
+                .service(chat_controller())
+                .service(info_controller()),
+        )
+        .app_data(web::Data::new(server_tx.clone()))
+        .app_data(connected_websockets_counter)
+        .app_data(connected_discord_servers)
+        .app_data(web::Data::new(cache_clone))
+        .app_data(web::Data::new(HttpBuilder::new(discord_token).build()))
+        .app_data(web::Data::new(db))
+        .app_data(web::Data::new(persist.clone()));
     };
     Ok(config.into())
 }
