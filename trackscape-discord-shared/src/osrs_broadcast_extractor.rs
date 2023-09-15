@@ -378,7 +378,8 @@ pub mod osrs_broadcast_extractor {
                         player_it_happened_to: invite_broadcast.clan_mate,
                         message: message.message,
                         icon_url: Some(
-                            "https://oldschool.runescape.wiki/images/Your_Clan_icon.png".to_string(),
+                            "https://oldschool.runescape.wiki/images/Your_Clan_icon.png"
+                                .to_string(),
                         ),
                         title: ":wave: New Invite!".to_string(),
                         item_value: None,
@@ -386,7 +387,8 @@ pub mod osrs_broadcast_extractor {
                 }
             }
             BroadcastType::LevelMilestone => {
-                let possible_levelmilestone_broadcast = levelmilestone_broadcast_extractor(message.message.clone());
+                let possible_levelmilestone_broadcast =
+                    levelmilestone_broadcast_extractor(message.message.clone());
                 match possible_levelmilestone_broadcast {
                     None => {
                         error!(
@@ -406,7 +408,8 @@ pub mod osrs_broadcast_extractor {
                 }
             }
             BroadcastType::XPMilestone => {
-                let possible_xpmilestone_broadcast = xpmilestone_broadcast_extractor(message.message.clone());
+                let possible_xpmilestone_broadcast =
+                    xpmilestone_broadcast_extractor(message.message.clone());
                 match possible_xpmilestone_broadcast {
                     None => {
                         error!(
@@ -547,16 +550,15 @@ pub mod osrs_broadcast_extractor {
             let loser_name = caps.name("loser_name").unwrap().as_str();
             let mut clan_mate_name = caps.name("winner_name").unwrap().as_str();
             let mut clan_mate_winner = true;
-            if message.contains("defeated by"){
+            if message.contains("defeated by") {
                 clan_mate_winner = false;
                 clan_mate_name = caps.name("loser_name").unwrap().as_str();
             };
             let gp_value_str = caps.name("gp_value").map_or("", |m| m.as_str());
-            let int_value: i64 = gp_value_str.replace(",","").parse().unwrap_or(0);
-            let gp_value = 
-            if int_value == 0{
+            let int_value: i64 = gp_value_str.replace(",", "").parse().unwrap_or(0);
+            let gp_value = if int_value == 0 {
                 None
-            }else {
+            } else {
                 Some(int_value)
             };
             Some(PkBroadcast {
@@ -572,7 +574,10 @@ pub mod osrs_broadcast_extractor {
     }
 
     pub fn invite_broadcast_extractor(message: String) -> Option<InviteBroadcast> {
-        let re = regex::Regex::new(r#"^(?P<clan_joiner>.*?) has been invited into the clan by (?P<clan_inviter>.*?).$"#).unwrap();
+        let re = regex::Regex::new(
+            r#"^(?P<clan_joiner>.*?) has been invited into the clan by (?P<clan_inviter>.*?).$"#,
+        )
+        .unwrap();
 
         return if let Some(caps) = re.captures(message.as_str()) {
             let clan_mate = caps.name("clan_inviter").unwrap().as_str();
@@ -605,8 +610,10 @@ pub mod osrs_broadcast_extractor {
     }
 
     pub fn xpmilestone_broadcast_extractor(message: String) -> Option<XPMilestoneBroadcast> {
-        //TODO
-        let re = regex::Regex::new(r#"^(?P<clan_member>.*?) has reached (?P<xp>.*?) XP in (?P<skill>.*?)[!.]"#).unwrap();
+        let re = regex::Regex::new(
+            r#"^(?P<clan_member>.*?) has reached (?P<xp>.*?) XP in (?P<skill>.*?)[!.]"#,
+        )
+        .unwrap();
 
         return if let Some(caps) = re.captures(message.as_str()) {
             let clan_mate = caps.name("clan_member").unwrap().as_str();
@@ -701,8 +708,8 @@ mod tests {
     use super::*;
     use crate::ge_api::ge_api::GetItem;
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-        ClanMessage, DiaryCompletedBroadcast, DiaryTier, PetDropBroadcast, PkBroadcast,
-        QuestCompletedBroadcast, InviteBroadcast, LevelMilestoneBroadcast, XPMilestoneBroadcast,
+        ClanMessage, DiaryCompletedBroadcast, DiaryTier, InviteBroadcast, LevelMilestoneBroadcast,
+        PetDropBroadcast, PkBroadcast, QuestCompletedBroadcast, XPMilestoneBroadcast,
     };
     use tracing::info;
 
@@ -805,8 +812,9 @@ mod tests {
     fn test_get_levelmilestone_type_broadcast() {
         let possible_levelmilestone_broadcasts = get_levelmilestone_messages();
         for possible_levelmilestone_broadcast in possible_levelmilestone_broadcasts {
-            let broadcast_type =
-                osrs_broadcast_extractor::get_broadcast_type(possible_levelmilestone_broadcast.message);
+            let broadcast_type = osrs_broadcast_extractor::get_broadcast_type(
+                possible_levelmilestone_broadcast.message,
+            );
             assert!(matches!(
                 broadcast_type,
                 osrs_broadcast_extractor::BroadcastType::LevelMilestone
@@ -818,8 +826,9 @@ mod tests {
     fn test_get_xpmilestone_type_broadcast() {
         let possible_xpmilestone_broadcasts = get_xpmilestone_messages();
         for possible_xpmilestone_broadcast in possible_xpmilestone_broadcasts {
-            let broadcast_type =
-                osrs_broadcast_extractor::get_broadcast_type(possible_xpmilestone_broadcast.message);
+            let broadcast_type = osrs_broadcast_extractor::get_broadcast_type(
+                possible_xpmilestone_broadcast.message,
+            );
             assert!(matches!(
                 broadcast_type,
                 osrs_broadcast_extractor::BroadcastType::XPMilestone
@@ -1086,8 +1095,9 @@ mod tests {
     fn test_invite_broadcast_extractor() {
         let test_invite_broadcasts = get_invite_messages();
         for test_invite_broadcast in test_invite_broadcasts {
-            let possible_invite_extract =
-                osrs_broadcast_extractor::invite_broadcast_extractor(test_invite_broadcast.message.clone());
+            let possible_invite_extract = osrs_broadcast_extractor::invite_broadcast_extractor(
+                test_invite_broadcast.message.clone(),
+            );
             match possible_invite_extract {
                 None => {
                     info!(
@@ -1097,8 +1107,14 @@ mod tests {
                     assert!(false);
                 }
                 Some(invite_broadcast) => {
-                    assert_eq!(invite_broadcast.clan_mate, test_invite_broadcast.invite_broadcast.clan_mate);
-                    assert_eq!(invite_broadcast.new_clan_mate, test_invite_broadcast.invite_broadcast.new_clan_mate);
+                    assert_eq!(
+                        invite_broadcast.clan_mate,
+                        test_invite_broadcast.invite_broadcast.clan_mate
+                    );
+                    assert_eq!(
+                        invite_broadcast.new_clan_mate,
+                        test_invite_broadcast.invite_broadcast.new_clan_mate
+                    );
                 }
             }
         }
@@ -1109,7 +1125,9 @@ mod tests {
         let test_levelmilestone_broadcasts = get_levelmilestone_messages();
         for test_levelmilestone_broadcast in test_levelmilestone_broadcasts {
             let possible_levelmilestone_extract =
-                osrs_broadcast_extractor::levelmilestone_broadcast_extractor(test_levelmilestone_broadcast.message.clone());
+                osrs_broadcast_extractor::levelmilestone_broadcast_extractor(
+                    test_levelmilestone_broadcast.message.clone(),
+                );
             match possible_levelmilestone_extract {
                 None => {
                     info!(
@@ -1119,10 +1137,30 @@ mod tests {
                     assert!(false);
                 }
                 Some(levelmilestone_broadcast) => {
-                    assert_eq!(levelmilestone_broadcast.clan_mate, test_levelmilestone_broadcast.levelmilestone_broadcast.clan_mate);
-                    assert_eq!(levelmilestone_broadcast.skill_levelled, test_levelmilestone_broadcast.levelmilestone_broadcast.skill_levelled);
-                    assert_eq!(levelmilestone_broadcast.new_skill_level, test_levelmilestone_broadcast.levelmilestone_broadcast.new_skill_level);
-                    assert_eq!(levelmilestone_broadcast.skill_icon, test_levelmilestone_broadcast.levelmilestone_broadcast.skill_icon);
+                    assert_eq!(
+                        levelmilestone_broadcast.clan_mate,
+                        test_levelmilestone_broadcast
+                            .levelmilestone_broadcast
+                            .clan_mate
+                    );
+                    assert_eq!(
+                        levelmilestone_broadcast.skill_levelled,
+                        test_levelmilestone_broadcast
+                            .levelmilestone_broadcast
+                            .skill_levelled
+                    );
+                    assert_eq!(
+                        levelmilestone_broadcast.new_skill_level,
+                        test_levelmilestone_broadcast
+                            .levelmilestone_broadcast
+                            .new_skill_level
+                    );
+                    assert_eq!(
+                        levelmilestone_broadcast.skill_icon,
+                        test_levelmilestone_broadcast
+                            .levelmilestone_broadcast
+                            .skill_icon
+                    );
                 }
             }
         }
@@ -1133,7 +1171,9 @@ mod tests {
         let test_xpmilestone_broadcasts = get_xpmilestone_messages();
         for test_xpmilestone_broadcast in test_xpmilestone_broadcasts {
             let possible_xpmilestone_extract =
-                osrs_broadcast_extractor::xpmilestone_broadcast_extractor(test_xpmilestone_broadcast.message.clone());
+                osrs_broadcast_extractor::xpmilestone_broadcast_extractor(
+                    test_xpmilestone_broadcast.message.clone(),
+                );
             match possible_xpmilestone_extract {
                 None => {
                     info!(
@@ -1143,10 +1183,24 @@ mod tests {
                     assert!(false);
                 }
                 Some(xpmilestone_broadcast) => {
-                    assert_eq!(xpmilestone_broadcast.clan_mate, test_xpmilestone_broadcast.xpmilestone_broadcast.clan_mate);
-                    assert_eq!(xpmilestone_broadcast.skill, test_xpmilestone_broadcast.xpmilestone_broadcast.skill);
-                    assert_eq!(xpmilestone_broadcast.new_skill_xp, test_xpmilestone_broadcast.xpmilestone_broadcast.new_skill_xp);
-                    assert_eq!(xpmilestone_broadcast.skill_icon, test_xpmilestone_broadcast.xpmilestone_broadcast.skill_icon);
+                    assert_eq!(
+                        xpmilestone_broadcast.clan_mate,
+                        test_xpmilestone_broadcast.xpmilestone_broadcast.clan_mate
+                    );
+                    assert_eq!(
+                        xpmilestone_broadcast.skill,
+                        test_xpmilestone_broadcast.xpmilestone_broadcast.skill
+                    );
+                    assert_eq!(
+                        xpmilestone_broadcast.new_skill_xp,
+                        test_xpmilestone_broadcast
+                            .xpmilestone_broadcast
+                            .new_skill_xp
+                    );
+                    assert_eq!(
+                        xpmilestone_broadcast.skill_icon,
+                        test_xpmilestone_broadcast.xpmilestone_broadcast.skill_icon
+                    );
                 }
             }
         }
@@ -1590,30 +1644,30 @@ mod tests {
         // Victor Locke has been invited into the clan by IRuneNakey.
         // KingConley has been invited into the clan by kanga roe.
         // RUKAl has been invited into the clan by l cant see.
-        possible_invite_broadcasts.push(InviteBroadcastTest{
+        possible_invite_broadcasts.push(InviteBroadcastTest {
             message: "Victor Locke has been invited into the clan by IRuneNakey.".to_string(),
             invite_broadcast: InviteBroadcast {
                 clan_mate: "IRuneNakey".to_string(),
                 new_clan_mate: "Victor Locke".to_string(),
-            }
+            },
         });
 
-        possible_invite_broadcasts.push(InviteBroadcastTest{
+        possible_invite_broadcasts.push(InviteBroadcastTest {
             message: "KingConley has been invited into the clan by kanga roe.".to_string(),
             invite_broadcast: InviteBroadcast {
                 clan_mate: "kanga roe".to_string(),
                 new_clan_mate: "KingConley".to_string(),
-            }
+            },
         });
 
-        possible_invite_broadcasts.push(InviteBroadcastTest{
+        possible_invite_broadcasts.push(InviteBroadcastTest {
             message: "RUKAl has been invited into the clan by l cant see.".to_string(),
             invite_broadcast: InviteBroadcast {
                 clan_mate: "l cant see".to_string(),
                 new_clan_mate: "RUKAl".to_string(),
-            }
+            },
         });
-        
+
         possible_invite_broadcasts
     }
 
@@ -1624,56 +1678,67 @@ mod tests {
         // I Vision I has reached a total level of 2225.
         // Zillamanjaro has reached the highest possible combat level of 126!
         // Sad Bug has reached the highest possible total level of 2277!
-        possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest{
+        possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest {
             message: "Th3TRiPPyOn3 has reached Defence level 70.".to_string(),
             levelmilestone_broadcast: LevelMilestoneBroadcast {
                 clan_mate: "Th3TRiPPyOn3".to_string(),
                 skill_levelled: "Defence".to_string(),
                 new_skill_level: "70".to_string(),
-                skill_icon: Some("https://oldschool.runescape.wiki/images/Defence_icon_(detail).png".to_string()),
-            }
+                skill_icon: Some(
+                    "https://oldschool.runescape.wiki/images/Defence_icon_(detail).png".to_string(),
+                ),
+            },
         });
 
-        possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest{
+        possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest {
             message: "MechaPanzer has reached combat level 104.".to_string(),
             levelmilestone_broadcast: LevelMilestoneBroadcast {
                 clan_mate: "MechaPanzer".to_string(),
                 skill_levelled: "combat".to_string(),
                 new_skill_level: "104".to_string(),
-                skill_icon: Some("https://oldschool.runescape.wiki/images/combat_icon_(detail).png".to_string()),
-            }
+                skill_icon: Some(
+                    "https://oldschool.runescape.wiki/images/combat_icon_(detail).png".to_string(),
+                ),
+            },
         });
 
-        possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest{
+        possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest {
             message: "I Vision I has reached a total level of 2225.".to_string(),
             levelmilestone_broadcast: LevelMilestoneBroadcast {
                 clan_mate: "I Vision I".to_string(),
                 skill_levelled: "total".to_string(),
                 new_skill_level: "2225".to_string(),
-                skill_icon: Some("https://oldschool.runescape.wiki/images/total_icon_(detail).png".to_string()),
-            }
+                skill_icon: Some(
+                    "https://oldschool.runescape.wiki/images/total_icon_(detail).png".to_string(),
+                ),
+            },
         });
 
-        possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest{
-            message: "Zillamanjaro has reached the highest possible combat level of 126!".to_string(),
+        possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest {
+            message: "Zillamanjaro has reached the highest possible combat level of 126!"
+                .to_string(),
             levelmilestone_broadcast: LevelMilestoneBroadcast {
                 clan_mate: "Zillamanjaro".to_string(),
                 skill_levelled: "combat".to_string(),
                 new_skill_level: "126".to_string(),
-                skill_icon: Some("https://oldschool.runescape.wiki/images/combat_icon_(detail).png".to_string()),
-            }
+                skill_icon: Some(
+                    "https://oldschool.runescape.wiki/images/combat_icon_(detail).png".to_string(),
+                ),
+            },
         });
 
-        possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest{
+        possible_levelmilestone_broadcasts.push(LevelMilestoneBroadcastTest {
             message: "Sad Bug has reached the highest possible total level of 2277!".to_string(),
             levelmilestone_broadcast: LevelMilestoneBroadcast {
                 clan_mate: "Sad Bug".to_string(),
                 skill_levelled: "total".to_string(),
                 new_skill_level: "2277".to_string(),
-                skill_icon: Some("https://oldschool.runescape.wiki/images/total_icon_(detail).png".to_string()),
-            }
+                skill_icon: Some(
+                    "https://oldschool.runescape.wiki/images/total_icon_(detail).png".to_string(),
+                ),
+            },
         });
-        
+
         possible_levelmilestone_broadcasts
     }
 
@@ -1682,36 +1747,42 @@ mod tests {
         // Noble Five has reached 78,000,000 XP in Fishing.
         // Matrese has reached 15,000,000 XP in Fishing.
         // Marsel has reached 200,000,000 XP in Cooking.
-        possible_xpmilestone_broadcasts.push(XPMilestoneBroadcastTest{
+        possible_xpmilestone_broadcasts.push(XPMilestoneBroadcastTest {
             message: "Noble Five has reached 78,000,000 XP in Fishing.".to_string(),
             xpmilestone_broadcast: XPMilestoneBroadcast {
                 clan_mate: "Noble Five".to_string(),
                 skill: "Fishing".to_string(),
                 new_skill_xp: "78,000,000".to_string(),
-                skill_icon: Some("https://oldschool.runescape.wiki/images/Fishing_icon_(detail).png".to_string()),
-            }
+                skill_icon: Some(
+                    "https://oldschool.runescape.wiki/images/Fishing_icon_(detail).png".to_string(),
+                ),
+            },
         });
 
-        possible_xpmilestone_broadcasts.push(XPMilestoneBroadcastTest{
+        possible_xpmilestone_broadcasts.push(XPMilestoneBroadcastTest {
             message: "Matrese has reached 15,000,000 XP in Fishing.".to_string(),
             xpmilestone_broadcast: XPMilestoneBroadcast {
                 clan_mate: "Matrese".to_string(),
                 skill: "Fishing".to_string(),
                 new_skill_xp: "15,000,000".to_string(),
-                skill_icon: Some("https://oldschool.runescape.wiki/images/Fishing_icon_(detail).png".to_string()),
-            }
+                skill_icon: Some(
+                    "https://oldschool.runescape.wiki/images/Fishing_icon_(detail).png".to_string(),
+                ),
+            },
         });
 
-        possible_xpmilestone_broadcasts.push(XPMilestoneBroadcastTest{
+        possible_xpmilestone_broadcasts.push(XPMilestoneBroadcastTest {
             message: "Marsel has reached 200,000,000 XP in Cooking.".to_string(),
             xpmilestone_broadcast: XPMilestoneBroadcast {
                 clan_mate: "Marsel".to_string(),
                 skill: "Cooking".to_string(),
                 new_skill_xp: "200,000,000".to_string(),
-                skill_icon: Some("https://oldschool.runescape.wiki/images/Cooking_icon_(detail).png".to_string()),
-            }
+                skill_icon: Some(
+                    "https://oldschool.runescape.wiki/images/Cooking_icon_(detail).png".to_string(),
+                ),
+            },
         });
-        
+
         possible_xpmilestone_broadcasts
     }
 }
