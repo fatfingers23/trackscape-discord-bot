@@ -4,3 +4,4 @@ Secrets.toml
 shuttle_persist
 Secrets.dev.toml
 .env
+.DS_Store
