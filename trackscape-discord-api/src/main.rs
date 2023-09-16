@@ -16,7 +16,7 @@ use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_persist::PersistInstance;
 use shuttle_runtime::tracing::info;
 use std::env;
-use std::sync::atomic::{AtomicI64, AtomicUsize};
+use std::sync::atomic::{AtomicI64};
 use std::sync::Mutex;
 use std::time::Duration;
 use tokio::spawn;
