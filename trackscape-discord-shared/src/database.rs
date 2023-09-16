@@ -30,6 +30,7 @@ pub struct RegisteredGuild {
     pub hashed_verification_code: String,
     pub min_quest_difficulty: Option<QuestDifficulty>,
     pub min_diary_tier: Option<DiaryTier>,
+    pub pk_value_threshold: Option<i64>,
     //TODO add new thresholds here. Like pk, etc.
 }
 
@@ -49,6 +50,7 @@ impl RegisteredGuild {
             hashed_verification_code,
             min_quest_difficulty: None,
             min_diary_tier: None,
+            pk_value_threshold: None,
         }
     }
 
