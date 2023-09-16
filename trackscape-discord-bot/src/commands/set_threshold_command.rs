@@ -33,7 +33,7 @@ pub fn register(
 
 pub async fn run(
     command: &Vec<CommandDataOption>,
-    ctx: &Context,
+    _ctx: &Context,
     db: &BotMongoDb,
     guild_id: u64,
 ) -> Option<String> {
