@@ -1,4 +1,11 @@
 <script setup lang="ts">
+const result = await useFetch('/api/info/landing-page-info')
+console.log(result.data)
+/* This call will only be performed on the client */
+// const { pending, data: posts } = useFetch('http://localhost:8000/api/info/landing-page-info', {
+//   lazy: true,
+//   server: false
+// })
 
 </script>
 
@@ -42,7 +49,7 @@
               Servers Joined
             </div>
             <div class="stat-value">
-              31K
+              {{ data }}
             </div>
           </div>
 

@@ -1,5 +1,5 @@
 use crate::dto::bot_info_dto::DiscordServerCount;
-use tracing::log::error;
+use tracing::error;
 
 pub struct ApiWebClient {
     base_url: String,
@@ -7,8 +7,11 @@ pub struct ApiWebClient {
     web_client: reqwest::Client,
 }
 
+const HEADER_AUTH_KEY: &str = "api-key";
+
 impl ApiWebClient {
-    pub fn new(&self, base_url: String, auth_token: String) -> self {
+    pub fn new(base_url: String, auth_token: String) -> Self {
+        let client = reqwest::Client::new();
         ApiWebClient {
             base_url,
             auth_token,
@@ -17,14 +20,12 @@ impl ApiWebClient {
     }
 
     pub async fn send_server_count(&self, server_count: i64) {
-        let discord_server_count = DiscordServerCount {
-            server_count: server_count,
-        };
+        let discord_server_count = DiscordServerCount { server_count };
 
         let resp = self
             .web_client
             .post(format!("{}{}", self.base_url, "/api/info/set-server-count").as_str())
-            .header("auth-token", self.auth_token.clone())
+            .header(HEADER_AUTH_KEY, self.auth_token.clone())
             .json(&discord_server_count)
             .send()
             .await;

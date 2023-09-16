@@ -15,12 +15,14 @@ use std::env;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tracing::{error, info};
+use trackscape_discord_shared::api_web_client::ApiWebClient;
 use trackscape_discord_shared::database;
 use trackscape_discord_shared::database::BotMongoDb;
 
 struct Bot {
     mongo_db: BotMongoDb,
     trackscape_base_api: String,
+    trackscape_api_web_client: ApiWebClient,
 }
 
 struct ServerCount;
@@ -37,6 +39,8 @@ impl TypeMapKey for ServerCount {
 #[async_trait]
 impl EventHandler for Bot {
     async fn guild_create(&self, ctx: Context, guild: Guild, is_new: bool) {
+        //TODO need to have it check every guild if in db, if not do a create.
+        //This is so if the bot is off and new guild gets added
         info!("Guild: {}", guild.name);
         let server_count = {
             let data_read = ctx.data.read().await;
@@ -46,7 +50,12 @@ impl EventHandler for Bot {
                 .clone()
         };
         server_count.fetch_add(1, Ordering::SeqCst);
-        info!("Server Count: {}", server_count.load(Ordering::SeqCst));
+        let new_server_count = server_count.load(Ordering::SeqCst);
+        info!("Server Count: {}", new_server_count.clone());
+        self.trackscape_api_web_client
+            .send_server_count(new_server_count as i64)
+            .await;
+
         if is_new {
             //This fires if it's a new guild it's been added to
             self.mongo_db.save_new_guild(guild.id.0.clone()).await;
@@ -146,7 +155,7 @@ impl EventHandler for Bot {
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
-        //TODO development code
+        //TODO change to env variable. If dev guild set run this, if not run global
         create_commands_for_guild(&GuildId(1148645741653393408), ctx.clone()).await;
     }
 
@@ -235,16 +244,18 @@ async fn serenity() -> shuttle_serenity::ShuttleSerenity {
     let token = env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN not set!");
     let api_base = env::var("TRACKSCAPE_API_BASE").expect("TRACKSCAPE_API_BASE not set!");
     let mongodb_url = env::var("MONGO_DB_URL").expect("MONGO_DB_URL not set!");
+    let trackscape_api_token = env::var("MANAGEMENT_API_KEY").expect("MANAGEMENT_API_KEY not set!");
     let db = BotMongoDb::new_db(mongodb_url).await;
 
     // Set gateway intents, which decides what events the bot will be notified about
     let intents =
         GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT | GatewayIntents::GUILDS;
-
+    let api_client = ApiWebClient::new(api_base.clone(), trackscape_api_token);
     let client = serenity::Client::builder(&token, intents)
         .event_handler(Bot {
             mongo_db: db,
             trackscape_base_api: api_base,
+            trackscape_api_web_client: api_client,
         })
         .await
         .expect("Err creating client");

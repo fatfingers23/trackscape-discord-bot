@@ -1,4 +1,5 @@
 extern crate dotenv;
+
 mod cache;
 mod controllers;
 mod handler;
@@ -24,6 +25,7 @@ use trackscape_discord_shared::ge_api::ge_api::{get_item_mapping, GeItemMapping}
 use uuid::Uuid;
 
 pub use self::websocket_server::{ChatServer, ChatServerHandle};
+use actix_files::Files;
 
 /// Connection ID.
 pub type ConnId = Uuid;
@@ -42,6 +44,10 @@ async fn actix_web(
 
     let discord_token = env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN not set!");
     let mongodb_url = env::var("MONGO_DB_URL").expect("MONGO_DB_URL not set!");
+    let management_api_key = env::var("MANAGEMENT_API_KEY").expect("MANAGEMENT_API_KEY not set!");
+    persist
+        .save("api-key", management_api_key)
+        .expect("Error saving api key");
     let db = BotMongoDb::new_db(mongodb_url).await;
 
     let ge_mapping_request = get_item_mapping().await;
@@ -76,6 +82,7 @@ async fn actix_web(
                 .service(chat_controller())
                 .service(info_controller()),
         )
+        .service(Files::new("/", "./trackscape-discord-api/ui/").index_file("index.html"))
         .app_data(web::Data::new(server_tx.clone()))
         .app_data(connected_websockets_counter)
         .app_data(connected_discord_servers)
