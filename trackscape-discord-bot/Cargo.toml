@@ -12,7 +12,7 @@ mongodb = "2.4.0"
 xxhash-rust = {version = "0.8.6", features = ["xxh3", "const_xxh3"]}
 shuttle-serenity = "0.25.0"
 shuttle-runtime = "0.25.0"
-serenity = { version = "0.11.5", default-features = false, features = ["client", "gateway", "rustls_backend", "model", "cache"] }
+serenity = { version = "0.11.5", default-features = false, features = ["client", "gateway", "rustls_backend", "model", "cache", "collector"] }
 serde = { version = "1.0.188", features = ["derive"] }
 serde_json = "1.0.105"
 tokio = "1.26.0"
@@ -24,3 +24,4 @@ num-format = "0.4.4"
 shuttle-persist = "0.25.0"
 reqwest = {version = "0.11.20", features = ["json"]}
 trackscape-discord-shared = { path = "../trackscape-discord-shared" }
+log = "0.4.20"

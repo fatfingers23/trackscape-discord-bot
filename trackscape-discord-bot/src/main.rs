@@ -3,8 +3,6 @@ mod on_boarding_message;
 
 use crate::on_boarding_message::send_on_boarding;
 use dotenv::dotenv;
-use num_format::Locale::lag;
-use serenity::async_trait;
 use serenity::model::application::command::Command;
 use serenity::model::application::interaction::Interaction;
 use serenity::model::channel::Message;
@@ -12,6 +10,7 @@ use serenity::model::gateway::Ready;
 use serenity::model::guild::{Guild, UnavailableGuild};
 use serenity::model::id::GuildId;
 use serenity::prelude::*;
+use serenity::{async_trait, Error};
 use std::collections::HashMap;
 use std::env;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -171,7 +170,7 @@ impl EventHandler for Bot {
                             commands::set_broadcast_channel::register(command)
                         })
                         .create_application_command(|command| {
-                            commands::get_verifcation_code::register(command)
+                            commands::get_verification_code::register(command)
                         })
                         .create_application_command(|command| commands::info::register(command))
                 })
@@ -187,8 +186,42 @@ impl EventHandler for Bot {
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::ApplicationCommand(command) = interaction {
+        if let Interaction::MessageComponent(component) = interaction.clone() {
+            match component.data.custom_id.as_str() {
+                "broadcast_config_save" => {
+                    commands::broadcast_config_command::handle_submit(
+                        component,
+                        &ctx,
+                        &self.mongo_db,
+                    )
+                    .await
+                    .expect("Error handling submit");
+                    return;
+                }
+                _ => info!("No handler found for that button id"),
+            }
+        }
+        if let Interaction::ApplicationCommand(command) = interaction.clone() {
             // println!("Received command interaction: {:#?}", command);
+
+            //For commands that return modals or other interactions
+            let interaction_result = match command.data.name.as_str() {
+                "broadcast_config" => {
+                    commands::broadcast_config_command::run(command.clone(), &ctx, &self.mongo_db)
+                        .await
+                }
+                _ => {
+                    info!("not implemented as interaction");
+                    Ok(())
+                }
+            };
+
+            match interaction_result {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("Error running interaction: {}", e)
+                }
+            }
 
             let content = match command.data.name.as_str() {
                 "set_clan_chat_channel" => {
@@ -210,7 +243,7 @@ impl EventHandler for Bot {
                     .await
                 }
                 "get_verification_code" => {
-                    commands::get_verifcation_code::run(
+                    commands::get_verification_code::run(
                         &command.data.options,
                         &ctx,
                         &self.mongo_db,
@@ -253,8 +286,13 @@ pub async fn create_commands_for_guild(guild_id: &GuildId, ctx: Context) {
             .create_application_command(|command| {
                 commands::set_broadcast_channel::register(command)
             })
-            .create_application_command(|command| commands::get_verifcation_code::register(command))
+            .create_application_command(|command| {
+                commands::get_verification_code::register(command)
+            })
             .create_application_command(|command| commands::info::register(command))
+            .create_application_command(|command| {
+                commands::broadcast_config_command::register(command)
+            })
     })
     .await;
     match commands {
