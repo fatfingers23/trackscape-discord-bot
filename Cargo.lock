@@ -2455,6 +2455,7 @@ dependencies = [
  "parking_lot",
  "percent-encoding",
  "reqwest",
+ "rustversion",
  "serde",
  "serde-value",
  "serde_json",
@@ -3188,6 +3189,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dotenv",
+ "log",
  "mongodb",
  "num-format",
  "rand",
