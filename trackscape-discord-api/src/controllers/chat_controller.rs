@@ -13,8 +13,10 @@ use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::GeItemMapping;
 use trackscape_discord_shared::helpers::hash_string;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-    extract_message, get_wiki_clan_rank_image_url, ClanMessage,
+    get_wiki_clan_rank_image_url, ClanMessage,
 };
+
+use trackscape_discord_shared::osrs_broadcast_handler::OSRSBroadcastHandler;
 
 #[derive(Debug)]
 struct MyError {
@@ -169,21 +171,18 @@ async fn new_clan_chats(
             let item_mapping_from_state = persist
                 .load::<GeItemMapping>("mapping")
                 .map_err(|e| info!("Saving Item Mapping Error: {e}"));
-
-            let possible_broadcast = extract_message(chat.clone(), item_mapping_from_state).await;
+            let handler = OSRSBroadcastHandler::new(
+                chat.clone(),
+                item_mapping_from_state,
+                registered_guild.clone(),
+            );
+            let possible_broadcast = handler.extract_message().await;
             match possible_broadcast {
                 None => {}
                 Some(broadcast) => {
+                    info!("Broadcast: {:?}", broadcast);
                     info!("{}\n", chat.message.clone());
 
-                    if broadcast.item_value.is_some() {
-                        if let Some(drop_threshold) = registered_guild.drop_price_threshold {
-                            if broadcast.item_value.unwrap() < drop_threshold {
-                                //Item is above treshhold
-                                //TODO i dont think this is working
-                            }
-                        }
-                    }
                     let mut create_message = CreateMessage::default();
                     create_message.embed(|e| {
                         e.title(broadcast.title)
@@ -220,7 +219,7 @@ async fn chat_ws(
 ) -> Result<HttpResponse, Error> {
     let (res, session, msg_stream) = actix_ws::handle(&req, stream).expect("Failed to start WS");
     let possible_verification_code = req.headers().get("verification-code");
-
+    info!("New WS");
     //TODO
     // 1. Strip out the commands to structs that make sense
     // 2. Change connids to uuids

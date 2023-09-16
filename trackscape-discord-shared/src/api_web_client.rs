@@ -11,7 +11,6 @@ const HEADER_AUTH_KEY: &str = "api-key";
 
 impl ApiWebClient {
     pub fn new(base_url: String, auth_token: String) -> Self {
-        let client = reqwest::Client::new();
         ApiWebClient {
             base_url,
             auth_token,

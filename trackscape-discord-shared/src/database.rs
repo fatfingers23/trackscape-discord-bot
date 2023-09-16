@@ -27,12 +27,12 @@ pub struct RegisteredGuild {
     pub allowed_broadcast_types: Option<Vec<BroadcastType>>,
     pub verification_code: String,
     pub hashed_verification_code: String,
-    pub verified: bool,
+    //TODO add new thresholds here. Like pk, etc.
 }
 
 impl RegisteredGuild {
     pub const COLLECTION_NAME: &'static str = "guilds";
-    fn new(guild_id: u64) -> Self {
+    pub fn new(guild_id: u64) -> Self {
         let verification_code = Self::generate_code();
         let hashed_verification_code = hash_string(verification_code.clone());
         Self {
@@ -44,7 +44,6 @@ impl RegisteredGuild {
             allowed_broadcast_types: None,
             verification_code,
             hashed_verification_code,
-            verified: false,
         }
     }
 
