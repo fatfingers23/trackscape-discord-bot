@@ -9,14 +9,14 @@ use crate::cache::Cache;
 use crate::controllers::bot_info_controller::info_controller;
 use crate::controllers::chat_controller::chat_controller;
 use actix_web::web::Data;
-use actix_web::{web, web::ServiceConfig};
+use actix_web::{guard, web, web::ServiceConfig, Error};
 use dotenv::dotenv;
 use serenity::http::HttpBuilder;
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_persist::PersistInstance;
 use shuttle_runtime::tracing::info;
 use std::env;
-use std::sync::atomic::{AtomicI64};
+use std::sync::atomic::AtomicI64;
 use std::sync::Mutex;
 use std::time::Duration;
 use tokio::spawn;
@@ -25,7 +25,7 @@ use trackscape_discord_shared::ge_api::ge_api::{get_item_mapping, GeItemMapping}
 use uuid::Uuid;
 
 pub use self::websocket_server::{ChatServer, ChatServerHandle};
-use actix_files::Files;
+use actix_files::{Files, NamedFile};
 
 /// Connection ID.
 pub type ConnId = Uuid;
@@ -35,6 +35,10 @@ pub type VerificationCode = String;
 
 /// Message sent to a clan/client.
 pub type Msg = String;
+
+async fn index() -> Result<NamedFile, Error> {
+    Ok(NamedFile::open("./trackscape-discord-api/ui/index.html")?)
+}
 
 #[shuttle_runtime::main]
 async fn actix_web(
@@ -89,7 +93,8 @@ async fn actix_web(
         .app_data(web::Data::new(cache_clone))
         .app_data(web::Data::new(HttpBuilder::new(discord_token).build()))
         .app_data(web::Data::new(db))
-        .app_data(web::Data::new(persist.clone()));
+        .app_data(web::Data::new(persist.clone()))
+        .default_service(web::route().guard(guard::Not(guard::Get())).to(index));
     };
     Ok(config.into())
 }
