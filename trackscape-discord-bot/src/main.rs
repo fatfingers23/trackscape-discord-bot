@@ -167,6 +167,9 @@ impl EventHandler for Bot {
                         .create_application_command(|command| {
                             commands::get_verification_code::register(command)
                         })
+                        .create_application_command(|command| {
+                            commands::set_threshold_command::register(command)
+                        }
                         .create_application_command(|command| commands::info::register(command))
                 })
                 .await;
