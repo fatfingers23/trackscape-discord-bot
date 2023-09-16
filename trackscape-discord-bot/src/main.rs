@@ -3,7 +3,9 @@ mod on_boarding_message;
 
 use crate::on_boarding_message::send_on_boarding;
 use dotenv::dotenv;
+use num_format::Locale::lag;
 use serenity::async_trait;
+use serenity::model::application::command::Command;
 use serenity::model::application::interaction::Interaction;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
@@ -23,6 +25,7 @@ struct Bot {
     mongo_db: BotMongoDb,
     trackscape_base_api: String,
     trackscape_api_web_client: ApiWebClient,
+    dev_guild_id: Option<u64>,
 }
 
 struct ServerCount;
@@ -155,8 +158,32 @@ impl EventHandler for Bot {
 
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
-        //TODO change to env variable. If dev guild set run this, if not run global
-        create_commands_for_guild(&GuildId(1148645741653393408), ctx.clone()).await;
+        if self.dev_guild_id.is_some() {
+            create_commands_for_guild(&GuildId(self.dev_guild_id.unwrap()), ctx.clone()).await;
+        } else {
+            let global_guild_commands =
+                Command::set_global_application_commands(&ctx.http, |commands| {
+                    commands
+                        .create_application_command(|command| {
+                            commands::set_clan_chat_channel::register(command)
+                        })
+                        .create_application_command(|command| {
+                            commands::set_broadcast_channel::register(command)
+                        })
+                        .create_application_command(|command| {
+                            commands::get_verifcation_code::register(command)
+                        })
+                        .create_application_command(|command| commands::info::register(command))
+                })
+                .await;
+
+            match global_guild_commands {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("Error creating global commands: {}", e)
+                }
+            }
+        }
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
@@ -245,6 +272,11 @@ async fn serenity() -> shuttle_serenity::ShuttleSerenity {
     let api_base = env::var("TRACKSCAPE_API_BASE").expect("TRACKSCAPE_API_BASE not set!");
     let mongodb_url = env::var("MONGO_DB_URL").expect("MONGO_DB_URL not set!");
     let trackscape_api_token = env::var("MANAGEMENT_API_KEY").expect("MANAGEMENT_API_KEY not set!");
+    let dev_guild_id = match env::var("DEV_GUILD_ID") {
+        Ok(id) => Some(id.parse::<u64>().expect("DEV_GUILD_ID is not a number")),
+        Err(_) => None,
+    };
+
     let db = BotMongoDb::new_db(mongodb_url).await;
 
     // Set gateway intents, which decides what events the bot will be notified about
@@ -256,6 +288,7 @@ async fn serenity() -> shuttle_serenity::ShuttleSerenity {
             mongo_db: db,
             trackscape_base_api: api_base,
             trackscape_api_web_client: api_client,
+            dev_guild_id,
         })
         .await
         .expect("Err creating client");
