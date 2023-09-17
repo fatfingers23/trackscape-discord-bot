@@ -71,7 +71,6 @@ async fn actix_web(
     let possible_quests = get_quests_and_difficulties().await;
     match possible_quests {
         Ok(quests) => {
-            info!("Quests: {:?}", quests);
             let _state = persist
                 .save::<Vec<WikiQuest>>("quests", quests.clone())
                 .map_err(|e| error!("Saving Item Mapping Error: {e}"));
