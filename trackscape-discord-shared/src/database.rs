@@ -1,5 +1,5 @@
 use crate::helpers::hash_string;
-use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::BroadcastType;
+use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{BroadcastType, QuestDifficulty};
 use async_recursion::async_recursion;
 use mongodb::bson::doc;
 use mongodb::options::ClientOptions;
@@ -27,6 +27,7 @@ pub struct RegisteredGuild {
     pub allowed_broadcast_types: Option<Vec<BroadcastType>>,
     pub verification_code: String,
     pub hashed_verification_code: String,
+    pub min_quest_difficulty: Option<QuestDifficulty>,
     //TODO add new thresholds here. Like pk, etc.
 }
 
@@ -44,6 +45,7 @@ impl RegisteredGuild {
             allowed_broadcast_types: None,
             verification_code,
             hashed_verification_code,
+            min_quest_difficulty: None,
         }
     }
 

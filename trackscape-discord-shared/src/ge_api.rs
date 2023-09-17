@@ -7,7 +7,7 @@ pub mod ge_api {
         "/",
         env!("CARGO_PKG_VERSION"),
         "/",
-        "DiscordContact:fatfingers23"
+        "GitHub:https://github.com/fatfingers23/trackscape-discord-bot"
     );
     const BASE_URL: &str = "https://prices.runescape.wiki/api/v1/";
 
