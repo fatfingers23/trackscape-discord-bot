@@ -103,6 +103,7 @@ pub mod osrs_broadcast_extractor {
         }
     }
 
+    #[derive(Clone, Debug, Serialize, Deserialize)]
     pub enum DiaryTier {
         Easy,
         Medium,
@@ -127,6 +128,15 @@ pub mod osrs_broadcast_extractor {
                 DiaryTier::Medium => "Medium".to_string(),
                 DiaryTier::Hard => "Hard".to_string(),
                 DiaryTier::Elite => "Elite".to_string(),
+            }
+        }
+
+        pub fn ranking(&self) -> usize {
+            match self {
+                DiaryTier::Easy => 1,
+                DiaryTier::Medium => 2,
+                DiaryTier::Hard => 3,
+                DiaryTier::Elite => 4,
             }
         }
     }
@@ -488,14 +498,9 @@ pub mod osrs_broadcast_extractor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ge_api::ge_api::GetItem;
-    use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::QuestDifficulty::{
-        Experienced, Grandmaster, Intermediate, Novice,
-    };
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-        ClanMessage, DiaryCompletedBroadcast, DiaryTier, InviteBroadcast, LevelMilestoneBroadcast,
-        PetDropBroadcast, PkBroadcast, QuestCompletedBroadcast, QuestDifficulty,
-        XPMilestoneBroadcast,
+        DiaryCompletedBroadcast, DiaryTier, InviteBroadcast, LevelMilestoneBroadcast,
+        PetDropBroadcast, PkBroadcast, QuestCompletedBroadcast, XPMilestoneBroadcast,
     };
     use tracing::info;
 

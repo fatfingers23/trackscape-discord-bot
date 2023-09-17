@@ -171,6 +171,9 @@ impl EventHandler for Bot {
                         .create_application_command(|command| {
                             commands::set_quest_min_command::register(command)
                         })
+                        .create_application_command(|command| {
+                            commands::set_diary_min_command::register(command)
+                        })
                 })
                 .await;
 
@@ -234,6 +237,15 @@ impl EventHandler for Bot {
                     )
                     .await
                 }
+                "diaries" => {
+                    commands::set_diary_min_command::run(
+                        &command.data.options,
+                        &ctx,
+                        &self.mongo_db,
+                        command.guild_id.unwrap().0,
+                    )
+                    .await
+                }
                 _ => {
                     info!("not implemented :(");
                     None
@@ -275,6 +287,9 @@ pub async fn create_commands_for_guild(guild_id: &GuildId, ctx: Context) {
             })
             .create_application_command(|command| {
                 commands::set_quest_min_command::register(command)
+            })
+            .create_application_command(|command| {
+                commands::set_diary_min_command::register(command)
             })
     })
     .await;
