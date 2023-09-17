@@ -26,6 +26,8 @@ use uuid::Uuid;
 
 pub use self::websocket_server::{ChatServer, ChatServerHandle};
 use actix_files::{Files, NamedFile};
+use log::error;
+use trackscape_discord_shared::wiki_api::wiki_api::{get_quests_and_difficulties, WikiQuest};
 
 /// Connection ID.
 pub type ConnId = Uuid;
@@ -59,10 +61,22 @@ async fn actix_web(
         Ok(ge_mapping) => {
             let _state = persist
                 .save::<GeItemMapping>("mapping", ge_mapping.clone())
-                .map_err(|e| info!("Saving Item Mapping Error: {e}"));
+                .map_err(|e| error!("Saving Item Mapping Error: {e}"));
         }
         Err(error) => {
             info!("Error getting ge mapping: {}", error)
+        }
+    }
+
+    let possible_quests = get_quests_and_difficulties().await;
+    match possible_quests {
+        Ok(quests) => {
+            let _state = persist
+                .save::<Vec<WikiQuest>>("quests", quests.clone())
+                .map_err(|e| error!("Saving Item Mapping Error: {e}"));
+        }
+        Err(e) => {
+            error!("Error getting quests: {}", e)
         }
     }
 

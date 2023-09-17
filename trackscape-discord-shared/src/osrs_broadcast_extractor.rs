@@ -51,6 +51,58 @@ pub mod osrs_broadcast_extractor {
         pub quest_reward_scroll_icon: Option<String>,
     }
 
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    pub enum QuestDifficulty {
+        Novice,
+        Intermediate,
+        Experienced,
+        Master,
+        Grandmaster,
+    }
+
+    impl QuestDifficulty {
+        pub fn from_string(quest_difficulty: String) -> QuestDifficulty {
+            match quest_difficulty.as_str() {
+                "Novice" => QuestDifficulty::Novice,
+                "Intermediate" => QuestDifficulty::Intermediate,
+                "Experienced" => QuestDifficulty::Experienced,
+                "Master" => QuestDifficulty::Master,
+                "Grandmaster" => QuestDifficulty::Grandmaster,
+                _ => QuestDifficulty::Novice,
+            }
+        }
+
+        pub fn to_string(&self) -> String {
+            match self {
+                QuestDifficulty::Novice => "Novice".to_string(),
+                QuestDifficulty::Intermediate => "Intermediate".to_string(),
+                QuestDifficulty::Experienced => "Experienced".to_string(),
+                QuestDifficulty::Master => "Master".to_string(),
+                QuestDifficulty::Grandmaster => "Grandmaster".to_string(),
+            }
+        }
+
+        pub fn iter() -> Vec<QuestDifficulty> {
+            vec![
+                QuestDifficulty::Novice,
+                QuestDifficulty::Intermediate,
+                QuestDifficulty::Experienced,
+                QuestDifficulty::Master,
+                QuestDifficulty::Grandmaster,
+            ]
+        }
+
+        pub fn ranking(&self) -> usize {
+            match self {
+                QuestDifficulty::Novice => 1,
+                QuestDifficulty::Intermediate => 2,
+                QuestDifficulty::Experienced => 3,
+                QuestDifficulty::Master => 4,
+                QuestDifficulty::Grandmaster => 5,
+            }
+        }
+    }
+
     pub enum DiaryTier {
         Easy,
         Medium,
@@ -437,9 +489,13 @@ pub mod osrs_broadcast_extractor {
 mod tests {
     use super::*;
     use crate::ge_api::ge_api::GetItem;
+    use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::QuestDifficulty::{
+        Experienced, Grandmaster, Intermediate, Novice,
+    };
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
         ClanMessage, DiaryCompletedBroadcast, DiaryTier, InviteBroadcast, LevelMilestoneBroadcast,
-        PetDropBroadcast, PkBroadcast, QuestCompletedBroadcast, XPMilestoneBroadcast,
+        PetDropBroadcast, PkBroadcast, QuestCompletedBroadcast, QuestDifficulty,
+        XPMilestoneBroadcast,
     };
     use tracing::info;
 

@@ -1,6 +1,7 @@
 use crate::database::RegisteredGuild;
 use crate::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
 use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::*;
+use crate::wiki_api::wiki_api::WikiQuest;
 use num_format::{Locale, ToFormattedString};
 use tracing::error;
 
@@ -19,6 +20,7 @@ pub struct BroadcastMessageToDiscord {
 pub struct OSRSBroadcastHandler {
     clan_message: ClanMessage,
     item_mapping: Option<GeItemMapping>,
+    quests: Option<Vec<WikiQuest>>,
     registered_guild: RegisteredGuild,
 }
 
@@ -26,13 +28,17 @@ impl OSRSBroadcastHandler {
     pub fn new(
         clan_message: ClanMessage,
         item_mapping_from_state: Result<GeItemMapping, ()>,
-
+        quests_from_state: Result<Vec<WikiQuest>, ()>,
         register_guild: RegisteredGuild,
     ) -> Self {
         Self {
             clan_message,
             item_mapping: match item_mapping_from_state {
                 Ok(item_mapping) => Some(item_mapping),
+                Err(_) => None,
+            },
+            quests: match quests_from_state {
+                Ok(quests) => Some(quests),
                 Err(_) => None,
             },
             registered_guild: register_guild,
@@ -144,27 +150,8 @@ impl OSRSBroadcastHandler {
                     }),
                 }
             }
-            BroadcastType::Quest => {
-                let quest_completed =
-                    quest_completed_broadcast_extractor(self.clan_message.message.clone());
-                match quest_completed {
-                    None => {
-                        error!(
-                            "Failed to extract Quest info from message: {}",
-                            self.clan_message.message.clone()
-                        );
-                        None
-                    }
-                    Some(exported_data) => Some(BroadcastMessageToDiscord {
-                        type_of_broadcast: BroadcastType::Quest,
-                        player_it_happened_to: exported_data.player_it_happened_to,
-                        message: self.clan_message.message.clone(),
-                        icon_url: exported_data.quest_reward_scroll_icon,
-                        title: ":tada: New quest completed!".to_string(),
-                        item_quantity: None,
-                    }),
-                }
-            }
+            BroadcastType::Quest => self.quest_handler(),
+
             BroadcastType::Pk => {
                 let possible_pk_broadcast =
                     pk_broadcast_extractor(self.clan_message.message.clone());
@@ -328,6 +315,53 @@ impl OSRSBroadcastHandler {
             }
         }
     }
+
+    fn quest_handler(&self) -> Option<BroadcastMessageToDiscord> {
+        let quest_completed =
+            quest_completed_broadcast_extractor(self.clan_message.message.clone());
+
+        let possible_quests = self.quests.clone();
+
+        match quest_completed {
+            None => {
+                error!(
+                    "Failed to extract Quest info from message: {}",
+                    self.clan_message.message.clone()
+                );
+                None
+            }
+
+            Some(exported_data) => {
+                if self.registered_guild.min_quest_difficulty.is_some()
+                    && possible_quests.is_some()
+                    && self.quests.is_some()
+                {
+                    let quest_name = exported_data.quest_name;
+
+                    let quests = &possible_quests.unwrap();
+                    let possible_difficulty = quests.iter().find(|&x| x.name == quest_name);
+                    if possible_difficulty.is_none() {
+                        return None;
+                    }
+                    let min_quest_difficulty =
+                        self.registered_guild.clone().min_quest_difficulty.unwrap();
+                    if possible_difficulty.unwrap().difficulty.ranking()
+                        < min_quest_difficulty.ranking()
+                    {
+                        return None;
+                    }
+                }
+                Some(BroadcastMessageToDiscord {
+                    type_of_broadcast: BroadcastType::Quest,
+                    player_it_happened_to: exported_data.player_it_happened_to,
+                    message: self.clan_message.message.clone(),
+                    icon_url: exported_data.quest_reward_scroll_icon,
+                    title: ":tada: New quest completed!".to_string(),
+                    item_quantity: None,
+                })
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -366,14 +400,18 @@ mod tests {
             Some(_) => {}
         }
 
-        let handler = OSRSBroadcastHandler::new(clan_message, get_item_mapping, registered_guild);
+        let quests = Ok(Vec::new());
+        let handler =
+            OSRSBroadcastHandler::new(clan_message, get_item_mapping, quests, registered_guild);
 
         let extracted_message = handler.drop_item_handler();
         info!("Extracted message: {:?}", extracted_message);
         match extracted_message {
-            None => {}
+            None => {
+                assert_eq!(true, true);
+            }
             Some(result) => {
-                info!("Threshold should of not been hit. Do not pass go. Do not collect 200.");
+                info!("Threshold should of been hit. Should not be sending a message.");
                 assert_eq!(true, false);
             }
         }
@@ -405,17 +443,116 @@ mod tests {
             }
             Some(_) => {}
         }
-
-        let handler = OSRSBroadcastHandler::new(clan_message, get_item_mapping, registered_guild);
+        let quests = Ok(Vec::new());
+        let handler =
+            OSRSBroadcastHandler::new(clan_message, get_item_mapping, quests, registered_guild);
 
         let extracted_message = handler.drop_item_handler();
         info!("Extracted message: {:?}", extracted_message);
         match extracted_message {
             None => {
+                info!("Threshold should of not been hit. Should be sending a message.");
+                assert_eq!(true, false);
+            }
+            Some(_) => {
+                assert_eq!(true, true);
+            }
+        }
+    }
+
+    #[test]
+    fn test_quest_handler_message_sent() {
+        let clan_message = ClanMessage {
+            sender: "Insomniacs".to_string(),
+            message: "RuneScape Player has completed a quest: The Fremennik Isles".to_string(),
+            clan_name: "Insomniacs".to_string(),
+            rank: "Recruit".to_string(),
+            icon_id: None,
+        };
+
+        let mut registered_guild = RegisteredGuild::new(123);
+        registered_guild.min_quest_difficulty = Some(QuestDifficulty::Intermediate);
+        let ge_item_mapping: Vec<GetItem> = Vec::new();
+        let get_item_mapping = Ok(ge_item_mapping);
+
+        let quests = Ok(vec![WikiQuest {
+            name: "The Fremennik Isles".to_string(),
+            difficulty: QuestDifficulty::Intermediate,
+        }]);
+        //Saintly checker do not know how to do mock in rust yet. So this makes sure the above message
+        //Is valid to trip the extractor and give the expect result
+        let sanity_check = quest_completed_broadcast_extractor(clan_message.message.clone());
+        match sanity_check {
+            None => {
+                info!("Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing");
+                assert_eq!(true, false);
+            }
+            Some(_) => {
+                assert_eq!(true, true);
+            }
+        }
+
+        let handler =
+            OSRSBroadcastHandler::new(clan_message, get_item_mapping, quests, registered_guild);
+
+        let extracted_message = handler.quest_handler();
+        info!("Extracted message: {:?}", extracted_message);
+        match extracted_message {
+            None => {
+                info!("Threshold should of not been hit. Should  be sending a message.");
+                assert_eq!(true, false);
+            }
+            Some(_) => {
+                assert_eq!(true, true);
+            }
+        }
+    }
+
+    #[test]
+    fn test_quest_handler_message_not_sent() {
+        let clan_message = ClanMessage {
+            sender: "Insomniacs".to_string(),
+            message: "RuneScape Player has completed a quest: Cook's Assistant".to_string(),
+            clan_name: "Insomniacs".to_string(),
+            rank: "Recruit".to_string(),
+            icon_id: None,
+        };
+
+        let mut registered_guild = RegisteredGuild::new(123);
+        registered_guild.min_quest_difficulty = Some(QuestDifficulty::Master);
+        let ge_item_mapping: Vec<GetItem> = Vec::new();
+        let get_item_mapping = Ok(ge_item_mapping);
+
+        let quests = Ok(vec![WikiQuest {
+            name: "Cook's Assistant".to_string(),
+            difficulty: QuestDifficulty::Novice,
+        }]);
+        //Saintly checker do not know how to do mock in rust yet. So this makes sure the above message
+        //Is valid to trip the extractor and give the expect result
+        let sanity_check = quest_completed_broadcast_extractor(clan_message.message.clone());
+        match sanity_check {
+            None => {
+                info!("Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing");
+                assert_eq!(true, false);
+            }
+            Some(_) => {
+                assert_eq!(true, true);
+            }
+        }
+
+        let handler =
+            OSRSBroadcastHandler::new(clan_message, get_item_mapping, quests, registered_guild);
+
+        let extracted_message = handler.quest_handler();
+        info!("Extracted message: {:?}", extracted_message);
+        match extracted_message {
+            None => {
+                assert_eq!(true, true);
+            }
+            Some(_) => {
                 info!("Threshold should of been hit. Should not be sending a message.");
                 assert_eq!(true, false);
             }
-            Some(_) => {}
         }
     }
 
