@@ -81,7 +81,6 @@ impl OSRSBroadcastHandler {
                         Some(BroadcastMessageToDiscord {
                             player_it_happened_to: drop_item.player_it_happened_to.clone(),
                             type_of_broadcast: BroadcastType::RaidDrop,
-                            // message: format!("{} received special loot from a raid: {}.", drop_item.player_it_happened_to, drop_item.item_name),
                             message: match drop_item.item_value {
                                 None => {
                                     format!(

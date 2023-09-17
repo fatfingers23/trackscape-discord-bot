@@ -1,4 +1,7 @@
 pub mod osrs_broadcast_extractor {
+    use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::BroadcastType::{
+        Diary, ItemDrop, Quest,
+    };
     use serde::{Deserialize, Serialize};
 
     #[derive(Deserialize, Serialize, Clone)]
@@ -222,6 +225,46 @@ pub mod osrs_broadcast_extractor {
         XPMilestone,
         LevelMilestone,
         Unknown,
+    }
+
+    impl BroadcastType {
+        pub fn to_string(&self) -> String {
+            match self {
+                BroadcastType::ItemDrop => "Item Drop".to_string(),
+                BroadcastType::PetDrop => "Pet Drop".to_string(),
+                BroadcastType::Quest => "Quest".to_string(),
+                BroadcastType::Diary => "Diary".to_string(),
+                BroadcastType::RaidDrop => "Raid Drop".to_string(),
+                BroadcastType::Pk => "Pk".to_string(),
+                BroadcastType::Invite => "Invite".to_string(),
+                BroadcastType::LootKey => "Loot Key".to_string(),
+                BroadcastType::XPMilestone => "XP Milestone".to_string(),
+                BroadcastType::LevelMilestone => "Level Milestone".to_string(),
+                BroadcastType::Unknown => "Unknown".to_string(),
+            }
+        }
+
+        pub fn from_string(broadcast_type: String) -> BroadcastType {
+            match broadcast_type.as_str() {
+                "Item Drop" => BroadcastType::ItemDrop,
+                "Pet Drop" => BroadcastType::PetDrop,
+                "Quest" => BroadcastType::Quest,
+                "Diary" => BroadcastType::Diary,
+                "Raid Drop" => BroadcastType::RaidDrop,
+                "Pk" => BroadcastType::Pk,
+                "Invite" => BroadcastType::Invite,
+                "Loot Key" => BroadcastType::LootKey,
+                "XP Milestone" => BroadcastType::XPMilestone,
+                "Level Milestone" => BroadcastType::LevelMilestone,
+                _ => BroadcastType::Unknown,
+            }
+        }
+
+        pub fn to_slug(&self) -> String {
+            match self {
+                _ => self.to_string().replace(" ", "_"),
+            }
+        }
     }
 
     pub fn raid_broadcast_extractor(message: String) -> Option<DropItemBroadcast> {
