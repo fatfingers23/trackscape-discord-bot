@@ -65,6 +65,8 @@ pub async fn run(
                         }
                         "pk_loot" => {
                             //TODO: Implement
+                            saved_guild.pk_value_threshold = Some(*threshold);
+                            db.update_guild(saved_guild).await;
                             None
                         }
                         _ => Some("Invalid broadcast type.".to_string()),
