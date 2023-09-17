@@ -6,3 +6,4 @@ pub mod set_clan_chat_channel;
 pub mod set_diary_min_command;
 pub mod set_quest_min_command;
 pub mod set_threshold_command;
+pub mod toggle_broadcasts;

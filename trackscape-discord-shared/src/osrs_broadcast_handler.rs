@@ -59,6 +59,20 @@ impl OSRSBroadcastHandler {
                         None
                     }
                     Some(mut drop_item) => {
+                        let is_disallowed = self
+                            .registered_guild
+                            .disallowed_broadcast_types
+                            .iter()
+                            .find(|&x| {
+                                if let BroadcastType::RaidDrop = x {
+                                    return true;
+                                }
+                                false
+                            });
+                        if is_disallowed.is_some() {
+                            return None;
+                        }
+
                         match &self.item_mapping {
                             Some(item_mapping) => {
                                 for item in item_mapping {
@@ -115,14 +129,30 @@ impl OSRSBroadcastHandler {
                         );
                         None
                     }
-                    Some(pet_drop) => Some(BroadcastMessageToDiscord {
-                        type_of_broadcast: BroadcastType::PetDrop,
-                        player_it_happened_to: pet_drop.player_it_happened_to,
-                        message: self.clan_message.message.clone(),
-                        icon_url: pet_drop.pet_icon,
-                        title: ":tada: New Pet drop!".to_string(),
-                        item_quantity: None,
-                    }),
+                    Some(pet_drop) => {
+                        let is_disallowed = self
+                            .registered_guild
+                            .disallowed_broadcast_types
+                            .iter()
+                            .find(|&x| {
+                                if let BroadcastType::Quest = x {
+                                    return true;
+                                }
+                                false
+                            });
+                        if is_disallowed.is_some() {
+                            return None;
+                        }
+
+                        Some(BroadcastMessageToDiscord {
+                            type_of_broadcast: BroadcastType::PetDrop,
+                            player_it_happened_to: pet_drop.player_it_happened_to,
+                            message: self.clan_message.message.clone(),
+                            icon_url: pet_drop.pet_icon,
+                            title: ":tada: New Pet drop!".to_string(),
+                            item_quantity: None,
+                        })
+                    }
                 }
             }
             BroadcastType::Diary => self.diary_handler(),
@@ -139,17 +169,32 @@ impl OSRSBroadcastHandler {
                         );
                         None
                     }
-                    Some(invite_broadcast) => Some(BroadcastMessageToDiscord {
-                        type_of_broadcast: BroadcastType::Invite,
-                        player_it_happened_to: invite_broadcast.clan_mate,
-                        message: self.clan_message.message.clone(),
-                        icon_url: Some(
-                            "https://oldschool.runescape.wiki/images/Your_Clan_icon.png"
-                                .to_string(),
-                        ),
-                        title: ":wave: New Invite!".to_string(),
-                        item_quantity: None,
-                    }),
+                    Some(invite_broadcast) => {
+                        let is_disallowed = self
+                            .registered_guild
+                            .disallowed_broadcast_types
+                            .iter()
+                            .find(|&x| {
+                                if let BroadcastType::Invite = x {
+                                    return true;
+                                }
+                                false
+                            });
+                        if is_disallowed.is_some() {
+                            return None;
+                        }
+                        Some(BroadcastMessageToDiscord {
+                            type_of_broadcast: BroadcastType::Invite,
+                            player_it_happened_to: invite_broadcast.clan_mate,
+                            message: self.clan_message.message.clone(),
+                            icon_url: Some(
+                                "https://oldschool.runescape.wiki/images/Your_Clan_icon.png"
+                                    .to_string(),
+                            ),
+                            title: ":wave: New Invite!".to_string(),
+                            item_quantity: None,
+                        })
+                    }
                 }
             }
             BroadcastType::LevelMilestone => {
@@ -163,14 +208,29 @@ impl OSRSBroadcastHandler {
                         );
                         None
                     }
-                    Some(levelmilestone_broadcast) => Some(BroadcastMessageToDiscord {
-                        type_of_broadcast: BroadcastType::LevelMilestone,
-                        player_it_happened_to: levelmilestone_broadcast.clan_mate,
-                        message: self.clan_message.message.clone(),
-                        icon_url: levelmilestone_broadcast.skill_icon,
-                        title: ":tada: New Level Milestone reached!".to_string(),
-                        item_quantity: None,
-                    }),
+                    Some(levelmilestone_broadcast) => {
+                        let is_disallowed = self
+                            .registered_guild
+                            .disallowed_broadcast_types
+                            .iter()
+                            .find(|&x| {
+                                if let BroadcastType::LevelMilestone = x {
+                                    return true;
+                                }
+                                false
+                            });
+                        if is_disallowed.is_some() {
+                            return None;
+                        }
+                        Some(BroadcastMessageToDiscord {
+                            type_of_broadcast: BroadcastType::LevelMilestone,
+                            player_it_happened_to: levelmilestone_broadcast.clan_mate,
+                            message: self.clan_message.message.clone(),
+                            icon_url: levelmilestone_broadcast.skill_icon,
+                            title: ":tada: New Level Milestone reached!".to_string(),
+                            item_quantity: None,
+                        })
+                    }
                 }
             }
             BroadcastType::XPMilestone => {
@@ -184,14 +244,29 @@ impl OSRSBroadcastHandler {
                         );
                         None
                     }
-                    Some(xpmilestone_broadcast) => Some(BroadcastMessageToDiscord {
-                        type_of_broadcast: BroadcastType::XPMilestone,
-                        player_it_happened_to: xpmilestone_broadcast.clan_mate,
-                        message: self.clan_message.message.clone(),
-                        icon_url: xpmilestone_broadcast.skill_icon,
-                        title: ":tada: New XP Milestone reached!".to_string(),
-                        item_quantity: None,
-                    }),
+                    Some(xpmilestone_broadcast) => {
+                        let is_disallowed = self
+                            .registered_guild
+                            .disallowed_broadcast_types
+                            .iter()
+                            .find(|&x| {
+                                if let BroadcastType::XPMilestone = x {
+                                    return true;
+                                }
+                                false
+                            });
+                        if is_disallowed.is_some() {
+                            return None;
+                        }
+                        Some(BroadcastMessageToDiscord {
+                            type_of_broadcast: BroadcastType::XPMilestone,
+                            player_it_happened_to: xpmilestone_broadcast.clan_mate,
+                            message: self.clan_message.message.clone(),
+                            icon_url: xpmilestone_broadcast.skill_icon,
+                            title: ":tada: New XP Milestone reached!".to_string(),
+                            item_quantity: None,
+                        })
+                    }
                 }
             }
             _ => None,
@@ -210,6 +285,19 @@ impl OSRSBroadcastHandler {
                 None
             }
             Some(drop_item) => {
+                let is_disallowed = self
+                    .registered_guild
+                    .disallowed_broadcast_types
+                    .iter()
+                    .find(|&x| {
+                        if let BroadcastType::ItemDrop = x {
+                            return true;
+                        }
+                        false
+                    });
+                if is_disallowed.is_some() {
+                    return None;
+                }
                 if self.registered_guild.drop_price_threshold.is_some() {
                     if drop_item.item_value.is_some() {
                         if self.registered_guild.drop_price_threshold.unwrap()
@@ -317,6 +405,20 @@ impl OSRSBroadcastHandler {
             }
 
             Some(exported_data) => {
+                let is_disallowed = self
+                    .registered_guild
+                    .disallowed_broadcast_types
+                    .iter()
+                    .find(|&x| {
+                        if let BroadcastType::Quest = x {
+                            return true;
+                        }
+                        false
+                    });
+                if is_disallowed.is_some() {
+                    return None;
+                }
+
                 if self.registered_guild.min_quest_difficulty.is_some()
                     && possible_quests.is_some()
                     && self.quests.is_some()
@@ -360,6 +462,19 @@ impl OSRSBroadcastHandler {
                 None
             }
             Some(exported_data) => {
+                let is_disallowed = self
+                    .registered_guild
+                    .disallowed_broadcast_types
+                    .iter()
+                    .find(|&x| {
+                        if let BroadcastType::Diary = x {
+                            return true;
+                        }
+                        false
+                    });
+                if is_disallowed.is_some() {
+                    return None;
+                }
                 if self.registered_guild.min_diary_tier.is_some() {
                     let min_diary_tier = self.registered_guild.clone().min_diary_tier.unwrap();
                     if exported_data.diary_tier.ranking() < min_diary_tier.ranking() {

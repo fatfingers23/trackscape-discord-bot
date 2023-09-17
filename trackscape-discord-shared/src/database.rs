@@ -25,7 +25,7 @@ pub struct RegisteredGuild {
     //Channel to send clan chats messages
     pub clan_chat_channel: Option<u64>,
     pub drop_price_threshold: Option<i64>,
-    pub allowed_broadcast_types: Option<Vec<BroadcastType>>,
+    pub disallowed_broadcast_types: Vec<BroadcastType>,
     pub verification_code: String,
     pub hashed_verification_code: String,
     pub min_quest_difficulty: Option<QuestDifficulty>,
@@ -45,7 +45,7 @@ impl RegisteredGuild {
             broadcast_channel: None,
             clan_chat_channel: None,
             drop_price_threshold: None,
-            allowed_broadcast_types: None,
+            disallowed_broadcast_types: Vec::new(),
             verification_code,
             hashed_verification_code,
             min_quest_difficulty: None,
