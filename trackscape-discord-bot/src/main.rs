@@ -36,9 +36,8 @@ impl TypeMapKey for ServerCount {
 #[async_trait]
 impl EventHandler for Bot {
     async fn guild_create(&self, ctx: Context, guild: Guild, is_new: bool) {
-        //TODO need to have it check every guild if in db, if not do a create.
-        //This is so if the bot is off and new guild gets added
         info!("Guild: {}", guild.name);
+        self.mongo_db.create_if_new_guild(guild.id.0).await;
         let server_count = {
             let data_read = ctx.data.read().await;
             data_read
@@ -55,8 +54,6 @@ impl EventHandler for Bot {
 
         if is_new {
             //This fires if it's a new guild it's been added to
-            self.mongo_db.save_new_guild(guild.id.0.clone()).await;
-            create_commands_for_guild(&guild.id, ctx.clone()).await;
             if let Some(guild_system_channel) = guild.system_channel_id {
                 send_on_boarding(guild_system_channel, &ctx).await;
             }
@@ -301,7 +298,7 @@ async fn serenity() -> shuttle_serenity::ShuttleSerenity {
         Err(_) => None,
     };
 
-    let db = BotMongoDb::new_db(mongodb_url).await;
+    let db = BotMongoDb::new_db_instance(mongodb_url).await;
 
     // Set gateway intents, which decides what events the bot will be notified about
     let intents =

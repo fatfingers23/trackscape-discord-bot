@@ -8,7 +8,6 @@ use rand::Rng;
 use regex::Error;
 use serde::{Deserialize, Serialize};
 use std::string::ToString;
-use tracing::info;
 
 #[derive(Clone)]
 pub struct BotMongoDb {
@@ -69,7 +68,7 @@ impl BotMongoDb {
         Self { db: mongodb }
     }
 
-    pub async fn new_db(db_url: String) -> Self {
+    pub async fn new_db_instance(db_url: String) -> Self {
         let client_options = ClientOptions::parse(db_url.as_str())
             .await
             .expect("Could not connect to the mongo db");
@@ -78,6 +77,18 @@ impl BotMongoDb {
 
         let db = client.database("TrackScapeDB");
         Self { db }
+    }
+
+    pub async fn create_if_new_guild(&self, guild_id: u64) {
+        let saved_guild_query = self.get_by_guild_id(guild_id).await;
+        match saved_guild_query {
+            Ok(saved_guild) => {
+                if saved_guild.is_none() {
+                    self.save_new_guild(guild_id).await;
+                }
+            }
+            Err(_) => {}
+        }
     }
 
     pub async fn save_new_guild(&self, guild_id: u64) {
@@ -167,10 +178,8 @@ impl BotMongoDb {
         let collection = self
             .db
             .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
-        info!("Getting guild by id: {}", id);
         let filter = doc! { "guild_id": bson::to_bson(&id).unwrap()};
         let result = collection.find_one(filter.clone(), None).await;
-        info!("Result: {:?}", result);
         return match result {
             Ok(possible_guild) => Ok(possible_guild),
             Err(e) => Err(e),

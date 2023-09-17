@@ -54,7 +54,7 @@ async fn actix_web(
     persist
         .save("api-key", management_api_key)
         .expect("Error saving api key");
-    let db = BotMongoDb::new_db(mongodb_url).await;
+    let db = BotMongoDb::new_db_instance(mongodb_url).await;
 
     let ge_mapping_request = get_item_mapping().await;
     match ge_mapping_request {
