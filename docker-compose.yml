@@ -10,6 +10,8 @@ services:
       MONGO_INITDB_DATABASE: "TrackScapeDB"
     volumes:
       - trackscape-db:/data/db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
   shuttle:
     build: .
     ports:
@@ -24,6 +26,8 @@ services:
     networks:
       - trackscape-network
     command: "cargo shuttle run --release --external --working-directory /app"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 volumes:
     trackscape-db:
       driver: local
