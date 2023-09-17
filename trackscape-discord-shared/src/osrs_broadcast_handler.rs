@@ -214,7 +214,7 @@ impl OSRSBroadcastHandler {
                 if self.registered_guild.drop_price_threshold.is_some() {
                     if drop_item.item_value.is_some() {
                         if self.registered_guild.drop_price_threshold.unwrap()
-                            < drop_item.item_value.unwrap()
+                            > drop_item.item_value.unwrap()
                         {
                             return None;
                         }
@@ -269,7 +269,6 @@ impl OSRSBroadcastHandler {
             }
         }
     }
-
     fn pk_handler(&self) -> Option<BroadcastMessageToDiscord> {
         let possible_pk_broadcast = pk_broadcast_extractor(self.clan_message.message.clone());
         match possible_pk_broadcast {
@@ -382,39 +381,6 @@ impl OSRSBroadcastHandler {
             }
         }
     }
-
-    fn pk_handler(&self) -> Option<BroadcastMessageToDiscord> {
-        let possible_pk_broadcast = pk_broadcast_extractor(self.clan_message.message.clone());
-        match possible_pk_broadcast {
-            None => {
-                error!(
-                    "Failed to extract pk info from message: {}",
-                    self.clan_message.message.clone()
-                );
-                None
-            }
-            Some(pk_broadcast) => {
-                if self.registered_guild.pk_value_threshold.is_some() {
-                    if pk_broadcast.gp_exchanged.is_some() {
-                        if self.registered_guild.pk_value_threshold.unwrap()
-                            > pk_broadcast.gp_exchanged.unwrap()
-                        {
-                            return None;
-                        }
-                    }
-                }
-
-                Some(BroadcastMessageToDiscord {
-                    type_of_broadcast: BroadcastType::Pk,
-                    player_it_happened_to: pk_broadcast.winner,
-                    message: self.clan_message.message.clone(),
-                    icon_url: Some("https://oldschool.runescape.wiki/images/Skull.png".to_string()),
-                    title: ":crossed_swords: New PK!".to_string(),
-                    item_quantity: None,
-                })
-            }
-        }
-    }
 }
 
 #[cfg(test)]
@@ -422,9 +388,7 @@ mod tests {
     use super::*;
     use crate::ge_api::ge_api::GetItem;
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::ClanMessage;
-    use crate::osrs_broadcast_extractor::*;
     use log::info;
-    use std::result;
 
     #[test]
     fn test_drop_item_handler_no_message_sent() {
@@ -637,18 +601,20 @@ mod tests {
                 println!("Sanity check success");
             }
         }
-
-        let handler = OSRSBroadcastHandler::new(clan_message, get_item_mapping, registered_guild);
+        let quests = Ok(Vec::new());
+        let handler =
+            OSRSBroadcastHandler::new(clan_message, get_item_mapping, quests, registered_guild);
 
         let extracted_message = handler.pk_handler();
         println!("Extracted message: {:?}", extracted_message);
+
         match extracted_message {
             None => {
-                println!("PK threshold check failed. Don't send message.");
-                assert_eq!(true, false);
+                println!("Successfully stopped message from sending");
             }
             Some(result) => {
-                println!("PK threshold check success");
+                println!("Should not be sending a message.");
+                assert_eq!(true, false);
             }
         }
     }
@@ -739,50 +705,6 @@ mod tests {
             Some(_) => {
                 info!("Threshold should of been hit. Should not be sending a message.");
                 assert_eq!(true, false);
-            }
-        }
-    }
-
-    #[test]
-    fn test_pk_value_handler_low() {
-        let clan_message = ClanMessage {
-            sender: "Insomniacs".to_string(),
-            message: "HolidayPanda has been defeated by next trial in The Wilderness and lost (33,601 coins) worth of loot."
-                .to_string(),
-            clan_name: "Insomniacs".to_string(),
-            rank: "Recruit".to_string(),
-            icon_id: None,
-        };
-
-        let mut registered_guild = RegisteredGuild::new(123);
-        registered_guild.pk_value_threshold = Some(1_000_000);
-        let ge_item_mapping: Vec<GetItem> = Vec::new();
-        let get_item_mapping = Ok(ge_item_mapping);
-
-        //Saintly checker do not know how to do mock in rust yet. So this makes sure the above message
-        //Is valid to trip the extractor and give the expect result
-        let sanity_check = pk_broadcast_extractor(clan_message.message.clone());
-        match sanity_check {
-            None => {
-                println!("Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing");
-                assert_eq!(true, false);
-            }
-            Some(_) => {
-                println!("Sanity check success");
-            }
-        }
-
-        let handler = OSRSBroadcastHandler::new(clan_message, get_item_mapping, registered_guild);
-
-        let extracted_message = handler.pk_handler();
-        println!("Extracted message: {:?}", extracted_message);
-        match extracted_message {
-            None => {
-                println!("PK threshold check failed. Don't send message.");
-                assert_eq!(true, false);
-            }
-            Some(result) => {
-                println!("PK threshold check success");
             }
         }
     }
