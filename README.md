@@ -2,6 +2,10 @@
 
 ![TrackScape Logo](images/trackscape_logo.png)
 
+
+[![](https://img.shields.io/badge/Discord-%235865F2.svg?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/api/oauth2/authorize?client_id=864626697327869952&permissions=2147568704&scope=bot)
+
+
 ## Features
 * Receive in game Clan Chat messages in Discord via the RuneLite TrackScape Connector plugin
 * Send messages to the In Game Clan Chat via Discord. This uses the RuneLite TrackScape Connector plugin to send messages to the Clan Chat.
@@ -24,7 +28,7 @@ By default, only Discord users with Manage Server permissions can use the majort
 
 > `/get_verification_code` - Get the verification code to link your RuneLite TrackScape Connector plugin to the bot
 
-> `/reset_verification_code` - Resets the verification code
+
 ***  
 ## Broadcast Types
 
@@ -43,12 +47,13 @@ By default, only Discord users with Manage Server permissions can use the majort
 ### Quest Completed
 ![Quest Completed Broadcast](images/quest_completed_broadcast.png)
 
-### PvP Kill
-Coming soon
+### and more!
 
-### New Member
-Coming soon
+### Setup your own bot
+Coming soon! Everything needed is in the `.env` and `docker-compose.yml` files. But detailed instructions will come soon.
 
+### Contributing
+Coming soon!
 
 ## Future Features
 All of the features below depends on data gotten from Clan Chat messages. So if it is not sent to the bot or does not broadcast in

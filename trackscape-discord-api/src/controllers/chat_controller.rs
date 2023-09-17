@@ -79,7 +79,6 @@ async fn new_clan_chats(
     persist: web::Data<PersistInstance>,
 ) -> actix_web::Result<String> {
     let possible_verification_code = req.headers().get("verification-code");
-    info!("New Clan Chat");
     if let None = possible_verification_code {
         let result = Err(MyError {
             message: "No verification code was set",
@@ -109,24 +108,6 @@ async fn new_clan_chats(
     };
 
     for chat in new_chat.clone() {
-        info!("Sender Icon Id: {:?}", chat.icon_id.clone());
-        // iconids for account type
-        // PLAYER_MODERATOR(0),
-        // JAGEX_MODERATOR(1),
-        // IRONMAN(2),
-        // ULTIMATE_IRONMAN(3),
-        // DMM_SKULL_5_KEYS(4),
-        // DMM_SKULL_4_KEYS(5),
-        // DMM_SKULL_3_KEYS(6),
-        // DMM_SKULL_2_KEYS(7),
-        // DMM_SKULL_1_KEYS(8),
-        // SKULL(9),
-        // HARDCORE_IRONMAN(10),
-        // NO_ENTRY(11),
-        // CHAIN_LINK(12),
-        // BOUNTY_HUNTER_EMBLEM(20),
-        // LEAGUE(22);
-
         //Checks to make sure the message has not already been process since multiple people could be submitting them
         let message_content_hash = hash_string(chat.message.clone());
         match cache.get_value(message_content_hash.clone()).await {
