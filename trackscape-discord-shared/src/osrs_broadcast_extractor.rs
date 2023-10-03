@@ -1,7 +1,4 @@
 pub mod osrs_broadcast_extractor {
-    use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::BroadcastType::{
-        Diary, ItemDrop, Quest,
-    };
     use serde::{Deserialize, Serialize};
 
     #[derive(Deserialize, Serialize, Clone)]
