@@ -2,7 +2,7 @@ FROM rust:1.72-bookworm
 WORKDIR /app
 COPY . /app
 RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
-RUN cargo binstall cargo-shuttle -y
+RUN cargo binstall cargo-shuttle -y --version 0.27.0
 RUN cargo fetch
 # compile app
 RUN cargo build --release

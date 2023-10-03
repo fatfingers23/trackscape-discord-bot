@@ -14,7 +14,6 @@ use dotenv::dotenv;
 use serenity::http::HttpBuilder;
 use shuttle_actix_web::ShuttleActixWeb;
 use shuttle_persist::PersistInstance;
-use shuttle_runtime::tracing::info;
 use std::env;
 use std::sync::atomic::AtomicI64;
 use std::sync::Mutex;
@@ -26,7 +25,7 @@ use uuid::Uuid;
 
 pub use self::websocket_server::{ChatServer, ChatServerHandle};
 use actix_files::{Files, NamedFile};
-use log::error;
+use log::{error, info};
 use trackscape_discord_shared::wiki_api::wiki_api::{get_quests_and_difficulties, WikiQuest};
 
 /// Connection ID.

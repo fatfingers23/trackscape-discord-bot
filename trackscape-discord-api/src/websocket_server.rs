@@ -1,6 +1,7 @@
 //! A multi-room chat server.
 
 use actix_web::web::Data;
+use log::info;
 use std::sync::Mutex;
 use std::{
     collections::{HashMap, HashSet},
@@ -8,7 +9,6 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use shuttle_runtime::tracing::{info, log};
 use tokio::sync::{mpsc, oneshot};
 use uuid::Uuid;
 
@@ -149,7 +149,7 @@ impl ChatServer {
         tx: mpsc::UnboundedSender<Msg>,
         verification_code: String,
     ) -> ConnId {
-        log::info!("Someone joined");
+        info!("Someone joined");
 
         // register session with random connection ID
         let id = Uuid::new_v4();
