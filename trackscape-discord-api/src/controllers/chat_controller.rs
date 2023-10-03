@@ -205,12 +205,7 @@ async fn chat_ws(
 ) -> Result<HttpResponse, Error> {
     let (res, session, msg_stream) = actix_ws::handle(&req, stream).expect("Failed to start WS");
     let possible_verification_code = req.headers().get("verification-code");
-    info!("New WS");
-    //TODO
-    // 1. Strip out the commands to structs that make sense
-    // 2. Change connids to uuids
-    // 3. Verify the verification code is a real one and matches clan name on chat_ws command
-    // 4. Make a method to send a message without conn from above method. Pretty sure it just needs one there cause it uses it to skip
+
     if let None = possible_verification_code {
         let result = MyError {
             message: "No verification code was set",

@@ -3,6 +3,7 @@ mod on_boarding_message;
 
 use crate::on_boarding_message::send_on_boarding;
 use dotenv::dotenv;
+use num_format::Locale::ms;
 use serenity::async_trait;
 use serenity::model::application::command::Command;
 use serenity::model::application::interaction::Interaction;
@@ -109,7 +110,10 @@ impl EventHandler for Bot {
                         }
                         if unwrapped_guild.clan_chat_channel.unwrap() == msg.channel_id.0 {
                             let mut map = HashMap::new();
-                            map.insert("message", msg.content.clone());
+                            let mut shortened_message = msg.content.clone();
+                            // 78 is the max length of a message in game
+                            shortened_message.truncate(78);
+                            map.insert("message", shortened_message);
                             let nick_name = msg.author_nick(&ctx.http).await;
                             if let None = nick_name {
                                 map.insert("sender", msg.author.name);
