@@ -511,10 +511,14 @@ pub mod osrs_broadcast_extractor {
     }
 
     pub fn get_wiki_clan_rank_image_url(rank: String) -> String {
-        let image_name = format_wiki_image_name(rank);
+        let image_picture_name: String = match rank.as_str() {
+            "Deputy owner" => "Deputy_owner".to_string(),
+            _ => format_wiki_image_name(rank.clone()),
+        };
+
         format!(
             "https://oldschool.runescape.wiki/images/Clan_icon_-_{}.png",
-            image_name
+            image_picture_name
         )
     }
 
@@ -539,8 +543,9 @@ pub mod osrs_broadcast_extractor {
 mod tests {
     use super::*;
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-        DiaryCompletedBroadcast, DiaryTier, InviteBroadcast, LevelMilestoneBroadcast,
-        PetDropBroadcast, PkBroadcast, QuestCompletedBroadcast, XPMilestoneBroadcast,
+        get_wiki_clan_rank_image_url, DiaryCompletedBroadcast, DiaryTier, InviteBroadcast,
+        LevelMilestoneBroadcast, PetDropBroadcast, PkBroadcast, QuestCompletedBroadcast,
+        XPMilestoneBroadcast,
     };
     use tracing::info;
 
@@ -995,6 +1000,16 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_rank_is_proper_wiki_image() {
+        let rank = "Deputy Owner";
+        let rank_image = get_wiki_clan_rank_image_url(rank.to_string());
+        assert_eq!(
+            rank_image,
+            "https://oldschool.runescape.wiki/images/Clan_icon_-_Deputy_owner.png".to_string()
+        );
     }
 
     //Test data setup
