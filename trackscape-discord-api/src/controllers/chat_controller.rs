@@ -2,12 +2,16 @@ use crate::cache::Cache;
 use crate::websocket_server::DiscordToClanChatMessage;
 use crate::{handler, ChatServerHandle};
 use actix_web::{error, post, web, Error, HttpRequest, HttpResponse, Scope};
+use chrono::Utc;
 use log::info;
+use mongodb::bson::Bson::DateTime;
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
 use serenity::json;
 use serenity::json::Value;
 use shuttle_persist::PersistInstance;
+use std::alloc::System;
+use std::time::SystemTime;
 use tokio::task::spawn_local;
 use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::GeItemMapping;
@@ -108,6 +112,10 @@ async fn new_clan_chats(
     };
 
     for chat in new_chat.clone() {
+        if (chat.sender.clone() == "" && chat.clan_name.clone() == "") {
+            continue;
+        }
+
         //Checks to make sure the message has not already been process since multiple people could be submitting them
         let message_content_hash = hash_string(chat.message.clone());
         match cache.get_value(message_content_hash.clone()).await {
@@ -124,6 +132,11 @@ async fn new_clan_chats(
             mongodb.update_guild(registered_guild.clone()).await
         }
 
+        if registered_guild.clan_name.clone().unwrap() != chat.clan_name {
+            continue;
+        }
+        let right_now = serenity::model::timestamp::Timestamp::now();
+
         match registered_guild.clan_chat_channel {
             Some(channel_id) => {
                 let mut clan_chat_to_discord = CreateMessage::default();
@@ -139,6 +152,7 @@ async fn new_clan_chats(
                         .author(|a| a.name(chat.sender.clone()).icon_url(author_image))
                         .description(chat.message.clone())
                         .color(0x0000FF)
+                        .timestamp(right_now)
                 });
                 let map = json::hashmap_to_json_map(clan_chat_to_discord.0);
                 discord_http_client
@@ -173,7 +187,8 @@ async fn new_clan_chats(
                     create_message.embed(|e| {
                         e.title(broadcast.title)
                             .description(broadcast.message)
-                            .color(0x0000FF);
+                            .color(0x0000FF)
+                            .timestamp(right_now);
                         match broadcast.icon_url {
                             None => {}
                             Some(icon_url) => {
