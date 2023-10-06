@@ -59,10 +59,12 @@ async fn new_discord_message(
         return result.map_err(|err| error::ErrorBadRequest(err.message));
     }
 
+    let sanitized_message = ammonia::clean(new_chat.message.as_str());
+    let sanitized_sender = ammonia::clean(new_chat.sender.as_str());
     chat_server
         .send_discord_message_to_clan_chat(
-            new_chat.sender.clone(),
-            new_chat.message.clone(),
+            sanitized_sender,
+            sanitized_message,
             verification_code.to_string(),
         )
         .await;
@@ -265,4 +267,22 @@ pub fn chat_controller() -> Scope {
         .service(new_clan_chats)
         .service(new_discord_message)
         .service(web::resource("/ws").route(web::get().to(chat_ws)))
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn sanitize_img() {
+        let message = "<img=1> Hello world!";
+        let result = ammonia::clean(message);
+        assert_eq!(result, " Hello world!");
+    }
+
+    #[test]
+    fn sanitize_col() {
+        let message = "<img=1><col=7320d8>test</col>";
+        let result = ammonia::clean(message);
+        assert_eq!(result, "test");
+    }
 }
