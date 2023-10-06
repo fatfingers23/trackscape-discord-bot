@@ -108,7 +108,6 @@ async fn new_clan_chats(
     };
 
     for chat in new_chat.clone() {
-        info!("Chat: {:?}", chat.clone());
         if (chat.sender.clone() == "" && chat.clan_name.clone() == "") {
             continue;
         }
