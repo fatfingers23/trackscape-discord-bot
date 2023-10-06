@@ -2,16 +2,12 @@ use crate::cache::Cache;
 use crate::websocket_server::DiscordToClanChatMessage;
 use crate::{handler, ChatServerHandle};
 use actix_web::{error, post, web, Error, HttpRequest, HttpResponse, Scope};
-use chrono::Utc;
 use log::info;
-use mongodb::bson::Bson::DateTime;
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
 use serenity::json;
 use serenity::json::Value;
 use shuttle_persist::PersistInstance;
-use std::alloc::System;
-use std::time::SystemTime;
 use tokio::task::spawn_local;
 use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::GeItemMapping;
@@ -112,7 +108,15 @@ async fn new_clan_chats(
     };
 
     for chat in new_chat.clone() {
+        info!("Chat: {:?}", chat.clone());
         if (chat.sender.clone() == "" && chat.clan_name.clone() == "") {
+            continue;
+        }
+        //HACK temp code till plugin is updated
+        let message_clone_to_check_join_leave = chat.message.clone();
+        if (message_clone_to_check_join_leave.contains("has joined.")
+            || message_clone_to_check_join_leave.contains("has left."))
+        {
             continue;
         }
 
