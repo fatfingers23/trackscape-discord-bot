@@ -108,7 +108,7 @@ async fn new_clan_chats(
     };
 
     for chat in new_chat.clone() {
-        if (chat.sender.clone() == "" && chat.clan_name.clone() == "") {
+        if chat.sender.clone() == "" && chat.clan_name.clone() == "" {
             continue;
         }
         //HACK temp code till plugin is updated

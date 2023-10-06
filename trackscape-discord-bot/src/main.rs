@@ -3,6 +3,7 @@ mod on_boarding_message;
 
 use crate::on_boarding_message::send_on_boarding;
 use dotenv::dotenv;
+use num_format::Locale::se;
 use serenity::async_trait;
 use serenity::model::application::command::Command;
 use serenity::model::application::interaction::Interaction;
@@ -64,17 +65,16 @@ impl EventHandler for Bot {
         }
     }
 
-    async fn guild_delete(
-        &self,
-        _ctx: Context,
-        _incomplete: UnavailableGuild,
-        full: Option<Guild>,
-    ) {
+    async fn guild_delete(&self, _ctx: Context, incomplete: UnavailableGuild, full: Option<Guild>) {
         if full.is_none() {
             info!("Removed from a guild that we don't have access to")
         } else {
             let full = full.unwrap();
             info!("Removed from the guild: {}", full.name)
+        }
+
+        if !incomplete.unavailable {
+            self.mongo_db.delete_guild(incomplete.id.0).await;
         }
 
         let server_count = {

@@ -200,4 +200,15 @@ impl BotMongoDb {
             .await
             .expect("Failed to update document for the Discord guild.");
     }
+
+    pub async fn delete_guild(&self, guild_id: u64) {
+        let collection = self
+            .db
+            .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
+        let filter = doc! { "guild_id": bson::to_bson(&guild_id).unwrap()};
+        collection
+            .delete_one(filter, None)
+            .await
+            .expect("Failed to delete document for the Discord guild.");
+    }
 }
