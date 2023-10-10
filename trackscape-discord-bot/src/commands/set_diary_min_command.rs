@@ -33,7 +33,7 @@ pub async fn run(
     db: &BotMongoDb,
     guild_id: u64,
 ) -> Option<String> {
-    let saved_guild_query = db.get_by_guild_id(guild_id).await;
+    let saved_guild_query = db.guilds.get_by_guild_id(guild_id).await;
     match saved_guild_query {
         Ok(saved_guild) => {
             let mut saved_guild = saved_guild.unwrap_or(RegisteredGuild::new(guild_id));
@@ -47,7 +47,7 @@ pub async fn run(
             return if let CommandDataOptionValue::String(diary_tier) = possible_diary_tier {
                 saved_guild.min_diary_tier =
                     Some(DiaryTier::from_string(diary_tier.clone().to_string()));
-                db.update_guild(saved_guild).await;
+                db.guilds.update_guild(saved_guild).await;
                 Some("Successfully updated min diary to broadcast.".to_string())
             } else {
                 Some("Invalid option.".to_string())

@@ -1,6 +1,6 @@
 use crate::helpers::hash_string;
 use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-    BroadcastType, DiaryTier, QuestDifficulty,
+    BroadcastType, DiaryTier, DropItemBroadcast, QuestDifficulty,
 };
 use async_recursion::async_recursion;
 use mongodb::bson::{doc, DateTime};
@@ -13,7 +13,18 @@ use std::string::ToString;
 
 #[derive(Clone)]
 pub struct BotMongoDb {
+    pub guilds: GuildsDb,
+    pub drop_logs: DropLogsDb,
+}
+
+#[derive(Clone)]
+pub struct GuildsDb {
     db: Database,
+}
+
+#[derive(Clone)]
+pub struct DropLogsDb {
+    _db: Database,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -70,11 +81,25 @@ impl RegisteredGuild {
     }
 }
 
-impl BotMongoDb {
-    pub fn new(mongodb: Database) -> Self {
-        Self { db: mongodb }
-    }
+pub struct DropLog {
+    pub guild_id: u64,
+    pub drop_item: DropItemBroadcast,
+    pub created_at: DateTime,
+}
 
+impl DropLog {
+    pub const COLLECTION_NAME: &'static str = "drop_logs";
+
+    pub fn new(drop_item: DropItemBroadcast, guild_id: u64) -> Self {
+        Self {
+            guild_id,
+            drop_item,
+            created_at: DateTime::now(),
+        }
+    }
+}
+
+impl BotMongoDb {
     pub async fn new_db_instance(db_url: String) -> Self {
         let client_options = ClientOptions::parse(db_url.as_str())
             .await
@@ -83,7 +108,16 @@ impl BotMongoDb {
             .expect("Could not parse the mongod db url");
 
         let db = client.database("TrackScapeDB");
-        Self { db }
+        Self {
+            guilds: GuildsDb::new(db.clone()),
+            drop_logs: DropLogsDb::new(db.clone()),
+        }
+    }
+}
+
+impl GuildsDb {
+    pub fn new(mongodb: Database) -> Self {
+        Self { db: mongodb }
     }
 
     pub async fn create_if_new_guild(&self, guild_id: u64) {
@@ -211,5 +245,11 @@ impl BotMongoDb {
             .delete_one(filter, None)
             .await
             .expect("Failed to delete document for the Discord guild.");
+    }
+}
+
+impl DropLogsDb {
+    pub fn new(mongodb: Database) -> Self {
+        Self { _db: mongodb }
     }
 }

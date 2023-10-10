@@ -26,7 +26,7 @@ pub mod osrs_broadcast_extractor {
         pub icon_id: Option<i64>,
     }
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone, Debug, Serialize, Deserialize)]
     pub struct DropItemBroadcast {
         pub player_it_happened_to: String,
         pub item_name: String,

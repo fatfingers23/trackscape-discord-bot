@@ -22,7 +22,7 @@ pub async fn run(
     db: &BotMongoDb,
     guild_id: u64,
 ) -> Option<String> {
-    let saved_guild_query = db.get_by_guild_id(guild_id).await;
+    let saved_guild_query = db.guilds.get_by_guild_id(guild_id).await;
 
     return match saved_guild_query {
         Ok(possible_guild) => match possible_guild {

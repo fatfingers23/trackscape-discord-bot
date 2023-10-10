@@ -43,6 +43,7 @@ async fn new_discord_message(
     let verification_code = possible_verification_code.unwrap().to_str().unwrap();
 
     let registered_guild_query = mongodb
+        .guilds
         .get_guild_by_code(verification_code.to_string())
         .await;
 
@@ -91,6 +92,7 @@ async fn new_clan_chats(
     let verification_code = possible_verification_code.unwrap().to_str().unwrap();
     //checks to make sure the registered guild exists for the RuneScape clan
     let registered_guild_query = mongodb
+        .guilds
         .get_guild_by_code(verification_code.to_string())
         .await;
 
@@ -134,7 +136,7 @@ async fn new_clan_chats(
 
         if let None = registered_guild.clan_name {
             registered_guild.clan_name = Some(chat.clan_name.clone());
-            mongodb.update_guild(registered_guild.clone()).await
+            mongodb.guilds.update_guild(registered_guild.clone()).await
         }
 
         if registered_guild.clan_name.clone().unwrap() != chat.clan_name {
@@ -235,6 +237,7 @@ async fn chat_ws(
     let verification_code = possible_verification_code.unwrap().to_str().unwrap();
 
     let registered_guild_query = mongodb
+        .guilds
         .get_guild_by_code(verification_code.to_string())
         .await;
 

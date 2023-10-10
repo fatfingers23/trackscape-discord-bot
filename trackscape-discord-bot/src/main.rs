@@ -37,7 +37,7 @@ impl TypeMapKey for ServerCount {
 impl EventHandler for Bot {
     async fn guild_create(&self, ctx: Context, guild: Guild, is_new: bool) {
         info!("Guild: {}", guild.name);
-        self.mongo_db.create_if_new_guild(guild.id.0).await;
+        self.mongo_db.guilds.create_if_new_guild(guild.id.0).await;
         let server_count = {
             let data_read = ctx.data.read().await;
             data_read
@@ -73,7 +73,7 @@ impl EventHandler for Bot {
         }
 
         if !incomplete.unavailable {
-            self.mongo_db.delete_guild(incomplete.id.0).await;
+            self.mongo_db.guilds.delete_guild(incomplete.id.0).await;
             info!("The guild mention has been deleted when removed.");
         }
 
@@ -101,7 +101,7 @@ impl EventHandler for Bot {
             None => {}
             Some(guild_id) => {
                 let guild_id = guild_id.0;
-                let guild = self.mongo_db.get_guild_by_discord_id(guild_id).await;
+                let guild = self.mongo_db.guilds.get_guild_by_discord_id(guild_id).await;
                 match guild {
                     Ok(guild) => {
                         if guild.is_none() {
