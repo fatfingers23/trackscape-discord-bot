@@ -3,7 +3,7 @@ use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     BroadcastType, DiaryTier, QuestDifficulty,
 };
 use async_recursion::async_recursion;
-use mongodb::bson::doc;
+use mongodb::bson::{doc, DateTime};
 use mongodb::options::ClientOptions;
 use mongodb::{bson, Database};
 use rand::Rng;
@@ -31,7 +31,7 @@ pub struct RegisteredGuild {
     pub min_quest_difficulty: Option<QuestDifficulty>,
     pub min_diary_tier: Option<DiaryTier>,
     pub pk_value_threshold: Option<i64>,
-    //TODO add new thresholds here. Like pk, etc.
+    pub created_at: Option<DateTime>,
 }
 
 impl RegisteredGuild {
@@ -51,6 +51,7 @@ impl RegisteredGuild {
             min_quest_difficulty: None,
             min_diary_tier: None,
             pk_value_threshold: None,
+            created_at: DateTime::now().into(),
         }
     }
 

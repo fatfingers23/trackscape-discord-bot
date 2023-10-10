@@ -74,6 +74,7 @@ impl EventHandler for Bot {
 
         if !incomplete.unavailable {
             self.mongo_db.delete_guild(incomplete.id.0).await;
+            info!("The guild mention has been deleted when removed.");
         }
 
         let server_count = {
@@ -84,7 +85,11 @@ impl EventHandler for Bot {
                 .clone()
         };
         server_count.fetch_sub(1, Ordering::SeqCst);
-        info!("Server Count: {}", server_count.load(Ordering::SeqCst));
+        let new_server_count = server_count.load(Ordering::SeqCst);
+        info!("Server Count: {}", new_server_count);
+        self.trackscape_api_web_client
+            .send_server_count(new_server_count as i64)
+            .await;
     }
 
     async fn message(&self, ctx: Context, msg: Message) {
