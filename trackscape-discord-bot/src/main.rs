@@ -3,7 +3,6 @@ mod on_boarding_message;
 
 use crate::on_boarding_message::send_on_boarding;
 use dotenv::dotenv;
-use num_format::Locale::se;
 use serenity::async_trait;
 use serenity::model::application::command::Command;
 use serenity::model::application::interaction::Interaction;

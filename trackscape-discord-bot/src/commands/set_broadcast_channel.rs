@@ -62,7 +62,7 @@ pub async fn run(
                         Ok(_) => {}
                         Err(error) => {
                             info!("Error sending message: {}", error);
-                            return Some(error.to_string());
+                            return Some("Error sending a message to the selected channel. Please check that the bot has permission to access this channel. Broadcast messages will be sent once this is resolved.".to_string())
                         }
                     }
                     //TODO: Send message to channel with verfication code and a picture of where to add it

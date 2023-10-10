@@ -62,8 +62,7 @@ pub async fn run(
                         Ok(_) => {}
                         Err(error) => {
                             info!("Error sending message: {}", error);
-                            return Some(error.to_string());
-                        }
+                            return Some("Error sending a message to the selected channel. Please check that the bot has permission to access this channel. Clan Chat messages will be sent once this is resolved.".to_string())                        }
                     }
                     //TODO: Send message to channel with verfication code and a picture of where to add it
                     Some(format!("The channel has been set successfully. Please use the code: `{}` in the TrackScape Connection RuneLite Plugin to begin receiving messages in the selected channel.", saved_guild_code))
