@@ -2,15 +2,17 @@ use crate::helpers::hash_string;
 use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     BroadcastType, DiaryTier, DropItemBroadcast, QuestDifficulty,
 };
+use anyhow::Result;
 use async_recursion::async_recursion;
 use async_trait::async_trait;
+use futures::TryStreamExt;
+use log::info;
 use mockall::predicate::*;
 use mockall::*;
 use mongodb::bson::{doc, DateTime};
 use mongodb::options::ClientOptions;
 use mongodb::{bson, Database};
 use rand::Rng;
-use regex::Error;
 use serde::{Deserialize, Serialize};
 use std::string::ToString;
 
@@ -144,7 +146,10 @@ impl GuildsDb {
     }
 
     #[async_recursion]
-    pub async fn recursive_check_for_unique_code(&self, code: String) -> Result<String, Error> {
+    pub async fn recursive_check_for_unique_code(
+        &self,
+        code: String,
+    ) -> Result<String, anyhow::Error> {
         let collection = self
             .db
             .collection::<RegisteredGuildModel>(RegisteredGuildModel::COLLECTION_NAME);
@@ -153,7 +158,7 @@ impl GuildsDb {
         let result = collection
             .find_one(filter, None)
             .await
-            .expect("Was an error checking for unique code.");
+            .expect("Was an anyhow::Error checking for unique code.");
         match result {
             Some(_) => {
                 let new_code = RegisteredGuildModel::generate_code();
@@ -166,7 +171,7 @@ impl GuildsDb {
     pub async fn get_guild_by_discord_id(
         &self,
         discord_id: u64,
-    ) -> Result<Option<RegisteredGuildModel>, Error> {
+    ) -> Result<Option<RegisteredGuildModel>, anyhow::Error> {
         let collection = self
             .db
             .collection::<RegisteredGuildModel>(RegisteredGuildModel::COLLECTION_NAME);
@@ -180,7 +185,7 @@ impl GuildsDb {
         &self,
         code: String,
         clan_name: String,
-    ) -> Result<Option<RegisteredGuildModel>, Error> {
+    ) -> Result<Option<RegisteredGuildModel>, anyhow::Error> {
         let collection = self
             .db
             .collection::<RegisteredGuildModel>(RegisteredGuildModel::COLLECTION_NAME);
@@ -195,7 +200,7 @@ impl GuildsDb {
     pub async fn get_guild_by_code(
         &self,
         code: String,
-    ) -> Result<Option<RegisteredGuildModel>, Error> {
+    ) -> Result<Option<RegisteredGuildModel>, anyhow::Error> {
         let collection = self
             .db
             .collection::<RegisteredGuildModel>(RegisteredGuildModel::COLLECTION_NAME);
@@ -268,6 +273,12 @@ pub trait DropLogs {
     fn new_instance(mongodb: Database) -> Self;
 
     async fn new_drop_log(&self, drop_log: DropItemBroadcast, guild_id: u64);
+    async fn get_drops_between_dates(
+        &self,
+        guild_id: u64,
+        start_date: DateTime,
+        end_date: DateTime,
+    ) -> anyhow::Result<Vec<DropLogModel>>;
 }
 
 #[async_trait]
@@ -284,5 +295,33 @@ impl DropLogs for DropLogsDb {
             .insert_one(new_drop_log, None)
             .await
             .expect("Failed to insert document for a new drop log.");
+    }
+
+    async fn get_drops_between_dates(
+        &self,
+        guild_id: u64,
+        start_date: DateTime,
+        end_date: DateTime,
+    ) -> anyhow::Result<Vec<DropLogModel>> {
+        let collection = self
+            .db
+            .collection::<DropLogModel>(DropLogModel::COLLECTION_NAME);
+
+        println!("Start Date: {}", start_date);
+
+        let filter = doc! {
+            "guild_id": bson::to_bson(&guild_id).unwrap(),
+            "created_at": {
+                "$gte": bson::to_bson(&start_date).unwrap(),
+                "$lte": bson::to_bson(&end_date).unwrap()
+            }
+        };
+        info!("Filter: {:?}", filter);
+        let result = collection.find(filter, None).await;
+        // let drop_logs = Vec::new();
+        return match result {
+            Ok(possible_drops) => Ok(possible_drops.try_collect().await.unwrap()),
+            Err(e) => Err(anyhow::Error::new(e)),
+        };
     }
 }

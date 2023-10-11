@@ -524,6 +524,7 @@ dependencies = [
  "ahash",
  "base64 0.13.1",
  "bitvec",
+ "chrono",
  "hex",
  "indexmap 1.9.3",
  "js-sys",
@@ -532,6 +533,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "serde_json",
+ "serde_with",
  "time",
  "uuid",
 ]
@@ -3525,6 +3527,7 @@ dependencies = [
  "actix-ws",
  "ammonia",
  "anyhow",
+ "bson",
  "chrono",
  "dotenv",
  "futures",
@@ -3536,6 +3539,7 @@ dependencies = [
  "rand",
  "serde",
  "serde_json",
+ "serde_with",
  "serenity",
  "shuttle-actix-web",
  "shuttle-persist",
@@ -3574,6 +3578,7 @@ dependencies = [
 name = "trackscape-discord-shared"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-recursion",
  "async-trait",
  "futures",

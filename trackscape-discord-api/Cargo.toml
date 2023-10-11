@@ -26,6 +26,10 @@ log = "0.4.20"
 actix-files = "0.6.2"
 ammonia = "3.3.0"
 num-format = "0.4.4"
+serde_with = "1.14.0"
+bson = { version = "^2.7", default-features = false, features = [ "chrono-0_4", "serde_with" ] }
+
+
 
 [dev-dependencies]
 mockall = "0.11.4"
