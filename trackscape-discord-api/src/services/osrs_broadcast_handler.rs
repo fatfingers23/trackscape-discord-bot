@@ -1,7 +1,6 @@
-use actix_web::web::Data;
 use log::error;
 use num_format::{Locale, ToFormattedString};
-use trackscape_discord_shared::database::{MongoDb, RegisteredGuild};
+use trackscape_discord_shared::database::{DropLogs, MongoDb, RegisteredGuild};
 use trackscape_discord_shared::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     diary_completed_broadcast_extractor, drop_broadcast_extractor, get_broadcast_type,
@@ -24,21 +23,21 @@ pub struct BroadcastMessageToDiscord {
 }
 
 #[derive(Debug, Clone)]
-pub struct OSRSBroadcastHandler<T: MongoDb> {
+pub struct OSRSBroadcastHandler<T: DropLogs> {
     clan_message: ClanMessage,
     item_mapping: Option<GeItemMapping>,
     quests: Option<Vec<WikiQuest>>,
     registered_guild: RegisteredGuild,
-    _db: Data<T>,
+    _db: T,
 }
 
-impl<T: MongoDb> OSRSBroadcastHandler<T> {
+impl<T: DropLogs> OSRSBroadcastHandler<T> {
     pub fn new(
         clan_message: ClanMessage,
         item_mapping_from_state: Result<GeItemMapping, ()>,
         quests_from_state: Result<Vec<WikiQuest>, ()>,
         register_guild: RegisteredGuild,
-        db: Data<T>,
+        db: T,
     ) -> Self {
         Self {
             clan_message,
@@ -510,9 +509,8 @@ impl<T: MongoDb> OSRSBroadcastHandler<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use actix_web::web;
     use log::info;
-    use trackscape_discord_shared::database::MockMongoDb;
+    use trackscape_discord_shared::database::MockDropLogs;
     use trackscape_discord_shared::ge_api::ge_api::GetItem;
     use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
         DiaryTier, QuestDifficulty,
@@ -546,15 +544,13 @@ mod tests {
         }
 
         let quests = Ok(Vec::new());
-        let mock = MockMongoDb::new();
-        let db_mock = web::Data::new(mock);
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
             quests,
             registered_guild,
-            db_mock,
+            MockDropLogs::new(),
         );
 
         let extracted_message = handler.drop_item_handler();
@@ -597,15 +593,13 @@ mod tests {
             Some(_) => {}
         }
         let quests = Ok(Vec::new());
-        let mock = MockMongoDb::new();
-        let db_mock = web::Data::new(mock);
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
             quests,
             registered_guild,
-            db_mock,
+            MockDropLogs::new(),
         );
 
         let extracted_message = handler.drop_item_handler();
@@ -653,15 +647,12 @@ mod tests {
             }
         }
 
-        let mock = MockMongoDb::new();
-        let db_mock = web::Data::new(mock);
-
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
             quests,
             registered_guild,
-            db_mock,
+            MockDropLogs::new(),
         );
 
         let extracted_message = handler.quest_handler();
@@ -709,15 +700,12 @@ mod tests {
             }
         }
 
-        let mock = MockMongoDb::new();
-        let db_mock = web::Data::new(mock);
-
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
             quests,
             registered_guild,
-            db_mock,
+            MockDropLogs::new(),
         );
 
         let extracted_message = handler.quest_handler();
@@ -762,15 +750,13 @@ mod tests {
             }
         }
         let quests = Ok(Vec::new());
-        let mock = MockMongoDb::new();
-        let db_mock = web::Data::new(mock);
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
             quests,
             registered_guild,
-            db_mock,
+            MockDropLogs::new(),
         );
 
         let extracted_message = handler.pk_handler();
@@ -815,15 +801,13 @@ mod tests {
                 assert_eq!(true, true);
             }
         }
-        let mock = MockMongoDb::new();
-        let db_mock = web::Data::new(mock);
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
             quests,
             registered_guild,
-            db_mock,
+            MockDropLogs::new(),
         );
 
         let extracted_message = handler.diary_handler();
@@ -868,15 +852,12 @@ mod tests {
             }
         }
 
-        let mock = MockMongoDb::new();
-        let db_mock = web::Data::new(mock);
-
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
             quests,
             registered_guild,
-            db_mock,
+            MockDropLogs::new(),
         );
 
         let extracted_message = handler.diary_handler();

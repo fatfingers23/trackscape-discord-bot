@@ -120,7 +120,7 @@ impl MongoDb for BotMongoDb {
         let db = client.database("TrackScapeDB");
         Self {
             guilds: GuildsDb::new(db.clone()),
-            drop_logs: DropLogsDb::new(db.clone()),
+            drop_logs: DropLogsDb::new_instance(db.clone()),
         }
     }
 }
@@ -258,8 +258,14 @@ impl GuildsDb {
     }
 }
 
-impl DropLogsDb {
-    pub fn new(mongodb: Database) -> Self {
+#[automock]
+#[async_trait]
+pub trait DropLogs {
+    fn new_instance(mongodb: Database) -> Self;
+}
+
+impl DropLogs for DropLogsDb {
+    fn new_instance(mongodb: Database) -> Self {
         Self { _db: mongodb }
     }
 }

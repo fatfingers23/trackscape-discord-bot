@@ -183,12 +183,13 @@ async fn new_clan_chats(
             let quests_from_state = persist
                 .load::<Vec<WikiQuest>>("quests")
                 .map_err(|e| info!("Saving Quests Error: {e}"));
+
             let handler = OSRSBroadcastHandler::new(
                 chat.clone(),
                 item_mapping_from_state,
                 quests_from_state,
                 registered_guild.clone(),
-                mongodb.clone(),
+                mongodb.drop_logs.clone(),
             );
             let possible_broadcast = handler.extract_message().await;
             match possible_broadcast {
