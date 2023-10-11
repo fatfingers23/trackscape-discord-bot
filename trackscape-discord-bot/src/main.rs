@@ -18,7 +18,7 @@ use std::sync::Arc;
 use tracing::{error, info};
 use trackscape_discord_shared::api_web_client::ApiWebClient;
 use trackscape_discord_shared::database;
-use trackscape_discord_shared::database::BotMongoDb;
+use trackscape_discord_shared::database::{BotMongoDb, MongoDb};
 
 struct Bot {
     mongo_db: BotMongoDb,

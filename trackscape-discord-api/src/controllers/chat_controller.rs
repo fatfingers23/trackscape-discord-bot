@@ -16,7 +16,7 @@ use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extracto
     get_wiki_clan_rank_image_url, ClanMessage,
 };
 
-use trackscape_discord_shared::osrs_broadcast_handler::OSRSBroadcastHandler;
+use crate::services::osrs_broadcast_handler::OSRSBroadcastHandler;
 use trackscape_discord_shared::wiki_api::wiki_api::WikiQuest;
 
 #[derive(Debug)]
@@ -134,6 +134,7 @@ async fn new_clan_chats(
             }
         }
 
+        //Sets the clan name to the guild. Bit of a hack but best way to get clan name
         if let None = registered_guild.clan_name {
             registered_guild.clan_name = Some(chat.clan_name.clone());
             mongodb.guilds.update_guild(registered_guild.clone()).await
@@ -142,6 +143,7 @@ async fn new_clan_chats(
         if registered_guild.clan_name.clone().unwrap() != chat.clan_name {
             continue;
         }
+
         let right_now = serenity::model::timestamp::Timestamp::now();
 
         match registered_guild.clan_chat_channel {
@@ -169,6 +171,10 @@ async fn new_clan_chats(
             }
             _ => {}
         }
+        //Checks to see if it is a clan broadcast. Clan name and sender are the same if so
+        if chat.sender != chat.clan_name {
+            continue;
+        }
 
         if let Some(broadcast_channel_id) = registered_guild.broadcast_channel {
             let item_mapping_from_state = persist
@@ -182,6 +188,7 @@ async fn new_clan_chats(
                 item_mapping_from_state,
                 quests_from_state,
                 registered_guild.clone(),
+                mongodb.clone(),
             );
             let possible_broadcast = handler.extract_message().await;
             match possible_broadcast {

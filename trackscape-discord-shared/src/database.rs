@@ -3,6 +3,9 @@ use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     BroadcastType, DiaryTier, DropItemBroadcast, QuestDifficulty,
 };
 use async_recursion::async_recursion;
+use async_trait::async_trait;
+use mockall::predicate::*;
+use mockall::*;
 use mongodb::bson::{doc, DateTime};
 use mongodb::options::ClientOptions;
 use mongodb::{bson, Database};
@@ -10,6 +13,12 @@ use rand::Rng;
 use regex::Error;
 use serde::{Deserialize, Serialize};
 use std::string::ToString;
+
+#[automock]
+#[async_trait]
+pub trait MongoDb {
+    async fn new_db_instance(db_url: String) -> Self;
+}
 
 #[derive(Clone)]
 pub struct BotMongoDb {
@@ -99,8 +108,9 @@ impl DropLog {
     }
 }
 
-impl BotMongoDb {
-    pub async fn new_db_instance(db_url: String) -> Self {
+#[async_trait]
+impl MongoDb for BotMongoDb {
+    async fn new_db_instance(db_url: String) -> Self {
         let client_options = ClientOptions::parse(db_url.as_str())
             .await
             .expect("Could not connect to the mongo db");

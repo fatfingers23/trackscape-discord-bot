@@ -512,7 +512,7 @@ pub mod osrs_broadcast_extractor {
 
     pub fn get_wiki_clan_rank_image_url(rank: String) -> String {
         let image_picture_name: String = match rank.as_str() {
-            "Deputy owner" => "Deputy_owner".to_string(),
+            "Deputy Owner" => "Deputy_owner".to_string(),
             _ => format_wiki_image_name(rank.clone()),
         };
 

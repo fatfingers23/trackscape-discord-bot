@@ -3,6 +3,7 @@ extern crate dotenv;
 mod cache;
 mod controllers;
 mod handler;
+mod services;
 mod websocket_server;
 
 use crate::cache::Cache;
@@ -19,7 +20,7 @@ use std::sync::atomic::AtomicI64;
 use std::sync::Mutex;
 use std::time::Duration;
 use tokio::spawn;
-use trackscape_discord_shared::database::BotMongoDb;
+use trackscape_discord_shared::database::{BotMongoDb, MongoDb};
 use trackscape_discord_shared::ge_api::ge_api::{get_item_mapping, GeItemMapping};
 use uuid::Uuid;
 
