@@ -26,6 +26,23 @@ pub struct BotMongoDb {
     pub drop_logs: DropLogsDb,
 }
 
+#[async_trait]
+impl MongoDb for BotMongoDb {
+    async fn new_db_instance(db_url: String) -> Self {
+        let client_options = ClientOptions::parse(db_url.as_str())
+            .await
+            .expect("Could not connect to the mongo db");
+        let client = mongodb::Client::with_options(client_options)
+            .expect("Could not parse the mongod db url");
+
+        let db = client.database("TrackScapeDB");
+        Self {
+            guilds: GuildsDb::new(db.clone()),
+            drop_logs: DropLogsDb::new_instance(db.clone()),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct GuildsDb {
     db: Database,
@@ -33,11 +50,11 @@ pub struct GuildsDb {
 
 #[derive(Clone)]
 pub struct DropLogsDb {
-    _db: Database,
+    db: Database,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct RegisteredGuild {
+pub struct RegisteredGuildModel {
     pub guild_id: u64,
     //Channel to send broadcast messages
     pub clan_name: Option<String>,
@@ -54,7 +71,7 @@ pub struct RegisteredGuild {
     pub created_at: Option<DateTime>,
 }
 
-impl RegisteredGuild {
+impl RegisteredGuildModel {
     pub const COLLECTION_NAME: &'static str = "guilds";
     pub fn new(guild_id: u64) -> Self {
         let verification_code = Self::generate_code();
@@ -90,41 +107,6 @@ impl RegisteredGuild {
     }
 }
 
-pub struct DropLog {
-    pub guild_id: u64,
-    pub drop_item: DropItemBroadcast,
-    pub created_at: DateTime,
-}
-
-impl DropLog {
-    pub const COLLECTION_NAME: &'static str = "drop_logs";
-
-    pub fn new(drop_item: DropItemBroadcast, guild_id: u64) -> Self {
-        Self {
-            guild_id,
-            drop_item,
-            created_at: DateTime::now(),
-        }
-    }
-}
-
-#[async_trait]
-impl MongoDb for BotMongoDb {
-    async fn new_db_instance(db_url: String) -> Self {
-        let client_options = ClientOptions::parse(db_url.as_str())
-            .await
-            .expect("Could not connect to the mongo db");
-        let client = mongodb::Client::with_options(client_options)
-            .expect("Could not parse the mongod db url");
-
-        let db = client.database("TrackScapeDB");
-        Self {
-            guilds: GuildsDb::new(db.clone()),
-            drop_logs: DropLogsDb::new_instance(db.clone()),
-        }
-    }
-}
-
 impl GuildsDb {
     pub fn new(mongodb: Database) -> Self {
         Self { db: mongodb }
@@ -143,7 +125,7 @@ impl GuildsDb {
     }
 
     pub async fn save_new_guild(&self, guild_id: u64) {
-        let mut guild = RegisteredGuild::new(guild_id);
+        let mut guild = RegisteredGuildModel::new(guild_id);
         let check_for_unique_code = self
             .recursive_check_for_unique_code(guild.verification_code.clone())
             .await;
@@ -151,7 +133,7 @@ impl GuildsDb {
             Ok(code) => {
                 guild.verification_code = code.clone();
                 guild.hashed_verification_code = hash_string(code.clone());
-                let collection = self.db.collection(RegisteredGuild::COLLECTION_NAME);
+                let collection = self.db.collection(RegisteredGuildModel::COLLECTION_NAME);
                 collection
                     .insert_one(guild, None)
                     .await
@@ -165,7 +147,7 @@ impl GuildsDb {
     pub async fn recursive_check_for_unique_code(&self, code: String) -> Result<String, Error> {
         let collection = self
             .db
-            .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
+            .collection::<RegisteredGuildModel>(RegisteredGuildModel::COLLECTION_NAME);
         let hashed_code = hash_string(code.clone());
         let filter = doc! {"hashed_verification_code": hashed_code};
         let result = collection
@@ -174,7 +156,7 @@ impl GuildsDb {
             .expect("Was an error checking for unique code.");
         match result {
             Some(_) => {
-                let new_code = RegisteredGuild::generate_code();
+                let new_code = RegisteredGuildModel::generate_code();
                 self.recursive_check_for_unique_code(new_code).await
             }
             None => Ok(code),
@@ -184,10 +166,10 @@ impl GuildsDb {
     pub async fn get_guild_by_discord_id(
         &self,
         discord_id: u64,
-    ) -> Result<Option<RegisteredGuild>, Error> {
+    ) -> Result<Option<RegisteredGuildModel>, Error> {
         let collection = self
             .db
-            .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
+            .collection::<RegisteredGuildModel>(RegisteredGuildModel::COLLECTION_NAME);
         let filter = doc! {"guild_id": bson::to_bson(&discord_id).unwrap()};
         Ok(collection
             .find_one(filter, None)
@@ -198,10 +180,10 @@ impl GuildsDb {
         &self,
         code: String,
         clan_name: String,
-    ) -> Result<Option<RegisteredGuild>, Error> {
+    ) -> Result<Option<RegisteredGuildModel>, Error> {
         let collection = self
             .db
-            .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
+            .collection::<RegisteredGuildModel>(RegisteredGuildModel::COLLECTION_NAME);
         let hashed_code = hash_string(code);
         let filter = doc! {"hashed_verification_code": hashed_code, "clan_name": clan_name};
         Ok(collection
@@ -210,10 +192,13 @@ impl GuildsDb {
             .expect("Failed to find document for the Discord guild."))
     }
 
-    pub async fn get_guild_by_code(&self, code: String) -> Result<Option<RegisteredGuild>, Error> {
+    pub async fn get_guild_by_code(
+        &self,
+        code: String,
+    ) -> Result<Option<RegisteredGuildModel>, Error> {
         let collection = self
             .db
-            .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
+            .collection::<RegisteredGuildModel>(RegisteredGuildModel::COLLECTION_NAME);
         let hashed_code = hash_string(code);
         let filter = doc! {"hashed_verification_code": hashed_code};
         Ok(collection
@@ -225,10 +210,10 @@ impl GuildsDb {
     pub async fn get_by_guild_id(
         &self,
         id: u64,
-    ) -> Result<Option<RegisteredGuild>, mongodb::error::Error> {
+    ) -> Result<Option<RegisteredGuildModel>, mongodb::error::Error> {
         let collection = self
             .db
-            .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
+            .collection::<RegisteredGuildModel>(RegisteredGuildModel::COLLECTION_NAME);
         let filter = doc! { "guild_id": bson::to_bson(&id).unwrap()};
         let result = collection.find_one(filter.clone(), None).await;
         return match result {
@@ -237,8 +222,8 @@ impl GuildsDb {
         };
     }
 
-    pub async fn update_guild(&self, guild: RegisteredGuild) {
-        let collection = self.db.collection(RegisteredGuild::COLLECTION_NAME);
+    pub async fn update_guild(&self, guild: RegisteredGuildModel) {
+        let collection = self.db.collection(RegisteredGuildModel::COLLECTION_NAME);
         let filter = doc! { "guild_id": bson::to_bson(&guild.guild_id).unwrap()};
         collection
             .replace_one(filter, guild, None)
@@ -249,7 +234,7 @@ impl GuildsDb {
     pub async fn delete_guild(&self, guild_id: u64) {
         let collection = self
             .db
-            .collection::<RegisteredGuild>(RegisteredGuild::COLLECTION_NAME);
+            .collection::<RegisteredGuildModel>(RegisteredGuildModel::COLLECTION_NAME);
         let filter = doc! { "guild_id": bson::to_bson(&guild_id).unwrap()};
         collection
             .delete_one(filter, None)
@@ -258,14 +243,46 @@ impl GuildsDb {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DropLogModel {
+    pub guild_id: u64,
+    pub drop_item: DropItemBroadcast,
+    pub created_at: DateTime,
+}
+
+impl DropLogModel {
+    pub const COLLECTION_NAME: &'static str = "drop_logs";
+
+    pub fn new(drop_item: DropItemBroadcast, guild_id: u64) -> Self {
+        Self {
+            guild_id,
+            drop_item,
+            created_at: DateTime::now(),
+        }
+    }
+}
+
 #[automock]
 #[async_trait]
 pub trait DropLogs {
     fn new_instance(mongodb: Database) -> Self;
+
+    async fn new_drop_log(&self, drop_log: DropItemBroadcast, guild_id: u64);
 }
 
+#[async_trait]
 impl DropLogs for DropLogsDb {
     fn new_instance(mongodb: Database) -> Self {
-        Self { _db: mongodb }
+        Self { db: mongodb }
+    }
+
+    async fn new_drop_log(&self, drop_broadcast: DropItemBroadcast, guild_id: u64) {
+        let collection = self.db.collection(DropLogModel::COLLECTION_NAME);
+        let new_drop_log = DropLogModel::new(drop_broadcast, guild_id);
+
+        collection
+            .insert_one(new_drop_log, None)
+            .await
+            .expect("Failed to insert document for a new drop log.");
     }
 }

@@ -1,6 +1,6 @@
 use log::error;
 use num_format::{Locale, ToFormattedString};
-use trackscape_discord_shared::database::{DropLogs, MongoDb, RegisteredGuild};
+use trackscape_discord_shared::database::{DropLogs, MongoDb, RegisteredGuildModel};
 use trackscape_discord_shared::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     diary_completed_broadcast_extractor, drop_broadcast_extractor, get_broadcast_type,
@@ -27,8 +27,8 @@ pub struct OSRSBroadcastHandler<T: DropLogs> {
     clan_message: ClanMessage,
     item_mapping: Option<GeItemMapping>,
     quests: Option<Vec<WikiQuest>>,
-    registered_guild: RegisteredGuild,
-    _db: T,
+    registered_guild: RegisteredGuildModel,
+    db: T,
 }
 
 impl<T: DropLogs> OSRSBroadcastHandler<T> {
@@ -36,7 +36,7 @@ impl<T: DropLogs> OSRSBroadcastHandler<T> {
         clan_message: ClanMessage,
         item_mapping_from_state: Result<GeItemMapping, ()>,
         quests_from_state: Result<Vec<WikiQuest>, ()>,
-        register_guild: RegisteredGuild,
+        register_guild: RegisteredGuildModel,
         db: T,
     ) -> Self {
         Self {
@@ -50,7 +50,7 @@ impl<T: DropLogs> OSRSBroadcastHandler<T> {
                 Err(_) => None,
             },
             registered_guild: register_guild,
-            _db: db,
+            db: db,
         }
     }
 
@@ -68,20 +68,6 @@ impl<T: DropLogs> OSRSBroadcastHandler<T> {
                         None
                     }
                     Some(mut drop_item) => {
-                        let is_disallowed = self
-                            .registered_guild
-                            .disallowed_broadcast_types
-                            .iter()
-                            .find(|&x| {
-                                if let BroadcastType::RaidDrop = x {
-                                    return true;
-                                }
-                                false
-                            });
-                        if is_disallowed.is_some() {
-                            return None;
-                        }
-
                         match &self.item_mapping {
                             Some(item_mapping) => {
                                 for item in item_mapping {
@@ -99,6 +85,22 @@ impl<T: DropLogs> OSRSBroadcastHandler<T> {
                                 }
                             }
                             None => {}
+                        }
+                        self.db
+                            .new_drop_log(drop_item.clone(), self.registered_guild.guild_id)
+                            .await;
+                        let is_disallowed = self
+                            .registered_guild
+                            .disallowed_broadcast_types
+                            .iter()
+                            .find(|&x| {
+                                if let BroadcastType::RaidDrop = x {
+                                    return true;
+                                }
+                                false
+                            });
+                        if is_disallowed.is_some() {
+                            return None;
                         }
 
                         Some(BroadcastMessageToDiscord {
@@ -127,7 +129,7 @@ impl<T: DropLogs> OSRSBroadcastHandler<T> {
                     }
                 }
             }
-            BroadcastType::ItemDrop => self.drop_item_handler(),
+            BroadcastType::ItemDrop => self.drop_item_handler().await,
             BroadcastType::PetDrop => {
                 let pet_drop_item = pet_broadcast_extractor(self.clan_message.message.clone());
                 match pet_drop_item {
@@ -282,7 +284,7 @@ impl<T: DropLogs> OSRSBroadcastHandler<T> {
         }
     }
 
-    fn drop_item_handler(&self) -> Option<BroadcastMessageToDiscord> {
+    async fn drop_item_handler(&self) -> Option<BroadcastMessageToDiscord> {
         let drop_item = drop_broadcast_extractor(self.clan_message.message.clone());
 
         match drop_item {
@@ -294,6 +296,9 @@ impl<T: DropLogs> OSRSBroadcastHandler<T> {
                 None
             }
             Some(drop_item) => {
+                self.db
+                    .new_drop_log(drop_item.clone(), self.registered_guild.guild_id)
+                    .await;
                 let is_disallowed = self
                     .registered_guild
                     .disallowed_broadcast_types
@@ -516,8 +521,8 @@ mod tests {
         DiaryTier, QuestDifficulty,
     };
 
-    #[test]
-    fn test_drop_item_handler_no_message_sent() {
+    #[tokio::test]
+    async fn test_drop_item_handler_no_message_sent() {
         let clan_message = ClanMessage {
             sender: "Insomniacs".to_string(),
             message: "RuneScape Player: bob received a drop: Abyssal whip (1,456,814 coins)."
@@ -527,7 +532,7 @@ mod tests {
             icon_id: None,
         };
 
-        let mut registered_guild = RegisteredGuild::new(123);
+        let mut registered_guild = RegisteredGuildModel::new(123);
         registered_guild.drop_price_threshold = Some(20_000_000);
         let ge_item_mapping: Vec<GetItem> = Vec::new();
         let get_item_mapping = Ok(ge_item_mapping);
@@ -545,15 +550,19 @@ mod tests {
 
         let quests = Ok(Vec::new());
 
+        let mut db_mock = MockDropLogs::new();
+        db_mock.expect_new_drop_log().returning(|_, _| {
+            info!("Should not be calling this function");
+        });
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
             quests,
             registered_guild,
-            MockDropLogs::new(),
+            db_mock,
         );
 
-        let extracted_message = handler.drop_item_handler();
+        let extracted_message = handler.drop_item_handler().await;
         info!("Extracted message: {:?}", extracted_message);
         match extracted_message {
             None => {
@@ -566,8 +575,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_drop_item_handler_message_sent() {
+    #[tokio::test]
+    async fn test_drop_item_handler_message_sent() {
         let clan_message = ClanMessage {
             sender: "Insomniacs".to_string(),
             message: "RuneScape Player: bob received a drop: Cool Item (20,456,814 coins)."
@@ -577,7 +586,7 @@ mod tests {
             icon_id: None,
         };
 
-        let mut registered_guild = RegisteredGuild::new(123);
+        let mut registered_guild = RegisteredGuildModel::new(123);
         registered_guild.drop_price_threshold = Some(20_000_000);
         let ge_item_mapping: Vec<GetItem> = Vec::new();
         let get_item_mapping = Ok(ge_item_mapping);
@@ -594,15 +603,20 @@ mod tests {
         }
         let quests = Ok(Vec::new());
 
+        let mut db_mock = MockDropLogs::new();
+        db_mock.expect_new_drop_log().returning(|_, _| {
+            info!("Should not be calling this function");
+        });
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
             quests,
             registered_guild,
-            MockDropLogs::new(),
+            db_mock,
         );
 
-        let extracted_message = handler.drop_item_handler();
+        let extracted_message = handler.drop_item_handler().await;
         info!("Extracted message: {:?}", extracted_message);
         match extracted_message {
             None => {
@@ -625,7 +639,7 @@ mod tests {
             icon_id: None,
         };
 
-        let mut registered_guild = RegisteredGuild::new(123);
+        let mut registered_guild = RegisteredGuildModel::new(123);
         registered_guild.min_quest_difficulty = Some(QuestDifficulty::Intermediate);
         let ge_item_mapping: Vec<GetItem> = Vec::new();
         let get_item_mapping = Ok(ge_item_mapping);
@@ -678,7 +692,7 @@ mod tests {
             icon_id: None,
         };
 
-        let mut registered_guild = RegisteredGuild::new(123);
+        let mut registered_guild = RegisteredGuildModel::new(123);
         registered_guild.min_quest_difficulty = Some(QuestDifficulty::Master);
         let ge_item_mapping: Vec<GetItem> = Vec::new();
         let get_item_mapping = Ok(ge_item_mapping);
@@ -732,7 +746,7 @@ mod tests {
             icon_id: None,
         };
 
-        let mut registered_guild = RegisteredGuild::new(123);
+        let mut registered_guild = RegisteredGuildModel::new(123);
         registered_guild.pk_value_threshold = Some(1_000_000);
         let ge_item_mapping: Vec<GetItem> = Vec::new();
         let get_item_mapping = Ok(ge_item_mapping);
@@ -783,7 +797,7 @@ mod tests {
             icon_id: None,
         };
 
-        let mut registered_guild = RegisteredGuild::new(123);
+        let mut registered_guild = RegisteredGuildModel::new(123);
         registered_guild.min_diary_tier = Some(DiaryTier::Hard);
         let ge_item_mapping: Vec<GetItem> = Vec::new();
         let get_item_mapping = Ok(ge_item_mapping);
@@ -833,7 +847,7 @@ mod tests {
             icon_id: None,
         };
 
-        let mut registered_guild = RegisteredGuild::new(123);
+        let mut registered_guild = RegisteredGuildModel::new(123);
         registered_guild.min_diary_tier = Some(DiaryTier::Hard);
         let ge_item_mapping: Vec<GetItem> = Vec::new();
         let get_item_mapping = Ok(ge_item_mapping);
