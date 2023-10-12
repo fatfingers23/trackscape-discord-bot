@@ -28,7 +28,7 @@ ammonia = "3.3.0"
 num-format = "0.4.4"
 serde_with = "1.14.0"
 bson = { version = "^2.7", default-features = false, features = [ "chrono-0_4", "serde_with" ] }
-
+dateparser = "0.2.0"
 
 
 [dev-dependencies]
