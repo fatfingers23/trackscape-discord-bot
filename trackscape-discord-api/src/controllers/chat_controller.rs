@@ -16,7 +16,7 @@ use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extracto
     get_wiki_clan_rank_image_url, ClanMessage,
 };
 
-use trackscape_discord_shared::osrs_broadcast_handler::OSRSBroadcastHandler;
+use crate::services::osrs_broadcast_handler::OSRSBroadcastHandler;
 use trackscape_discord_shared::wiki_api::wiki_api::WikiQuest;
 
 #[derive(Debug)]
@@ -43,6 +43,7 @@ async fn new_discord_message(
     let verification_code = possible_verification_code.unwrap().to_str().unwrap();
 
     let registered_guild_query = mongodb
+        .guilds
         .get_guild_by_code(verification_code.to_string())
         .await;
 
@@ -91,6 +92,7 @@ async fn new_clan_chats(
     let verification_code = possible_verification_code.unwrap().to_str().unwrap();
     //checks to make sure the registered guild exists for the RuneScape clan
     let registered_guild_query = mongodb
+        .guilds
         .get_guild_by_code(verification_code.to_string())
         .await;
 
@@ -113,13 +115,6 @@ async fn new_clan_chats(
         if chat.sender.clone() == "" && chat.clan_name.clone() == "" {
             continue;
         }
-        //HACK temp code till plugin is updated
-        let message_clone_to_check_join_leave = chat.message.clone();
-        if message_clone_to_check_join_leave.contains("has joined.")
-            || message_clone_to_check_join_leave.contains("has left.")
-        {
-            continue;
-        }
 
         //Checks to make sure the message has not already been process since multiple people could be submitting them
         let message_content_hash = hash_string(chat.message.clone());
@@ -132,14 +127,16 @@ async fn new_clan_chats(
             }
         }
 
+        //Sets the clan name to the guild. Bit of a hack but best way to get clan name
         if let None = registered_guild.clan_name {
             registered_guild.clan_name = Some(chat.clan_name.clone());
-            mongodb.update_guild(registered_guild.clone()).await
+            mongodb.guilds.update_guild(registered_guild.clone()).await
         }
 
         if registered_guild.clan_name.clone().unwrap() != chat.clan_name {
             continue;
         }
+
         let right_now = serenity::model::timestamp::Timestamp::now();
 
         match registered_guild.clan_chat_channel {
@@ -167,6 +164,10 @@ async fn new_clan_chats(
             }
             _ => {}
         }
+        //Checks to see if it is a clan broadcast. Clan name and sender are the same if so
+        if chat.sender != chat.clan_name {
+            continue;
+        }
 
         if let Some(broadcast_channel_id) = registered_guild.broadcast_channel {
             let item_mapping_from_state = persist
@@ -175,11 +176,13 @@ async fn new_clan_chats(
             let quests_from_state = persist
                 .load::<Vec<WikiQuest>>("quests")
                 .map_err(|e| info!("Saving Quests Error: {e}"));
+
             let handler = OSRSBroadcastHandler::new(
                 chat.clone(),
                 item_mapping_from_state,
                 quests_from_state,
                 registered_guild.clone(),
+                mongodb.drop_logs.clone(),
             );
             let possible_broadcast = handler.extract_message().await;
             match possible_broadcast {
@@ -235,6 +238,7 @@ async fn chat_ws(
     let verification_code = possible_verification_code.unwrap().to_str().unwrap();
 
     let registered_guild_query = mongodb
+        .guilds
         .get_guild_by_code(verification_code.to_string())
         .await;
 

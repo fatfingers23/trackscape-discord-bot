@@ -4,7 +4,7 @@ use serenity::client::Context;
 use serenity::model::prelude::application_command::{CommandDataOption, CommandDataOptionValue};
 use serenity::model::prelude::command::CommandOptionType;
 use serenity::model::prelude::Permissions;
-use trackscape_discord_shared::database::RegisteredGuild;
+use trackscape_discord_shared::database::RegisteredGuildModel;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::BroadcastType;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::BroadcastType::ItemDrop;
 
@@ -67,10 +67,10 @@ pub async fn run(
     db: &BotMongoDb,
     guild_id: u64,
 ) -> Option<String> {
-    let saved_guild_query = db.get_by_guild_id(guild_id).await;
+    let saved_guild_query = db.guilds.get_by_guild_id(guild_id).await;
     match saved_guild_query {
         Ok(saved_guild) => {
-            let mut saved_guild = saved_guild.unwrap_or(RegisteredGuild::new(guild_id));
+            let mut saved_guild = saved_guild.unwrap_or(RegisteredGuildModel::new(guild_id));
             let broadcast_type = command
                 .get(0)
                 .expect("Expected broadcast type option")
@@ -102,7 +102,7 @@ pub async fn run(
                             .push(broadcast_type.clone());
                     }
 
-                    db.update_guild(saved_guild).await;
+                    db.guilds.update_guild(saved_guild).await;
                     if toggle.clone() {
                         return Some(format!(
                             "Successfully set to send {} broadcasts.",

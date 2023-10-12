@@ -3,6 +3,7 @@ extern crate dotenv;
 mod cache;
 mod controllers;
 mod handler;
+mod services;
 mod websocket_server;
 
 use crate::cache::Cache;
@@ -19,11 +20,12 @@ use std::sync::atomic::AtomicI64;
 use std::sync::Mutex;
 use std::time::Duration;
 use tokio::spawn;
-use trackscape_discord_shared::database::BotMongoDb;
+use trackscape_discord_shared::database::{BotMongoDb, MongoDb};
 use trackscape_discord_shared::ge_api::ge_api::{get_item_mapping, GeItemMapping};
 use uuid::Uuid;
 
 pub use self::websocket_server::{ChatServer, ChatServerHandle};
+use crate::controllers::drop_log_controller::drop_log_controller;
 use actix_files::{Files, NamedFile};
 use log::{error, info};
 use trackscape_discord_shared::wiki_api::wiki_api::{get_quests_and_difficulties, WikiQuest};
@@ -40,6 +42,11 @@ pub type Msg = String;
 async fn index() -> Result<NamedFile, Error> {
     Ok(NamedFile::open("./trackscape-discord-api/ui/index.html")?)
 }
+#[cfg(build = "debug")]
+fn load_startup_data(&PersistInstance: instance) {}
+
+#[cfg(build = "release")]
+fn load_startup_data(&PersistInstance: instance) {}
 
 #[shuttle_runtime::main]
 async fn actix_web(
@@ -50,35 +57,43 @@ async fn actix_web(
     let discord_token = env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN not set!");
     let mongodb_url = env::var("MONGO_DB_URL").expect("MONGO_DB_URL not set!");
     let management_api_key = env::var("MANAGEMENT_API_KEY").expect("MANAGEMENT_API_KEY not set!");
+    let production_env = env::var("PRODUCTION");
+    let mut is_production = false;
+    match production_env {
+        Ok(env) => is_production = env == "true",
+        Err(_) => {}
+    }
     persist
         .save("api-key", management_api_key)
         .expect("Error saving api key");
     let db = BotMongoDb::new_db_instance(mongodb_url).await;
 
-    let ge_mapping_request = get_item_mapping().await;
-    match ge_mapping_request {
-        Ok(ge_mapping) => {
-            let _state = persist
-                .save::<GeItemMapping>("mapping", ge_mapping.clone())
-                .map_err(|e| error!("Saving Item Mapping Error: {e}"));
+    if is_production {
+        info!("Loading startup data from the web");
+        let ge_mapping_request = get_item_mapping().await;
+        match ge_mapping_request {
+            Ok(ge_mapping) => {
+                let _state = persist
+                    .save::<GeItemMapping>("mapping", ge_mapping.clone())
+                    .map_err(|e| error!("Saving Item Mapping Error: {e}"));
+            }
+            Err(error) => {
+                info!("Error getting ge mapping: {}", error)
+            }
         }
-        Err(error) => {
-            info!("Error getting ge mapping: {}", error)
+
+        let possible_quests = get_quests_and_difficulties().await;
+        match possible_quests {
+            Ok(quests) => {
+                let _state = persist
+                    .save::<Vec<WikiQuest>>("quests", quests.clone())
+                    .map_err(|e| error!("Saving Item Mapping Error: {e}"));
+            }
+            Err(e) => {
+                error!("Error getting quests: {}", e)
+            }
         }
     }
-
-    let possible_quests = get_quests_and_difficulties().await;
-    match possible_quests {
-        Ok(quests) => {
-            let _state = persist
-                .save::<Vec<WikiQuest>>("quests", quests.clone())
-                .map_err(|e| error!("Saving Item Mapping Error: {e}"));
-        }
-        Err(e) => {
-            error!("Error getting quests: {}", e)
-        }
-    }
-
     let mut cache = Cache::new(Duration::from_secs(10));
     let cache_clone = cache.clone();
     spawn(async move {
@@ -97,7 +112,8 @@ async fn actix_web(
         cfg.service(
             web::scope("/api")
                 .service(chat_controller())
-                .service(info_controller()),
+                .service(info_controller())
+                .service(drop_log_controller()),
         )
         .service(Files::new("/", "./trackscape-discord-api/ui/").index_file("index.html"))
         .app_data(web::Data::new(server_tx.clone()))

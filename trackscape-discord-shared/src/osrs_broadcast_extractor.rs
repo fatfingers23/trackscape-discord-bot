@@ -26,7 +26,7 @@ pub mod osrs_broadcast_extractor {
         pub icon_id: Option<i64>,
     }
 
-    #[derive(Clone, Debug)]
+    #[derive(Clone, Debug, Serialize, Deserialize)]
     pub struct DropItemBroadcast {
         pub player_it_happened_to: String,
         pub item_name: String,
@@ -324,7 +324,7 @@ pub mod osrs_broadcast_extractor {
             let count_type = caps.name("count_type").unwrap().as_str();
             Some(PetDropBroadcast {
                 player_it_happened_to: player_name.to_string(),
-                pet_name: pet_name.clone().to_string(),
+                pet_name: pet_name.to_string(),
                 pet_icon: get_wiki_image_url(pet_name.to_string()).parse().ok(),
                 actions_optioned_at: count.parse().ok(),
                 action_for_pet: count_type.parse().ok(),
@@ -512,7 +512,7 @@ pub mod osrs_broadcast_extractor {
 
     pub fn get_wiki_clan_rank_image_url(rank: String) -> String {
         let image_picture_name: String = match rank.as_str() {
-            "Deputy owner" => "Deputy_owner".to_string(),
+            "Deputy Owner" => "Deputy_owner".to_string(),
             _ => format_wiki_image_name(rank.clone()),
         };
 

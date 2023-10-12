@@ -1,5 +1,3 @@
-use std::time::{Duration, Instant};
-
 use actix_ws::Message;
 use futures_util::{
     future::{select, Either},
@@ -7,6 +5,7 @@ use futures_util::{
 };
 use log::{debug, error};
 use serde_json::Value;
+use std::time::{Duration, Instant};
 use tokio::{pin, sync::mpsc, time::interval};
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::ClanMessage;
 
@@ -47,7 +46,6 @@ pub async fn chat_ws(
         let msg_rx = conn_rx.recv();
         pin!(msg_rx);
 
-        // TODO: nested select is pretty gross for readability on the match
         let messages = select(msg_stream.next(), msg_rx);
         pin!(messages);
 
@@ -56,7 +54,13 @@ pub async fn chat_ws(
             Either::Left((Either::Left((Some(Ok(msg)), _)), _)) => match msg {
                 Message::Ping(bytes) => {
                     last_heartbeat = Instant::now();
-                    session.pong(&bytes).await.expect("failed to send pong");
+                    let result = session.pong(&bytes).await;
+                    match result {
+                        Ok(_) => {}
+                        Err(error) => {
+                            log::error!("Error sending a pong message to client: {}", error);
+                        }
+                    }
                 }
 
                 Message::Pong(_) => {
@@ -89,11 +93,13 @@ pub async fn chat_ws(
 
             // chat messages received from other room participants
             Either::Left((Either::Right((Some(chat_msg), _)), _)) => {
-                //Todo possibly see about a queue for messages. This can get overloaded in testing but takes thousands of messages at once
-                session
-                    .text(chat_msg)
-                    .await
-                    .expect("failed to send message to client");
+                let result = session.text(chat_msg).await;
+                match result {
+                    Ok(_) => {}
+                    Err(error) => {
+                        log::error!("Error sending a ws message to client: {}", error);
+                    }
+                }
             }
 
             // all connection's message senders were dropped

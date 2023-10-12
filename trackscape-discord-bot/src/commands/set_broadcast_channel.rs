@@ -41,14 +41,14 @@ pub async fn run(
             return Some("Please select a text channel.".to_string());
         }
         info!("Channel: {:?}", channel);
-        let saved_guild_query = db.get_by_guild_id(guild_id).await;
+        let saved_guild_query = db.guilds.get_by_guild_id(guild_id).await;
 
         return match saved_guild_query {
             Ok(possible_guild) => match possible_guild {
                 Some(mut saved_guild) => {
                     let saved_guild_code = saved_guild.verification_code.clone();
                     saved_guild.broadcast_channel = Some(channel.id.0);
-                    db.update_guild(saved_guild).await;
+                    db.guilds.update_guild(saved_guild).await;
                     let send_message = channel
                         .id
                         .send_message(&ctx.http, |m| {
