@@ -6,7 +6,6 @@ use anyhow::Result;
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use futures::TryStreamExt;
-use log::info;
 use mockall::predicate::*;
 use mockall::*;
 use mongodb::bson::{doc, DateTime};
@@ -307,8 +306,6 @@ impl DropLogs for DropLogsDb {
             .db
             .collection::<DropLogModel>(DropLogModel::COLLECTION_NAME);
 
-        println!("Start Date: {}", start_date);
-
         let filter = doc! {
             "guild_id": bson::to_bson(&guild_id).unwrap(),
             "created_at": {
@@ -316,9 +313,7 @@ impl DropLogs for DropLogsDb {
                 "$lte": bson::to_bson(&end_date).unwrap()
             }
         };
-        info!("Filter: {:?}", filter);
         let result = collection.find(filter, None).await;
-        // let drop_logs = Vec::new();
         return match result {
             Ok(possible_drops) => Ok(possible_drops.try_collect().await.unwrap()),
             Err(e) => Err(anyhow::Error::new(e)),

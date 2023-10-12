@@ -1,6 +1,6 @@
 use log::error;
 use num_format::{Locale, ToFormattedString};
-use trackscape_discord_shared::database::{DropLogs, MongoDb, RegisteredGuildModel};
+use trackscape_discord_shared::database::{DropLogs, RegisteredGuildModel};
 use trackscape_discord_shared::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     diary_completed_broadcast_extractor, drop_broadcast_extractor, get_broadcast_type,

@@ -1,7 +1,7 @@
 use actix_web::{get, web, Error, HttpResponse, Scope};
 use chrono::Utc;
+use csv::Writer;
 use dateparser::parse_with_timezone;
-use log::info;
 use serde::{Deserialize, Serialize};
 use trackscape_discord_shared::database::{BotMongoDb, DropLogs};
 
@@ -12,6 +12,20 @@ struct ListDropsRequest {
     start_date: String,
     //Example: 2024-03-24T20:50:00+01:00
     end_date: String,
+}
+
+#[derive(serde::Serialize)]
+struct DropRow<'a> {
+    #[serde(rename = "RSN")]
+    username: &'a str,
+    #[serde(rename = "Item Name")]
+    item_name: &'a str,
+    #[serde(rename = "Quantity")]
+    quantity: i64,
+    #[serde(rename = "Price")]
+    price: Option<i64>,
+    #[serde(rename = "Date")]
+    date: chrono::DateTime<chrono::Utc>,
 }
 
 #[get("/list/{confirmation_code}/{start_date}/{end_date}")]
@@ -35,15 +49,43 @@ async fn get_drops(
                 if parsed_end_date.is_err() {
                     return Ok(HttpResponse::BadRequest().body("Invalid End Date"));
                 }
-                println!("parsed_start_date: {:?}", parsed_start_date);
                 let start = bson::datetime::DateTime::from_chrono(parsed_start_date.unwrap());
                 let end = bson::datetime::DateTime::from_chrono(parsed_end_date.unwrap());
-                let _state = mongodb
+                let possible_drop_logs = mongodb
                     .drop_logs
                     .get_drops_between_dates(registered_guild.guild_id.clone(), start, end)
                     .await;
 
-                return Ok(HttpResponse::Ok().json(_state.unwrap()));
+                match possible_drop_logs {
+                    Ok(drop_logs) => {
+                        let mut wtr = Writer::from_writer(vec![]);
+                        for drop_log in drop_logs.clone() {
+                            let drop_row = DropRow {
+                                username: drop_log.drop_item.player_it_happened_to.as_str(),
+                                item_name: drop_log.drop_item.item_name.as_str(),
+                                quantity: drop_log.drop_item.item_quantity,
+                                price: drop_log.drop_item.item_value,
+                                date: drop_log.created_at.to_chrono(),
+                            };
+                            wtr.serialize(drop_row).unwrap();
+                        }
+                        let result_of_writer = wtr.into_inner();
+                        match result_of_writer {
+                            Ok(csv_bytes) => {
+                                let csv = String::from_utf8(csv_bytes).unwrap();
+                                return Ok(HttpResponse::Ok().body(csv));
+                            }
+                            Err(_) => {
+                                return Ok(HttpResponse::BadRequest()
+                                    .body("There was an issue rendering the drop logs to csv."));
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        return Ok(HttpResponse::BadRequest()
+                            .body("There was an issue getting the drop logs."));
+                    }
+                };
             }
             None => {
                 return Ok(HttpResponse::Unauthorized().body("Invalid Confirmation Code"));
@@ -56,8 +98,5 @@ async fn get_drops(
 }
 
 pub fn drop_log_controller() -> Scope {
-    let right_now = Utc::now();
-    info!("right now: {}", right_now);
-
     web::scope("/drops").service(get_drops)
 }

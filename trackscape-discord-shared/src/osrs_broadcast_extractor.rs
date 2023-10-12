@@ -324,7 +324,7 @@ pub mod osrs_broadcast_extractor {
             let count_type = caps.name("count_type").unwrap().as_str();
             Some(PetDropBroadcast {
                 player_it_happened_to: player_name.to_string(),
-                pet_name: pet_name.clone().to_string(),
+                pet_name: pet_name.to_string(),
                 pet_icon: get_wiki_image_url(pet_name.to_string()).parse().ok(),
                 actions_optioned_at: count.parse().ok(),
                 action_for_pet: count_type.parse().ok(),
