@@ -115,13 +115,6 @@ async fn new_clan_chats(
         if chat.sender.clone() == "" && chat.clan_name.clone() == "" {
             continue;
         }
-        //HACK temp code till plugin is updated
-        let message_clone_to_check_join_leave = chat.message.clone();
-        if message_clone_to_check_join_leave.contains("has joined.")
-            || message_clone_to_check_join_leave.contains("has left.")
-        {
-            continue;
-        }
 
         //Checks to make sure the message has not already been process since multiple people could be submitting them
         let message_content_hash = hash_string(chat.message.clone());
