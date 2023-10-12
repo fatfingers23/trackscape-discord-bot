@@ -58,6 +58,9 @@ async fn get_drops(
 
                 match possible_drop_logs {
                     Ok(drop_logs) => {
+                        if drop_logs.len() == 0 {
+                            return Ok(HttpResponse::Ok().body("RSN,Item Name,Quantity,Price,Date"));
+                        }
                         let mut wtr = Writer::from_writer(vec![]);
                         for drop_log in drop_logs.clone() {
                             let drop_row = DropRow {
