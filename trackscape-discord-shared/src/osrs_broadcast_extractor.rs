@@ -210,6 +210,13 @@ pub mod osrs_broadcast_extractor {
         pub value: i64,
     }
 
+    pub struct CollectionLogBroadcast {
+        pub player_it_happened_to: String,
+        pub item_name: String,
+        pub log_slots: i64,
+        pub item_icon: Option<String>,
+    }
+
     #[derive(PartialEq, Deserialize, Serialize, Debug, Clone)]
     pub enum BroadcastType {
         ItemDrop,
@@ -222,6 +229,7 @@ pub mod osrs_broadcast_extractor {
         LootKey,
         XPMilestone,
         LevelMilestone,
+        CollectionLog,
         Unknown,
     }
 
@@ -238,6 +246,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::LootKey => "Loot Key".to_string(),
                 BroadcastType::XPMilestone => "XP Milestone".to_string(),
                 BroadcastType::LevelMilestone => "Level Milestone".to_string(),
+                BroadcastType::CollectionLog => "Collection Log".to_string(),
                 BroadcastType::Unknown => "Unknown".to_string(),
             }
         }
@@ -254,6 +263,7 @@ pub mod osrs_broadcast_extractor {
                 "Loot Key" => BroadcastType::LootKey,
                 "XP Milestone" => BroadcastType::XPMilestone,
                 "Level Milestone" => BroadcastType::LevelMilestone,
+                "Collection Log" => BroadcastType::CollectionLog,
                 _ => BroadcastType::Unknown,
             }
         }
@@ -463,6 +473,24 @@ pub mod osrs_broadcast_extractor {
         };
     }
 
+    pub fn collection_log_broadcast_extractor(message: String) -> Option<CollectionLogBroadcast> {
+        let re = regex::Regex::new(r"^(?P<name>[\w\s]+) received a new collection log item: (?P<item>.+?) \((?P<number>\d+)/1477\)").unwrap();
+
+        if let Some(captures) = re.captures(message.as_str()) {
+            let name = captures.name("name").unwrap().as_str();
+            let item = captures.name("item").unwrap().as_str();
+            let number = captures.name("number").unwrap().as_str();
+
+            return Some(CollectionLogBroadcast {
+                player_it_happened_to: name.to_string(),
+                item_name: item.to_string(),
+                log_slots: number.parse().unwrap(),
+                item_icon: Some(get_wiki_image_url(item.to_string())),
+            });
+        }
+        None
+    }
+
     pub fn get_broadcast_type(message_content: String) -> BroadcastType {
         if message_content.contains("received a drop:") {
             return BroadcastType::ItemDrop;
@@ -494,6 +522,11 @@ pub mod osrs_broadcast_extractor {
         if message_content.contains("has reached") && message_content.contains("XP in") {
             return BroadcastType::XPMilestone;
         }
+
+        if message_content.contains("received a new collection log item:") {
+            return BroadcastType::CollectionLog;
+        }
+
         return BroadcastType::Unknown;
     }
 
@@ -544,9 +577,9 @@ pub mod osrs_broadcast_extractor {
 mod tests {
     use super::*;
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-        get_wiki_clan_rank_image_url, DiaryCompletedBroadcast, DiaryTier, InviteBroadcast,
-        LevelMilestoneBroadcast, PetDropBroadcast, PkBroadcast, QuestCompletedBroadcast,
-        XPMilestoneBroadcast,
+        get_wiki_clan_rank_image_url, CollectionLogBroadcast, DiaryCompletedBroadcast, DiaryTier,
+        InviteBroadcast, LevelMilestoneBroadcast, PetDropBroadcast, PkBroadcast,
+        QuestCompletedBroadcast, XPMilestoneBroadcast,
     };
     use tracing::info;
 
@@ -669,6 +702,19 @@ mod tests {
             assert!(matches!(
                 broadcast_type,
                 osrs_broadcast_extractor::BroadcastType::XPMilestone
+            ));
+        }
+    }
+
+    #[test]
+    fn test_get_collection_log_type_broadcast() {
+        let test_collection_logs = get_collection_log_messages();
+        for test_collection_log in test_collection_logs {
+            let broadcast_type =
+                osrs_broadcast_extractor::get_broadcast_type(test_collection_log.message);
+            assert!(matches!(
+                broadcast_type,
+                osrs_broadcast_extractor::BroadcastType::CollectionLog
             ));
         }
     }
@@ -1004,6 +1050,30 @@ mod tests {
     }
 
     #[test]
+    fn test_collection_log_extractor() {
+        let test_collections = get_collection_log_messages();
+        for test_collection in test_collections {
+            let possible_collection_extract =
+                osrs_broadcast_extractor::collection_log_broadcast_extractor(
+                    test_collection.message.clone(),
+                );
+            let collection_extract = possible_collection_extract.unwrap();
+            assert_eq!(
+                collection_extract.log_slots,
+                test_collection.broadcast.log_slots
+            );
+            assert_eq!(
+                collection_extract.player_it_happened_to,
+                test_collection.broadcast.player_it_happened_to
+            );
+            assert_eq!(
+                collection_extract.item_name,
+                test_collection.broadcast.item_name
+            );
+        }
+    }
+
+    #[test]
     fn test_rank_is_proper_wiki_image() {
         let rank = "Deputy Owner";
         let rank_image = get_wiki_clan_rank_image_url(rank.to_string());
@@ -1060,6 +1130,11 @@ mod tests {
     struct XPMilestoneBroadcastTest {
         message: String,
         xpmilestone_broadcast: XPMilestoneBroadcast,
+    }
+
+    struct TestBroadcast<T> {
+        message: String,
+        broadcast: T,
     }
 
     fn get_raid_messages() -> Vec<ItemMessageTest> {
@@ -1591,5 +1666,50 @@ mod tests {
         });
 
         possible_xpmilestone_broadcasts
+    }
+
+    fn get_collection_log_messages() -> Vec<TestBroadcast<CollectionLogBroadcast>> {
+        let mut test_collection_messages: Vec<TestBroadcast<CollectionLogBroadcast>> = Vec::new();
+        test_collection_messages.push(TestBroadcast {
+            message: "KANlEL OUTIS received a new collection log item: Elite void robe (170/1477)"
+                .to_string(),
+            broadcast: CollectionLogBroadcast {
+                player_it_happened_to: "KANlEL OUTIS".to_string(),
+                item_name: "Elite void robe".to_string(),
+                log_slots: 170,
+                item_icon: Some(
+                    "https://oldschool.runescape.wiki/images/Elite_void_robe_detail.png"
+                        .to_string(),
+                ),
+            },
+        });
+
+        test_collection_messages.push(TestBroadcast {
+            message: "S mf received a new collection log item: Charged ice (161/1477)".to_string(),
+            broadcast: CollectionLogBroadcast {
+                player_it_happened_to: "S mf".to_string(),
+                item_name: "Charged ice".to_string(),
+                log_slots: 161,
+                item_icon: Some(
+                    "https://oldschool.runescape.wiki/images/Charged_ice_detail.png".to_string(),
+                ),
+            },
+        });
+
+        test_collection_messages.push(TestBroadcast {
+            message:
+                "Sad Bug received a new collection log item: Adamant platebody (h1) (895/1477)"
+                    .to_string(),
+            broadcast: CollectionLogBroadcast {
+                player_it_happened_to: "Sad Bug".to_string(),
+                item_name: "Adamant platebody (h1)".to_string(),
+                log_slots: 895,
+                item_icon: Some(
+                    "https://oldschool.runescape.wiki/images/Adamant_platebody_(h1)_detail.png"
+                        .to_string(),
+                ),
+            },
+        });
+        test_collection_messages
     }
 }

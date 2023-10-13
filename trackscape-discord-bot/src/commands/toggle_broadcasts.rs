@@ -50,6 +50,10 @@ pub fn register(
                     BroadcastType::XPMilestone.to_string(),
                     BroadcastType::XPMilestone.to_slug(),
                 )
+                .add_string_choice(
+                    BroadcastType::CollectionLog.to_string(),
+                    BroadcastType::CollectionLog.to_slug(),
+                )
                 .required(true)
         })
         .create_option(|option| {
