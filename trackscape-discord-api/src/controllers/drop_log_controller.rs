@@ -3,7 +3,8 @@ use chrono::Utc;
 use csv::Writer;
 use dateparser::parse_with_timezone;
 use serde::{Deserialize, Serialize};
-use trackscape_discord_shared::database::{BotMongoDb, DropLogs};
+use trackscape_discord_shared::database::drop_logs_db::DropLogs;
+use trackscape_discord_shared::database::BotMongoDb;
 
 #[derive(Deserialize, Serialize)]
 struct ListDropsRequest {

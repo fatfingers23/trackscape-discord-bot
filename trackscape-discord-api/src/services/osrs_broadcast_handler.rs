@@ -1,6 +1,7 @@
-use log::{error, info};
+use log::error;
 use num_format::{Locale, ToFormattedString};
-use trackscape_discord_shared::database::{DropLogs, RegisteredGuildModel};
+use trackscape_discord_shared::database::drop_logs_db::DropLogs;
+use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
 use trackscape_discord_shared::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     collection_log_broadcast_extractor, diary_completed_broadcast_extractor,
@@ -301,17 +302,8 @@ impl<T: DropLogs> OSRSBroadcastHandler<T> {
                 self.db
                     .new_drop_log(drop_item.clone(), self.registered_guild.guild_id)
                     .await;
-                let is_disallowed = self
-                    .registered_guild
-                    .disallowed_broadcast_types
-                    .iter()
-                    .find(|&x| {
-                        if let BroadcastType::ItemDrop = x {
-                            return true;
-                        }
-                        false
-                    });
-                if is_disallowed.is_some() {
+                let is_disallowed = self.check_if_allowed_broad_cast(BroadcastType::ItemDrop);
+                if is_disallowed {
                     return None;
                 }
                 if self.registered_guild.drop_price_threshold.is_some() {
@@ -562,7 +554,7 @@ impl<T: DropLogs> OSRSBroadcastHandler<T> {
 mod tests {
     use super::*;
     use log::info;
-    use trackscape_discord_shared::database::MockDropLogs;
+    use trackscape_discord_shared::database::drop_logs_db::MockDropLogs;
     use trackscape_discord_shared::ge_api::ge_api::GetItem;
     use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
         DiaryTier, QuestDifficulty,
@@ -616,7 +608,7 @@ mod tests {
             None => {
                 assert_eq!(true, true);
             }
-            Some(result) => {
+            Some(_) => {
                 info!("Threshold should of been hit. Should not be sending a message.");
                 assert_eq!(true, false);
             }
@@ -673,6 +665,119 @@ mod tests {
                 assert_eq!(true, false);
             }
             Some(_) => {
+                assert_eq!(true, true);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn check_disallowed_do_not_send() {
+        let clan_message = ClanMessage {
+            sender: "Insomniacs".to_string(),
+            message: "RuneScape Player: bob received a drop: Cool Item (20,456,814 coins)."
+                .to_string(),
+            clan_name: "Insomniacs".to_string(),
+            rank: "Recruit".to_string(),
+            icon_id: None,
+            is_league_world: None,
+        };
+
+        let mut registered_guild = RegisteredGuildModel::new(123);
+        registered_guild.disallowed_broadcast_types = vec![BroadcastType::ItemDrop];
+        let ge_item_mapping: Vec<GetItem> = Vec::new();
+        let get_item_mapping = Ok(ge_item_mapping);
+
+        //Saintly checker do not know how to do mock in rust yet. So this makes sure the above message
+        //Is valid to trip the extractor and give the expect result
+        let sanity_check = drop_broadcast_extractor(clan_message.message.clone());
+        match sanity_check {
+            None => {
+                info!("Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing");
+                assert_eq!(true, false);
+            }
+            Some(_) => {}
+        }
+        let quests = Ok(Vec::new());
+
+        let mut db_mock = MockDropLogs::new();
+        db_mock.expect_new_drop_log().returning(|_, _| {
+            info!("Should not be calling this function");
+        });
+
+        let handler = OSRSBroadcastHandler::new(
+            clan_message,
+            get_item_mapping,
+            quests,
+            registered_guild,
+            db_mock,
+        );
+
+        let extracted_message = handler.drop_item_handler().await;
+        info!("Extracted message: {:?}", extracted_message);
+        match extracted_message {
+            None => {
+                //not sent
+                assert_eq!(true, true);
+            }
+            Some(_) => {
+                //sent
+                info!("The broadcast type should be disallowed and not sending");
+                assert_eq!(true, false);
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn check_disallowed_do_send() {
+        let clan_message = ClanMessage {
+            sender: "Insomniacs".to_string(),
+            message: "RuneScape Player: bob received a drop: Cool Item (20,456,814 coins)."
+                .to_string(),
+            clan_name: "Insomniacs".to_string(),
+            rank: "Recruit".to_string(),
+            icon_id: None,
+            is_league_world: None,
+        };
+
+        let registered_guild = RegisteredGuildModel::new(123);
+        let ge_item_mapping: Vec<GetItem> = Vec::new();
+        let get_item_mapping = Ok(ge_item_mapping);
+
+        //Saintly checker do not know how to do mock in rust yet. So this makes sure the above message
+        //Is valid to trip the extractor and give the expect result
+        let sanity_check = drop_broadcast_extractor(clan_message.message.clone());
+        match sanity_check {
+            None => {
+                info!("Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing");
+                assert_eq!(true, false);
+            }
+            Some(_) => {}
+        }
+        let quests = Ok(Vec::new());
+
+        let mut db_mock = MockDropLogs::new();
+        db_mock.expect_new_drop_log().returning(|_, _| {
+            info!("Should not be calling this function");
+        });
+
+        let handler = OSRSBroadcastHandler::new(
+            clan_message,
+            get_item_mapping,
+            quests,
+            registered_guild,
+            db_mock,
+        );
+
+        let extracted_message = handler.drop_item_handler().await;
+        info!("Extracted message: {:?}", extracted_message);
+        match extracted_message {
+            None => {
+                //not sent
+                info!("The broadcast type should not be disallowed and sending");
+                assert_eq!(true, false);
+            }
+            Some(_) => {
+                //sent
                 assert_eq!(true, true);
             }
         }
@@ -832,7 +937,7 @@ mod tests {
             None => {
                 println!("Successfully stopped message from sending");
             }
-            Some(result) => {
+            Some(_) => {
                 println!("Should not be sending a message.");
                 assert_eq!(true, false);
             }
