@@ -24,6 +24,7 @@ pub mod osrs_broadcast_extractor {
         // BOUNTY_HUNTER_EMBLEM(20),
         // LEAGUE(22);
         pub icon_id: Option<i64>,
+        pub is_league_world: Option<bool>,
     }
 
     #[derive(Clone, Debug, Serialize, Deserialize)]

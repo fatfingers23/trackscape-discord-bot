@@ -116,6 +116,11 @@ async fn new_clan_chats(
             continue;
         }
 
+        if chat.is_league_world.is_some() {
+            if chat.is_league_world.unwrap() {
+                info!("Broadcast from League World")
+            }
+        }
         //Checks to make sure the message has not already been process since multiple people could be submitting them
         let message_content_hash = hash_string(chat.message.clone());
         match cache.get_value(message_content_hash.clone()).await {
