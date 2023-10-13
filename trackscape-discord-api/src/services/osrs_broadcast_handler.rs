@@ -530,6 +530,7 @@ mod tests {
             clan_name: "Insomniacs".to_string(),
             rank: "Recruit".to_string(),
             icon_id: None,
+            is_league_world: None,
         };
 
         let mut registered_guild = RegisteredGuildModel::new(123);
@@ -584,6 +585,7 @@ mod tests {
             clan_name: "Insomniacs".to_string(),
             rank: "Recruit".to_string(),
             icon_id: None,
+            is_league_world: None,
         };
 
         let mut registered_guild = RegisteredGuildModel::new(123);
@@ -637,6 +639,7 @@ mod tests {
             clan_name: "Insomniacs".to_string(),
             rank: "Recruit".to_string(),
             icon_id: None,
+            is_league_world: None,
         };
 
         let mut registered_guild = RegisteredGuildModel::new(123);
@@ -690,6 +693,7 @@ mod tests {
             clan_name: "Insomniacs".to_string(),
             rank: "Recruit".to_string(),
             icon_id: None,
+            is_league_world: None,
         };
 
         let mut registered_guild = RegisteredGuildModel::new(123);
@@ -744,6 +748,7 @@ mod tests {
             clan_name: "Insomniacs".to_string(),
             rank: "Recruit".to_string(),
             icon_id: None,
+            is_league_world: None,
         };
 
         let mut registered_guild = RegisteredGuildModel::new(123);
@@ -795,6 +800,7 @@ mod tests {
             clan_name: "Insomniacs".to_string(),
             rank: "Recruit".to_string(),
             icon_id: None,
+            is_league_world: None,
         };
 
         let mut registered_guild = RegisteredGuildModel::new(123);
@@ -845,6 +851,7 @@ mod tests {
             clan_name: "Insomniacs".to_string(),
             rank: "Recruit".to_string(),
             icon_id: None,
+            is_league_world: None,
         };
 
         let mut registered_guild = RegisteredGuildModel::new(123);
