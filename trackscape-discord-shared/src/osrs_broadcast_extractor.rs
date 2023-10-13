@@ -214,6 +214,7 @@ pub mod osrs_broadcast_extractor {
         pub player_it_happened_to: String,
         pub item_name: String,
         pub log_slots: i64,
+        pub item_icon: Option<String>,
     }
 
     #[derive(PartialEq, Deserialize, Serialize, Debug, Clone)]
@@ -228,6 +229,7 @@ pub mod osrs_broadcast_extractor {
         LootKey,
         XPMilestone,
         LevelMilestone,
+        CollectionLog,
         Unknown,
     }
 
@@ -244,6 +246,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::LootKey => "Loot Key".to_string(),
                 BroadcastType::XPMilestone => "XP Milestone".to_string(),
                 BroadcastType::LevelMilestone => "Level Milestone".to_string(),
+                BroadcastType::CollectionLog => "Collection Log".to_string(),
                 BroadcastType::Unknown => "Unknown".to_string(),
             }
         }
@@ -260,6 +263,7 @@ pub mod osrs_broadcast_extractor {
                 "Loot Key" => BroadcastType::LootKey,
                 "XP Milestone" => BroadcastType::XPMilestone,
                 "Level Milestone" => BroadcastType::LevelMilestone,
+                "Collection Log" => BroadcastType::CollectionLog,
                 _ => BroadcastType::Unknown,
             }
         }
@@ -481,6 +485,7 @@ pub mod osrs_broadcast_extractor {
                 player_it_happened_to: name.to_string(),
                 item_name: item.to_string(),
                 log_slots: number.parse().unwrap(),
+                item_icon: Some(get_wiki_image_url(item.to_string())),
             });
         }
         None
@@ -517,6 +522,11 @@ pub mod osrs_broadcast_extractor {
         if message_content.contains("has reached") && message_content.contains("XP in") {
             return BroadcastType::XPMilestone;
         }
+
+        if message_content.contains("received a new collection log item:") {
+            return BroadcastType::CollectionLog;
+        }
+
         return BroadcastType::Unknown;
     }
 
@@ -692,6 +702,19 @@ mod tests {
             assert!(matches!(
                 broadcast_type,
                 osrs_broadcast_extractor::BroadcastType::XPMilestone
+            ));
+        }
+    }
+
+    #[test]
+    fn test_get_collection_log_type_broadcast() {
+        let test_collection_logs = get_collection_log_messages();
+        for test_collection_log in test_collection_logs {
+            let broadcast_type =
+                osrs_broadcast_extractor::get_broadcast_type(test_collection_log.message);
+            assert!(matches!(
+                broadcast_type,
+                osrs_broadcast_extractor::BroadcastType::CollectionLog
             ));
         }
     }
@@ -1654,6 +1677,10 @@ mod tests {
                 player_it_happened_to: "KANlEL OUTIS".to_string(),
                 item_name: "Elite void robe".to_string(),
                 log_slots: 170,
+                item_icon: Some(
+                    "https://oldschool.runescape.wiki/images/Elite_void_robe_detail.png"
+                        .to_string(),
+                ),
             },
         });
 
@@ -1663,6 +1690,9 @@ mod tests {
                 player_it_happened_to: "S mf".to_string(),
                 item_name: "Charged ice".to_string(),
                 log_slots: 161,
+                item_icon: Some(
+                    "https://oldschool.runescape.wiki/images/Charged_ice_detail.png".to_string(),
+                ),
             },
         });
 
@@ -1674,6 +1704,10 @@ mod tests {
                 player_it_happened_to: "Sad Bug".to_string(),
                 item_name: "Adamant platebody (h1)".to_string(),
                 log_slots: 895,
+                item_icon: Some(
+                    "https://oldschool.runescape.wiki/images/Adamant_platebody_(h1)_detail.png"
+                        .to_string(),
+                ),
             },
         });
         test_collection_messages

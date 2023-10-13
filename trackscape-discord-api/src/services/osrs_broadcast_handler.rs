@@ -1,12 +1,13 @@
-use log::error;
+use log::{error, info};
 use num_format::{Locale, ToFormattedString};
 use trackscape_discord_shared::database::{DropLogs, RegisteredGuildModel};
 use trackscape_discord_shared::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-    diary_completed_broadcast_extractor, drop_broadcast_extractor, get_broadcast_type,
-    invite_broadcast_extractor, levelmilestone_broadcast_extractor, pet_broadcast_extractor,
-    pk_broadcast_extractor, quest_completed_broadcast_extractor, raid_broadcast_extractor,
-    xpmilestone_broadcast_extractor, BroadcastType, ClanMessage,
+    collection_log_broadcast_extractor, diary_completed_broadcast_extractor,
+    drop_broadcast_extractor, get_broadcast_type, invite_broadcast_extractor,
+    levelmilestone_broadcast_extractor, pet_broadcast_extractor, pk_broadcast_extractor,
+    quest_completed_broadcast_extractor, raid_broadcast_extractor, xpmilestone_broadcast_extractor,
+    BroadcastType, ClanMessage,
 };
 use trackscape_discord_shared::wiki_api::wiki_api::WikiQuest;
 
@@ -280,6 +281,7 @@ impl<T: DropLogs> OSRSBroadcastHandler<T> {
                     }
                 }
             }
+            BroadcastType::CollectionLog => self.collection_log_handler(),
             _ => None,
         }
     }
@@ -504,6 +506,51 @@ impl<T: DropLogs> OSRSBroadcastHandler<T> {
                             .to_string(),
                     ),
                     title: ":tada: New diary completed!".to_string(),
+                    item_quantity: None,
+                })
+            }
+        }
+    }
+
+    fn check_if_allowed_broad_cast(&self, broadcast_type: BroadcastType) -> bool {
+        let is_disallowed = self
+            .registered_guild
+            .disallowed_broadcast_types
+            .iter()
+            .find(|&x| {
+                if broadcast_type.to_string() == x.to_string() {
+                    return true;
+                }
+                false
+            });
+        if is_disallowed.is_some() {
+            return true;
+        }
+        false
+    }
+
+    fn collection_log_handler(&self) -> Option<BroadcastMessageToDiscord> {
+        let possible_collection_log =
+            collection_log_broadcast_extractor(self.clan_message.message.clone());
+        match possible_collection_log {
+            None => {
+                error!(
+                    "Failed to extract collection log info from message: {}",
+                    self.clan_message.message.clone()
+                );
+                None
+            }
+            Some(collection_log_broadcast) => {
+                let is_disallowed = self.check_if_allowed_broad_cast(BroadcastType::CollectionLog);
+                if is_disallowed {
+                    return None;
+                }
+                Some(BroadcastMessageToDiscord {
+                    type_of_broadcast: BroadcastType::CollectionLog,
+                    player_it_happened_to: collection_log_broadcast.player_it_happened_to,
+                    message: self.clan_message.message.clone(),
+                    icon_url: collection_log_broadcast.item_icon,
+                    title: ":tada: New collection log item!".to_string(),
                     item_quantity: None,
                 })
             }
