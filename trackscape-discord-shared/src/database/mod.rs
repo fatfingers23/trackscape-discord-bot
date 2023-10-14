@@ -1,6 +1,7 @@
 use mongodb::bson::doc;
 use mongodb::options::ClientOptions;
 use mongodb::Database;
+pub mod clan_mates;
 pub mod drop_logs_db;
 pub mod guilds_db;
 
