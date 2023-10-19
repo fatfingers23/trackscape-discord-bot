@@ -27,6 +27,7 @@ pub struct RegisteredGuildModel {
     pub min_quest_difficulty: Option<QuestDifficulty>,
     pub min_diary_tier: Option<DiaryTier>,
     pub pk_value_threshold: Option<i64>,
+    pub wom_id: Option<i64>,
     pub created_at: Option<DateTime>,
 }
 
@@ -47,6 +48,7 @@ impl RegisteredGuildModel {
             min_quest_difficulty: None,
             min_diary_tier: None,
             pk_value_threshold: None,
+            wom_id: None,
             created_at: DateTime::now().into(),
         }
     }
