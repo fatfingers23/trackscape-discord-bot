@@ -474,7 +474,7 @@ pub mod osrs_broadcast_extractor {
     }
 
     pub fn collection_log_broadcast_extractor(message: String) -> Option<CollectionLogBroadcast> {
-        let re = regex::Regex::new(r"^(?P<name>[\w\s]+) received a new collection log item: (?P<item>.+?) \((?P<number>\d+)/1477\)").unwrap();
+        let re = regex::Regex::new(r"^(?P<name>[\w\s]+) received a new collection log item: (?P<item>.+?) \((?P<number>\d+)/\d+\)").unwrap();
 
         if let Some(captures) = re.captures(message.as_str()) {
             let name = captures.name("name").unwrap().as_str();
@@ -1446,7 +1446,7 @@ mod tests {
         // KANlEL OUTIS has defeated Emperor KB and received (972,728 coins) worth of loot!
         // Main Dangler has been defeated by Koishi Fumo in The Wilderness.
         // tikkok ALT has been defeated by WhatsA Dad in The Wilderness and lost (462,128 coins) worth of loot. Clearly tikkok ALT struggles with clicking.
-        possible_pk_broadcasts.push(PkBroadcastTest{
+        possible_pk_broadcasts.push(PkBroadcastTest {
             message: "KANlEL OUTIS has been defeated by Veljenpojat in The Wilderness and lost (953,005 coins) worth of loot.".to_string(),
             pk_broadcast: PkBroadcast {
                 winner: "Veljenpojat".to_string(),
@@ -1454,7 +1454,7 @@ mod tests {
                 clan_mate: "KANlEL OUTIS".to_string(),
                 gp_exchanged: Some(953_005),
                 clan_mate_won: false,
-            }
+            },
         });
 
         possible_pk_broadcasts.push(PkBroadcastTest {
@@ -1483,7 +1483,7 @@ mod tests {
 
         possible_pk_broadcasts.push(PkBroadcastTest {
             message:
-                "tikkok ALT has been defeated by WhatsA Dad in The Wilderness and lost (462,128 coins) worth of loot. Clearly tikkok ALT struggles with clicking.".to_string(),
+            "tikkok ALT has been defeated by WhatsA Dad in The Wilderness and lost (462,128 coins) worth of loot. Clearly tikkok ALT struggles with clicking.".to_string(),
             pk_broadcast: PkBroadcast {
                 winner: "WhatsA Dad".to_string(),
                 loser: "tikkok ALT".to_string(),
@@ -1495,7 +1495,7 @@ mod tests {
 
         possible_pk_broadcasts.push(PkBroadcastTest {
             message:
-                "KANlEL OUTIS has been defeated by sha huss in The Wilderness and lost (948,980 coins) worth of loot....and now everyone knows.".to_string(),
+            "KANlEL OUTIS has been defeated by sha huss in The Wilderness and lost (948,980 coins) worth of loot....and now everyone knows.".to_string(),
             pk_broadcast: PkBroadcast {
                 winner: "sha huss".to_string(),
                 loser: "KANlEL OUTIS".to_string(),
@@ -1710,6 +1710,31 @@ mod tests {
                 ),
             },
         });
+
+        test_collection_messages.push(TestBroadcast {
+            message: "rsn received a new collection log item: Enhanced crystal teleport seed (629/1487)".to_string(),
+            broadcast: CollectionLogBroadcast {
+                player_it_happened_to: "rsn".to_string(),
+                item_name: "Enhanced crystal teleport seed".to_string(),
+                log_slots: 629,
+                item_icon: Some("https://oldschool.runescape.wiki/images/Enhanced_crystal_teleport_seed_detail.png".to_string()),
+            },
+        });
+
+        test_collection_messages.push(TestBroadcast {
+            message: "rsn received a new collection log item: Kraken tentacle (169/1487)"
+                .to_string(),
+            broadcast: CollectionLogBroadcast {
+                player_it_happened_to: "rsn".to_string(),
+                item_name: "Kraken tentacle".to_string(),
+                log_slots: 169,
+                item_icon: Some(
+                    "https://oldschool.runescape.wiki/images/Kraken_tentacle_detail.png"
+                        .to_string(),
+                ),
+            },
+        });
+
         test_collection_messages
     }
 }
