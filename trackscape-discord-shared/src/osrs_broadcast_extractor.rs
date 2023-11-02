@@ -1094,7 +1094,7 @@ mod tests {
         //The value of the item
         item_value: Option<i64>,
         item_icon: Option<String>,
-        discord_message: String,
+        _discord_message: String,
     }
 
     struct PetDropTest {
@@ -1149,8 +1149,8 @@ mod tests {
             item_icon: Some(
                 "https://oldschool.runescape.wiki/images/Twisted_buckler_detail.png".to_string(),
             ),
-            discord_message: "RuneScape Player received special loot from a raid: Twisted buckler."
-                .to_string(),
+            _discord_message:
+                "RuneScape Player received special loot from a raid: Twisted buckler.".to_string(),
         });
         possible_raid_broadcasts.push(ItemMessageTest {
             message: "Player received special loot from a raid: Twisted bow.".to_string(),
@@ -1161,7 +1161,7 @@ mod tests {
             item_icon: Some(
                 "https://oldschool.runescape.wiki/images/Twisted_bow_detail.png".to_string(),
             ),
-            discord_message: "Player received special loot from a raid: Twisted bow.".to_string(),
+            _discord_message: "Player received special loot from a raid: Twisted bow.".to_string(),
         });
         possible_raid_broadcasts.push(ItemMessageTest {
             message: "RuneScape Player received special loot from a raid: Tumeken's shadow (uncharged)".to_string(),
@@ -1170,7 +1170,7 @@ mod tests {
             item_quantity: 1,
             item_value: None,
             item_icon: Some("https://oldschool.runescape.wiki/images/Tumeken%27s_shadow_%28uncharged%29_detail.png".to_string()),
-            discord_message: "RuneScape Player received special loot from a raid: Tumeken's shadow (uncharged)".to_string(),
+            _discord_message: "RuneScape Player received special loot from a raid: Tumeken's shadow (uncharged)".to_string(),
         });
         possible_raid_broadcasts.push(ItemMessageTest {
             message: "RuneScape Player received special loot from a raid: Justiciar legguards."
@@ -1183,7 +1183,7 @@ mod tests {
                 "https://oldschool.runescape.wiki/images/Justiciar_legguards_detail.png"
                     .to_string(),
             ),
-            discord_message:
+            _discord_message:
                 "RuneScape Player received special loot from a raid: Justiciar legguards."
                     .to_string(),
         });
@@ -1268,7 +1268,7 @@ mod tests {
             item_icon: Some(
                 "https://oldschool.runescape.wiki/images/Abyssal_whip_detail.png".to_string(),
             ),
-            discord_message: "RuneScape Player received a drop: Abyssal whip (1,456,814 coins)."
+            _discord_message: "RuneScape Player received a drop: Abyssal whip (1,456,814 coins)."
                 .to_string(),
         });
 
@@ -1281,7 +1281,7 @@ mod tests {
             item_icon: Some(
                 "https://oldschool.runescape.wiki/images/Unknown_Item_detail.png".to_string(),
             ),
-            discord_message: "RuneScape Player received a drop: Unknown Item (0 coins)."
+            _discord_message: "RuneScape Player received a drop: Unknown Item (0 coins)."
                 .to_string(),
         });
 
@@ -1295,7 +1295,7 @@ mod tests {
             item_icon: Some(
                 "https://oldschool.runescape.wiki/images/Cannonball_detail.png".to_string(),
             ),
-            discord_message: "RuneScape Player received a drop: 587 x Cannonball (111,530 coins)."
+            _discord_message: "RuneScape Player received a drop: 587 x Cannonball (111,530 coins)."
                 .to_string(),
         });
 
@@ -1309,7 +1309,7 @@ mod tests {
             item_icon: Some(
                 "https://oldschool.runescape.wiki/images/Awakener%27s_orb_detail.png".to_string(),
             ),
-            discord_message: "RuneScape Player received a drop: Awakener's orb (2,238,871 coins)."
+            _discord_message: "RuneScape Player received a drop: Awakener's orb (2,238,871 coins)."
                 .to_string(),
         });
 
@@ -1324,7 +1324,7 @@ mod tests {
             item_icon: Some(
                 "https://oldschool.runescape.wiki/images/Voidwaker_blade_detail.png".to_string(),
             ),
-            discord_message:
+            _discord_message:
                 "RuneScape Player received a drop: Voidwaker blade (39,648,370 coins).".to_string(),
         });
 

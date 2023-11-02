@@ -1,58 +1,16 @@
+use crate::database::GuildsDb;
 use crate::helpers::hash_string;
 use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-    BroadcastType, DiaryTier, DropItemBroadcast, QuestDifficulty,
+    BroadcastType, DiaryTier, QuestDifficulty,
 };
 use anyhow::Result;
 use async_recursion::async_recursion;
-use async_trait::async_trait;
-use futures::TryStreamExt;
 use mockall::predicate::*;
-use mockall::*;
 use mongodb::bson::{doc, DateTime};
-use mongodb::options::ClientOptions;
 use mongodb::{bson, Database};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::string::ToString;
-
-#[automock]
-#[async_trait]
-pub trait MongoDb {
-    async fn new_db_instance(db_url: String) -> Self;
-}
-
-#[derive(Clone)]
-pub struct BotMongoDb {
-    pub guilds: GuildsDb,
-    pub drop_logs: DropLogsDb,
-}
-
-#[async_trait]
-impl MongoDb for BotMongoDb {
-    async fn new_db_instance(db_url: String) -> Self {
-        let client_options = ClientOptions::parse(db_url.as_str())
-            .await
-            .expect("Could not connect to the mongo db");
-        let client = mongodb::Client::with_options(client_options)
-            .expect("Could not parse the mongod db url");
-
-        let db = client.database("TrackScapeDB");
-        Self {
-            guilds: GuildsDb::new(db.clone()),
-            drop_logs: DropLogsDb::new_instance(db.clone()),
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct GuildsDb {
-    db: Database,
-}
-
-#[derive(Clone)]
-pub struct DropLogsDb {
-    db: Database,
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RegisteredGuildModel {
@@ -69,6 +27,7 @@ pub struct RegisteredGuildModel {
     pub min_quest_difficulty: Option<QuestDifficulty>,
     pub min_diary_tier: Option<DiaryTier>,
     pub pk_value_threshold: Option<i64>,
+    pub wom_id: Option<i64>,
     pub created_at: Option<DateTime>,
 }
 
@@ -89,6 +48,7 @@ impl RegisteredGuildModel {
             min_quest_difficulty: None,
             min_diary_tier: None,
             pk_value_threshold: None,
+            wom_id: None,
             created_at: DateTime::now().into(),
         }
     }
@@ -244,79 +204,5 @@ impl GuildsDb {
             .delete_one(filter, None)
             .await
             .expect("Failed to delete document for the Discord guild.");
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DropLogModel {
-    pub guild_id: u64,
-    pub drop_item: DropItemBroadcast,
-    pub created_at: DateTime,
-}
-
-impl DropLogModel {
-    pub const COLLECTION_NAME: &'static str = "drop_logs";
-
-    pub fn new(drop_item: DropItemBroadcast, guild_id: u64) -> Self {
-        Self {
-            guild_id,
-            drop_item,
-            created_at: DateTime::now(),
-        }
-    }
-}
-
-#[automock]
-#[async_trait]
-pub trait DropLogs {
-    fn new_instance(mongodb: Database) -> Self;
-
-    async fn new_drop_log(&self, drop_log: DropItemBroadcast, guild_id: u64);
-    async fn get_drops_between_dates(
-        &self,
-        guild_id: u64,
-        start_date: DateTime,
-        end_date: DateTime,
-    ) -> anyhow::Result<Vec<DropLogModel>>;
-}
-
-#[async_trait]
-impl DropLogs for DropLogsDb {
-    fn new_instance(mongodb: Database) -> Self {
-        Self { db: mongodb }
-    }
-
-    async fn new_drop_log(&self, drop_broadcast: DropItemBroadcast, guild_id: u64) {
-        let collection = self.db.collection(DropLogModel::COLLECTION_NAME);
-        let new_drop_log = DropLogModel::new(drop_broadcast, guild_id);
-
-        collection
-            .insert_one(new_drop_log, None)
-            .await
-            .expect("Failed to insert document for a new drop log.");
-    }
-
-    async fn get_drops_between_dates(
-        &self,
-        guild_id: u64,
-        start_date: DateTime,
-        end_date: DateTime,
-    ) -> anyhow::Result<Vec<DropLogModel>> {
-        let collection = self
-            .db
-            .collection::<DropLogModel>(DropLogModel::COLLECTION_NAME);
-
-        let filter = doc! {
-            "guild_id": bson::to_bson(&guild_id).unwrap(),
-            "created_at": {
-                "$gte": bson::to_bson(&start_date).unwrap(),
-                "$lte": bson::to_bson(&end_date).unwrap()
-            }
-        };
-        let result = collection.find(filter, None).await;
-        return match result {
-            Ok(possible_drops) => Ok(possible_drops.try_collect().await.unwrap()),
-            Err(e) => Err(anyhow::Error::new(e)),
-        };
     }
 }

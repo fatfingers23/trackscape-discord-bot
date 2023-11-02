@@ -4,7 +4,7 @@ use serenity::client::Context;
 use serenity::model::prelude::application_command::{CommandDataOption, CommandDataOptionValue};
 use serenity::model::prelude::command::CommandOptionType;
 use serenity::model::prelude::Permissions;
-use trackscape_discord_shared::database::RegisteredGuildModel;
+use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
 
 pub fn register(
     command: &mut builder::CreateApplicationCommand,
