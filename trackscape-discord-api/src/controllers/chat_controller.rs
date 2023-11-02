@@ -188,6 +188,8 @@ async fn new_clan_chats(
                 quests_from_state,
                 registered_guild.clone(),
                 mongodb.drop_logs.clone(),
+                mongodb.clan_mate_collection_log_totals.clone(),
+                mongodb.clan_mates.clone(),
             );
             let possible_broadcast = handler.extract_message().await;
             match possible_broadcast {

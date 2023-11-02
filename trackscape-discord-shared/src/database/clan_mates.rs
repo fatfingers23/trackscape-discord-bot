@@ -1,4 +1,5 @@
-use crate::database::DropLogsDb;
+use crate::database::ClanMatesDb;
+use anyhow::Error;
 use async_trait::async_trait;
 use mockall::predicate::*;
 use mockall::*;
@@ -8,6 +9,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ClanMateModel {
+    #[serde(rename = "_id")]
+    pub id: bson::oid::ObjectId,
     pub guild_id: u64,
     pub player_name: String,
     pub wom_player_id: Option<u64>,
@@ -20,6 +23,7 @@ impl ClanMateModel {
 
     pub fn new(guild_id: u64, player_name: String, wom_player_id: Option<u64>) -> Self {
         Self {
+            id: bson::oid::ObjectId::new(),
             guild_id,
             wom_player_id,
             previous_names: Vec::new(),
@@ -34,12 +38,18 @@ impl ClanMateModel {
 pub trait ClanMates {
     fn new_instance(mongodb: Database) -> Self;
 
+    async fn find_or_create_clan_mate(
+        &self,
+        guild_id: u64,
+        player_name: String,
+    ) -> Result<ClanMateModel, anyhow::Error>;
+
     async fn create_new_clan_mate(
         &self,
         guild_id: u64,
         player_name: String,
         wom_player_id: Option<u64>,
-    ) -> Result<(), anyhow::Error>;
+    ) -> Result<ClanMateModel, anyhow::Error>;
 
     async fn find_by_current_name(
         &self,
@@ -53,9 +63,24 @@ pub trait ClanMates {
 }
 
 #[async_trait]
-impl ClanMates for DropLogsDb {
+impl ClanMates for ClanMatesDb {
     fn new_instance(mongodb: Database) -> Self {
         Self { db: mongodb }
+    }
+
+    async fn find_or_create_clan_mate(
+        &self,
+        guild_id: u64,
+        player_name: String,
+    ) -> Result<ClanMateModel, Error> {
+        let possible_clan_mate = self.find_by_current_name(player_name.clone()).await?;
+        return Ok(match possible_clan_mate {
+            None => {
+                self.create_new_clan_mate(guild_id, player_name, None)
+                    .await?
+            }
+            Some(clan_mate) => clan_mate,
+        });
     }
 
     async fn create_new_clan_mate(
@@ -63,13 +88,13 @@ impl ClanMates for DropLogsDb {
         guild_id: u64,
         player_name: String,
         wom_player_id: Option<u64>,
-    ) -> Result<(), anyhow::Error> {
+    ) -> Result<ClanMateModel, anyhow::Error> {
         let collection = self
             .db
             .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
         let clan_mate = ClanMateModel::new(guild_id, player_name, wom_player_id);
-        let _ = collection.insert_one(clan_mate, None).await?;
-        Ok(())
+        let _ = collection.insert_one(clan_mate.clone(), None).await?;
+        Ok(clan_mate)
     }
 
     async fn find_by_current_name(

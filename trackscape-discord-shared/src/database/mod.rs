@@ -1,10 +1,13 @@
 use mongodb::bson::doc;
 use mongodb::options::ClientOptions;
 use mongodb::Database;
+pub mod clan_mate_collection_log_totals;
 pub mod clan_mates;
 pub mod drop_logs_db;
 pub mod guilds_db;
 
+use crate::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotals;
+use crate::database::clan_mates::ClanMates;
 use crate::database::drop_logs_db::DropLogs;
 use async_trait::async_trait;
 use mockall::automock;
@@ -19,6 +22,8 @@ pub trait MongoDb {
 pub struct BotMongoDb {
     pub guilds: GuildsDb,
     pub drop_logs: DropLogsDb,
+    pub clan_mates: ClanMatesDb,
+    pub clan_mate_collection_log_totals: ClanMateCollectionLogTotalsDb,
 }
 
 #[derive(Clone)]
@@ -28,6 +33,16 @@ pub struct GuildsDb {
 
 #[derive(Clone)]
 pub struct DropLogsDb {
+    db: Database,
+}
+
+#[derive(Clone)]
+pub struct ClanMatesDb {
+    db: Database,
+}
+
+#[derive(Clone)]
+pub struct ClanMateCollectionLogTotalsDb {
     db: Database,
 }
 
@@ -44,6 +59,8 @@ impl MongoDb for BotMongoDb {
         Self {
             guilds: GuildsDb::new(db.clone()),
             drop_logs: DropLogsDb::new_instance(db.clone()),
+            clan_mates: ClanMatesDb::new_instance(db.clone()),
+            clan_mate_collection_log_totals: ClanMateCollectionLogTotalsDb::new_instance(db),
         }
     }
 }

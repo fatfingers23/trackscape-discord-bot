@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DropLogModel {
+    #[serde(rename = "_id")]
+    id: bson::oid::ObjectId,
     pub guild_id: u64,
     pub drop_item: DropItemBroadcast,
     pub created_at: DateTime,
@@ -20,6 +22,7 @@ impl DropLogModel {
 
     pub fn new(drop_item: DropItemBroadcast, guild_id: u64) -> Self {
         Self {
+            id: bson::oid::ObjectId::new(),
             guild_id,
             drop_item,
             created_at: DateTime::now(),
@@ -31,7 +34,6 @@ impl DropLogModel {
 #[async_trait]
 pub trait DropLogs {
     fn new_instance(mongodb: Database) -> Self;
-
     async fn new_drop_log(&self, drop_log: DropItemBroadcast, guild_id: u64);
     async fn get_drops_between_dates(
         &self,
