@@ -25,6 +25,7 @@ use trackscape_discord_shared::ge_api::ge_api::{get_item_mapping, GeItemMapping}
 use uuid::Uuid;
 
 pub use self::websocket_server::{ChatServer, ChatServerHandle};
+use crate::controllers::clan_controller::clan_controller;
 use crate::controllers::drop_log_controller::drop_log_controller;
 use actix_files::{Files, NamedFile};
 use log::{error, info};
@@ -113,7 +114,8 @@ async fn actix_web(
             web::scope("/api")
                 .service(chat_controller())
                 .service(info_controller())
-                .service(drop_log_controller()),
+                .service(drop_log_controller())
+                .service(clan_controller()),
         )
         .service(Files::new("/", "./trackscape-discord-api/ui/").index_file("index.html"))
         .app_data(web::Data::new(server_tx.clone()))
