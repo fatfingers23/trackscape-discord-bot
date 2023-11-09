@@ -32,6 +32,7 @@ pub struct OSRSBroadcastHandler<T: DropLogs, CL: ClanMateCollectionLogTotals, CM
     item_mapping: Option<GeItemMapping>,
     quests: Option<Vec<WikiQuest>>,
     registered_guild: RegisteredGuildModel,
+    leagues_message: bool,
     drop_log_db: T,
     collection_log_db: CL,
     clan_mates_db: CM,
@@ -43,6 +44,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
         item_mapping_from_state: Result<GeItemMapping, ()>,
         quests_from_state: Result<Vec<WikiQuest>, ()>,
         register_guild: RegisteredGuildModel,
+        leagues_message: bool,
         drop_log_db: T,
         collection_log_db: CL,
         clan_mates_db: CM,
@@ -58,6 +60,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                 Err(_) => None,
             },
             registered_guild: register_guild,
+            leagues_message,
             drop_log_db,
             collection_log_db,
             clan_mates_db,
@@ -96,9 +99,13 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                             }
                             None => {}
                         }
-                        self.drop_log_db
-                            .new_drop_log(drop_item.clone(), self.registered_guild.guild_id)
-                            .await;
+
+                        if !self.leagues_message {
+                            self.drop_log_db
+                                .new_drop_log(drop_item.clone(), self.registered_guild.guild_id)
+                                .await;
+                        }
+
                         let is_disallowed = self
                             .registered_guild
                             .disallowed_broadcast_types
@@ -112,6 +119,11 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                         if is_disallowed.is_some() {
                             return None;
                         }
+
+                        let title = match self.leagues_message {
+                            true => ":bar_chart: New Leagues raid drop!".to_string(),
+                            false => ":tada: New raid drop!".to_string(),
+                        };
 
                         Some(BroadcastMessageToDiscord {
                             player_it_happened_to: drop_item.player_it_happened_to.clone(),
@@ -133,7 +145,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                                 }
                             },
                             icon_url: drop_item.item_icon,
-                            title: ":tada: New raid drop!".to_string(),
+                            title,
                             item_quantity: None,
                         })
                     }
@@ -165,12 +177,17 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                             return None;
                         }
 
+                        let title = match self.leagues_message {
+                            true => ":bar_chart: New Leagues Pet drop!".to_string(),
+                            false => ":tada: New Pet drop!".to_string(),
+                        };
+
                         Some(BroadcastMessageToDiscord {
                             type_of_broadcast: BroadcastType::PetDrop,
                             player_it_happened_to: pet_drop.player_it_happened_to,
                             message: self.clan_message.message.clone(),
                             icon_url: pet_drop.pet_icon,
-                            title: ":tada: New Pet drop!".to_string(),
+                            title,
                             item_quantity: None,
                         })
                     }
@@ -243,12 +260,16 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                         if is_disallowed.is_some() {
                             return None;
                         }
+                        let title = match self.leagues_message {
+                            true => ":bar_chart: New Leagues Level Milestone reached!".to_string(),
+                            false => ":tada: New Level Milestone reached!".to_string(),
+                        };
                         Some(BroadcastMessageToDiscord {
                             type_of_broadcast: BroadcastType::LevelMilestone,
                             player_it_happened_to: levelmilestone_broadcast.clan_mate,
                             message: self.clan_message.message.clone(),
                             icon_url: levelmilestone_broadcast.skill_icon,
-                            title: ":tada: New Level Milestone reached!".to_string(),
+                            title,
                             item_quantity: None,
                         })
                     }
@@ -279,12 +300,16 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                         if is_disallowed.is_some() {
                             return None;
                         }
+                        let title = match self.leagues_message {
+                            true => ":bar_chart: New Leagues XP Milestone reached!".to_string(),
+                            false => ":tada: New XP Milestone reached!".to_string(),
+                        };
                         Some(BroadcastMessageToDiscord {
                             type_of_broadcast: BroadcastType::XPMilestone,
                             player_it_happened_to: xpmilestone_broadcast.clan_mate,
                             message: self.clan_message.message.clone(),
                             icon_url: xpmilestone_broadcast.skill_icon,
-                            title: ":tada: New XP Milestone reached!".to_string(),
+                            title,
                             item_quantity: None,
                         })
                     }
@@ -307,9 +332,11 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                 None
             }
             Some(drop_item) => {
-                self.drop_log_db
-                    .new_drop_log(drop_item.clone(), self.registered_guild.guild_id)
-                    .await;
+                if !self.leagues_message {
+                    self.drop_log_db
+                        .new_drop_log(drop_item.clone(), self.registered_guild.guild_id)
+                        .await;
+                }
                 let is_disallowed = self.check_if_allowed_broad_cast(BroadcastType::ItemDrop);
                 if is_disallowed {
                     return None;
@@ -324,10 +351,15 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                     }
                 }
 
+                let title = match self.leagues_message {
+                    true => ":bar_chart: New Leagues High Value drop!".to_string(),
+                    false => ":tada: New High Value drop!".to_string(),
+                };
+
                 Some(BroadcastMessageToDiscord {
                     player_it_happened_to: drop_item.player_it_happened_to.clone(),
                     type_of_broadcast: BroadcastType::ItemDrop,
-                    title: ":tada: New High Value drop!".to_string(),
+                    title,
                     message: match drop_item.item_quantity {
                         //If there is only one of the items dropped
                         1 => match drop_item.item_value {
@@ -392,13 +424,16 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                         }
                     }
                 }
-
+                let title = match self.leagues_message {
+                    true => ":bar_chart: New Leagues PK!".to_string(),
+                    false => ":crossed_swords: New PK!".to_string(),
+                };
                 Some(BroadcastMessageToDiscord {
                     type_of_broadcast: BroadcastType::Pk,
                     player_it_happened_to: pk_broadcast.winner,
                     message: self.clan_message.message.clone(),
                     icon_url: Some("https://oldschool.runescape.wiki/images/Skull.png".to_string()),
-                    title: ":crossed_swords: New PK!".to_string(),
+                    title,
                     item_quantity: None,
                 })
             }
@@ -454,6 +489,10 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                         return None;
                     }
                 }
+                let title = match self.leagues_message {
+                    true => ":bar_chart: New Leagues quest completed!".to_string(),
+                    false => ":tada: New quest completed!".to_string(),
+                };
                 Some(BroadcastMessageToDiscord {
                     type_of_broadcast: BroadcastType::Quest,
                     player_it_happened_to: exported_data.player_it_happened_to,
@@ -497,6 +536,11 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                         return None;
                     }
                 }
+
+                let title = match self.leagues_message {
+                    true => ":bar_chart: New Leagues diary completed!".to_string(),
+                    false => ":tada: New diary completed!".to_string(),
+                };
                 Some(BroadcastMessageToDiscord {
                     type_of_broadcast: BroadcastType::Diary,
                     player_it_happened_to: exported_data.player_it_happened_to,
@@ -505,7 +549,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                         "https://oldschool.runescape.wiki/images/Achievement_Diaries.png"
                             .to_string(),
                     ),
-                    title: ":tada: New diary completed!".to_string(),
+                    title,
                     item_quantity: None,
                 })
             }
@@ -541,39 +585,44 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                 None
             }
             Some(collection_log_broadcast) => {
-                let possible_clan_mate = self
-                    .clan_mates_db
-                    .find_or_create_clan_mate(
-                        self.registered_guild.guild_id,
-                        collection_log_broadcast.player_it_happened_to.clone(),
-                    )
-                    .await;
-                let _ = match possible_clan_mate {
-                    Ok(clan_mate) => {
-                        self.collection_log_db
-                            .update_or_create(
-                                clan_mate.guild_id,
-                                clan_mate.id,
-                                collection_log_broadcast.log_slots,
-                            )
-                            .await
-                    }
-                    Err(error) => {
-                        error!("{:?}", error);
-                        Err(error)
-                    }
-                };
-
+                if !self.leagues_message {
+                    let possible_clan_mate = self
+                        .clan_mates_db
+                        .find_or_create_clan_mate(
+                            self.registered_guild.guild_id,
+                            collection_log_broadcast.player_it_happened_to.clone(),
+                        )
+                        .await;
+                    let _ = match possible_clan_mate {
+                        Ok(clan_mate) => {
+                            self.collection_log_db
+                                .update_or_create(
+                                    clan_mate.guild_id,
+                                    clan_mate.id,
+                                    collection_log_broadcast.log_slots,
+                                )
+                                .await
+                        }
+                        Err(error) => {
+                            error!("{:?}", error);
+                            Err(error)
+                        }
+                    };
+                }
                 let is_disallowed = self.check_if_allowed_broad_cast(BroadcastType::CollectionLog);
                 if is_disallowed {
                     return None;
                 }
+                let title = match self.leagues_message {
+                    true => ":bar_chart: New Leagues collection log item!".to_string(),
+                    false => ":tada: New collection log item!".to_string(),
+                };
                 Some(BroadcastMessageToDiscord {
                     type_of_broadcast: BroadcastType::CollectionLog,
                     player_it_happened_to: collection_log_broadcast.player_it_happened_to,
                     message: self.clan_message.message.clone(),
                     icon_url: collection_log_broadcast.item_icon,
-                    title: ":tada: New collection log item!".to_string(),
+                    title,
                     item_quantity: None,
                 })
             }
@@ -632,6 +681,7 @@ mod tests {
             get_item_mapping,
             quests,
             registered_guild,
+            false,
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
@@ -689,6 +739,7 @@ mod tests {
             get_item_mapping,
             quests,
             registered_guild,
+            false,
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
@@ -746,6 +797,7 @@ mod tests {
             get_item_mapping,
             quests,
             registered_guild,
+            false,
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
@@ -804,6 +856,7 @@ mod tests {
             get_item_mapping,
             quests,
             registered_guild,
+            false,
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
@@ -862,6 +915,7 @@ mod tests {
             get_item_mapping,
             quests,
             registered_guild,
+            false,
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
@@ -874,6 +928,7 @@ mod tests {
                 info!("Threshold should of not been hit. Should  be sending a message.");
                 assert_eq!(true, false);
             }
+
             Some(_) => {
                 assert_eq!(true, true);
             }
@@ -918,6 +973,7 @@ mod tests {
             get_item_mapping,
             quests,
             registered_guild,
+            false,
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
@@ -972,6 +1028,7 @@ mod tests {
             get_item_mapping,
             quests,
             registered_guild,
+            false,
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
@@ -1026,6 +1083,7 @@ mod tests {
             get_item_mapping,
             quests,
             registered_guild,
+            false,
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
@@ -1079,6 +1137,7 @@ mod tests {
             get_item_mapping,
             quests,
             registered_guild,
+            false,
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),

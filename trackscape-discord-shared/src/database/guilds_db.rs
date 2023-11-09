@@ -20,6 +20,7 @@ pub struct RegisteredGuildModel {
     pub broadcast_channel: Option<u64>,
     //Channel to send clan chats messages
     pub clan_chat_channel: Option<u64>,
+    pub leagues_broadcast_channel: Option<u64>,
     pub drop_price_threshold: Option<i64>,
     pub disallowed_broadcast_types: Vec<BroadcastType>,
     pub verification_code: String,
@@ -41,6 +42,7 @@ impl RegisteredGuildModel {
             clan_name: None,
             broadcast_channel: None,
             clan_chat_channel: None,
+            leagues_broadcast_channel: None,
             drop_price_threshold: None,
             disallowed_broadcast_types: Vec::new(),
             verification_code,

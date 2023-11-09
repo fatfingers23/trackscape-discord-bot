@@ -174,53 +174,68 @@ async fn new_clan_chats(
             continue;
         }
 
-        if let Some(broadcast_channel_id) = registered_guild.broadcast_channel {
-            let item_mapping_from_state = persist
-                .load::<GeItemMapping>("mapping")
-                .map_err(|e| info!("Saving Item Mapping Error: {e}"));
-            let quests_from_state = persist
-                .load::<Vec<WikiQuest>>("quests")
-                .map_err(|e| info!("Saving Quests Error: {e}"));
+        if registered_guild.broadcast_channel.is_none()
+            && registered_guild.clan_chat_channel.is_none()
+        {
+            //If there is not any broadcast_channels set just continue
+            continue;
+        }
 
-            let handler = OSRSBroadcastHandler::new(
-                chat.clone(),
-                item_mapping_from_state,
-                quests_from_state,
-                registered_guild.clone(),
-                mongodb.drop_logs.clone(),
-                mongodb.clan_mate_collection_log_totals.clone(),
-                mongodb.clan_mates.clone(),
-            );
-            let possible_broadcast = handler.extract_message().await;
-            match possible_broadcast {
-                None => {}
-                Some(broadcast) => {
-                    info!("Broadcast: {:?}", broadcast);
-                    info!("{}\n", chat.message.clone());
+        let league_world = chat.is_league_world.unwrap_or(false);
 
-                    let mut create_message = CreateMessage::default();
-                    create_message.embed(|e| {
-                        e.title(broadcast.title)
-                            .description(broadcast.message)
-                            .color(0x0000FF)
-                            .timestamp(right_now);
-                        match broadcast.icon_url {
-                            None => {}
-                            Some(icon_url) => {
-                                e.image(icon_url);
-                            }
+        let item_mapping_from_state = persist
+            .load::<GeItemMapping>("mapping")
+            .map_err(|e| info!("Saving Item Mapping Error: {e}"));
+        let quests_from_state = persist
+            .load::<Vec<WikiQuest>>("quests")
+            .map_err(|e| info!("Saving Quests Error: {e}"));
+
+        let handler = OSRSBroadcastHandler::new(
+            chat.clone(),
+            item_mapping_from_state,
+            quests_from_state,
+            registered_guild.clone(),
+            league_world,
+            mongodb.drop_logs.clone(),
+            mongodb.clan_mate_collection_log_totals.clone(),
+            mongodb.clan_mates.clone(),
+        );
+        let possible_broadcast = handler.extract_message().await;
+
+        match possible_broadcast {
+            None => {}
+            Some(broadcast) => {
+                info!("Broadcast: {:?}", broadcast);
+                info!("{}\n", chat.message.clone());
+
+                let mut create_message = CreateMessage::default();
+                create_message.embed(|e| {
+                    e.title(broadcast.title)
+                        .description(broadcast.message)
+                        .color(0x0000FF)
+                        .timestamp(right_now);
+                    match broadcast.icon_url {
+                        None => {}
+                        Some(icon_url) => {
+                            e.image(icon_url);
                         }
-                        e
-                    });
+                    }
+                    e
+                });
 
+                let possible_channel_to_send_broadcast = match league_world {
+                    true => registered_guild.leagues_broadcast_channel,
+                    false => registered_guild.broadcast_channel,
+                };
+                if let Some(channel_to_send_broadcast) = possible_channel_to_send_broadcast {
                     let map = json::hashmap_to_json_map(create_message.0);
                     discord_http_client
-                        .send_message(broadcast_channel_id, &Value::from(map))
+                        .send_message(channel_to_send_broadcast, &Value::from(map))
                         .await
                         .unwrap();
                 }
-            };
-        }
+            }
+        };
     }
 
     return Ok("Message processed".to_string());
