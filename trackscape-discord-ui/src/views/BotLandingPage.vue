@@ -1,17 +1,16 @@
 <script setup lang="ts">
 
 import {ref} from "vue";
-import TrackscapeApiClient, {BotInfo} from "@/services/TrackscapeApiClient";
-
+import TrackscapeApiClient from "@/services/TrackscapeApiClient";
+import type {BotInfo} from "@/services/TrackscapeApiTypes";
 let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 
-let botInfo = ref<BotInfo>({
-  server_count: 0,
-  connected_users: 0
-});
+
+let botInfo = ref<BotInfo>();
+
 
 client.getBotInfo().then((info) => {
-  botInfo.value = info as BotInfo;
+  botInfo.value = info;
 });
 
 
@@ -59,7 +58,7 @@ client.getBotInfo().then((info) => {
               Servers Joined
             </div>
             <div class="stat-value">
-              {{ botInfo.server_count.toLocaleString() }}
+              {{ botInfo?.server_count?.toLocaleString() }}
             </div>
           </div>
 
@@ -74,7 +73,7 @@ client.getBotInfo().then((info) => {
               Scapers Chatting
             </div>
             <div class="stat-value text-secondary">
-              {{ botInfo.connected_users.toLocaleString()}}
+              {{ botInfo?.connected_users.toLocaleString()}}
             </div>
           </div>
         </div>

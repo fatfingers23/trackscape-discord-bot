@@ -1,4 +1,4 @@
-import {ref} from "vue";
+import type {BotInfo, Clan} from "@/services/TrackscapeApiTypes";
 
 export default class TrackscapeApiClient {
 
@@ -17,22 +17,9 @@ export default class TrackscapeApiClient {
         return this.get<BotInfo>("/info/landing-page-info");
     }
 
-    public async getClans(): Promise<Clans[]> {
-        return this.get<Clans[]>("/clans/list");
+    public async getClans(): Promise<Clan[]> {
+        return this.get<Clan[]>("/clans/list");
     }
 
 }
 
-type BotInfo = {
-    server_count: number;
-    connected_users: number;
-}
-
-
-type Clan = {
-    id: string,
-    name: string
-}
-
-
-export { BotInfo, Clan };
