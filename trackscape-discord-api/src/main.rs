@@ -9,6 +9,7 @@ mod websocket_server;
 use crate::cache::Cache;
 use crate::controllers::bot_info_controller::info_controller;
 use crate::controllers::chat_controller::chat_controller;
+use actix_cors::Cors;
 use actix_web::web::Data;
 use actix_web::{guard, web, web::ServiceConfig, Error};
 use dotenv::dotenv;
@@ -115,7 +116,13 @@ async fn actix_web(
                 .service(chat_controller())
                 .service(info_controller())
                 .service(drop_log_controller())
-                .service(clan_controller()),
+                .service(clan_controller())
+                .wrap(
+                    Cors::default()
+                        .allow_any_origin()
+                        .allow_any_method()
+                        .allow_any_header(),
+                ),
         )
         .service(Files::new("/", "./trackscape-discord-api/ui/").index_file("index.html"))
         .app_data(web::Data::new(server_tx.clone()))
@@ -127,5 +134,6 @@ async fn actix_web(
         .app_data(web::Data::new(persist.clone()))
         .default_service(web::route().guard(guard::Not(guard::Get())).to(index));
     };
+
     Ok(config.into())
 }

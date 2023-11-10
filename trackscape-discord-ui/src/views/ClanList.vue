@@ -1,19 +1,12 @@
 <script setup lang="ts">
 import {ref} from "vue";
+import TrackscapeApiClient, {Clan} from "@/services/TrackscapeApiClient";
 
-type Clans = {
-  id: string,
-  name: string
-}
-
-let clans = ref<Clans[]>([]);
-
-fetch("/api/clans/list").then((res) => {
-  res.json().then((data) => {
-    clans.value = data;
-  });
+let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
+let clans = ref<Clan[]>([]);
+client.getClans().then((apiClans: Clan[]) => {
+  clans.value = apiClans;
 });
-
 
 
 </script>
