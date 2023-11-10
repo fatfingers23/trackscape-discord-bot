@@ -6,7 +6,8 @@ type BotInfo = {
 
 type Clan = {
     id: string,
-    name: string
+    name: string,
+    registered_members: number,
 }
 
 

@@ -498,7 +498,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                     player_it_happened_to: exported_data.player_it_happened_to,
                     message: self.clan_message.message.clone(),
                     icon_url: exported_data.quest_reward_scroll_icon,
-                    title: ":tada: New quest completed!".to_string(),
+                    title,
                     item_quantity: None,
                 })
             }

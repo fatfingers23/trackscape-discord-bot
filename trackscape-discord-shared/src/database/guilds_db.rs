@@ -3,13 +3,13 @@ use crate::helpers::hash_string;
 use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     BroadcastType, DiaryTier, QuestDifficulty,
 };
-use anyhow::{Error, Result};
+use anyhow::Result;
 use async_recursion::async_recursion;
 use futures::TryStreamExt;
 use mockall::predicate::*;
 use mongodb::bson::{doc, DateTime};
 use mongodb::options::FindOptions;
-use mongodb::{bson, Cursor, Database};
+use mongodb::{bson, Database};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::string::ToString;
