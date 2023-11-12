@@ -1,42 +1,48 @@
-<!--<script setup lang="ts">-->
-<!--  import type {PropType} from "vue";-->
+<script setup lang="ts">
+  import type {PropType} from "vue";
 
-<!--  const props = defineProps({-->
-<!--    data: {-->
-<!--      type: Array as PropType<any[]>,-->
-<!--      required: true-->
-<!--    },-->
-<!--    columns: {-->
-<!--      type: Array as PropType<any[]>,-->
-<!--      required: true-->
-<!--    },-->
-<!--    options: {-->
-<!--      type: Object as PropType<any>,-->
-<!--      default: () => ({})-->
-<!--    }-->
-<!--  })-->
-<!--</script>-->
+  type column = {
+    name: string,
+    key: string
+  }
 
-<!--<template>-->
-<!--  <table class="table">-->
-<!--    &lt;!&ndash; head &ndash;&gt;-->
-<!--    <thead>-->
-<!--      <tr>-->
-<!--        <th>Name</th>-->
-<!--      </tr>-->
-<!--    </thead>-->
-<!--    <tbody>-->
+  const props = defineProps({
+    data: {
+      type: Array as PropType<any[]>,
+      required: true
+    },
+    columns: {
+      type: Array as PropType<column[]>,
+      required: true
+    },
 
-<!--      <tr v-for="(clan, index) in data"-->
-<!--          :key="index">-->
-<!--        <th>{{clan.name}}</th>-->
+  })
+</script>
 
-<!--      </tr>-->
+<template>
+  <table class="table">
+    <thead>
+      <tr>
+        <th v-for="(column, index) in props.columns"
+            :key="index">{{ column.name }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-for="(item, index) in data"
+          :key="index">
+        <th v-for="(column, index) in props.columns"
+            :key="index">
+          <slot name="row-item"
+                :column="column"
+                :item="item">
+            {{ item[column.key] }}
+          </slot>
+        </th>
+      </tr>
+    </tbody>
+  </table>
+</template>
 
-<!--    </tbody>-->
-<!--  </table>-->
-<!--</template>-->
+<style scoped>
 
-<!--<style scoped>-->
-
-<!--</style>-->
+</style>

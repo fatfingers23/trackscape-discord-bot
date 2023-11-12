@@ -101,7 +101,7 @@ impl EventHandler for Bot {
             None => {}
             Some(guild_id) => {
                 let guild_id = guild_id.0;
-                let guild = self.mongo_db.guilds.get_guild_by_discord_id(guild_id).await;
+                let guild = self.mongo_db.guilds.get_by_guild_id(guild_id).await;
                 match guild {
                     Ok(guild) => {
                         if guild.is_none() {

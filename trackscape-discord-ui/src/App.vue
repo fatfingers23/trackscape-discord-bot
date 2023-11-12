@@ -7,7 +7,9 @@ import NavMenu from "@/components/nav-menu.vue";
 <template>
   <nav-menu/>
   <main class="bg-base-200">
-    <RouterView />
+    <div class="container mx-auto md:p-8 p-3 min-h-screen">
+      <RouterView />
+    </div>
     <footer class="
         footer
         p-10
@@ -16,7 +18,8 @@ import NavMenu from "@/components/nav-menu.vue";
       <div>
         <div class="w-10 rounded-full">
           <img class="rounded-full"
-               src="@/assets/img/Trackscape_Logo_icon.png"/>
+               src="@/assets/img/Trackscape_Logo_icon.png"
+               alt="Trackscape logo"/>
         </div>
         <p>Trackscape.<br>OSRS tooling for clans!</p>
       </div>

@@ -134,19 +134,6 @@ impl GuildsDb {
         }
     }
 
-    pub async fn get_guild_by_discord_id(
-        &self,
-        discord_id: u64,
-    ) -> Result<Option<RegisteredGuildModel>, anyhow::Error> {
-        let collection = self
-            .db
-            .collection::<RegisteredGuildModel>(RegisteredGuildModel::COLLECTION_NAME);
-        let filter = doc! {"guild_id": bson::to_bson(&discord_id).unwrap()};
-        Ok(collection
-            .find_one(filter, None)
-            .await
-            .expect("Failed to find document for the Discord guild."))
-    }
     pub async fn get_guild_by_code_and_clan_name(
         &self,
         code: String,
@@ -224,6 +211,21 @@ impl GuildsDb {
         return match result {
             Ok(cursor) => Ok(cursor.try_collect().await.unwrap()),
             Err(e) => Err(anyhow::Error::new(e)),
+        };
+    }
+
+    pub async fn get_by_id(
+        &self,
+        id: bson::oid::ObjectId,
+    ) -> Result<Option<RegisteredGuildModel>, mongodb::error::Error> {
+        let collection = self
+            .db
+            .collection::<RegisteredGuildModel>(RegisteredGuildModel::COLLECTION_NAME);
+        let filter = doc! { "_id": bson::to_bson(&id).unwrap()};
+        let result = collection.find_one(filter.clone(), None).await;
+        return match result {
+            Ok(possible_guild) => Ok(possible_guild),
+            Err(e) => Err(e),
         };
     }
 }
