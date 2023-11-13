@@ -44,11 +44,6 @@ pub type Msg = String;
 async fn index() -> Result<NamedFile, Error> {
     Ok(NamedFile::open("./trackscape-discord-api/ui/index.html")?)
 }
-#[cfg(build = "debug")]
-fn load_startup_data(&PersistInstance: instance) {}
-
-#[cfg(build = "release")]
-fn load_startup_data(&PersistInstance: instance) {}
 
 #[shuttle_runtime::main]
 async fn actix_web(
