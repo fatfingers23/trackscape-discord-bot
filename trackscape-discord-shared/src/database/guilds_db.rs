@@ -5,8 +5,10 @@ use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
 };
 use anyhow::Result;
 use async_recursion::async_recursion;
+use futures::TryStreamExt;
 use mockall::predicate::*;
 use mongodb::bson::{doc, DateTime};
+use mongodb::options::FindOptions;
 use mongodb::{bson, Database};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -14,6 +16,8 @@ use std::string::ToString;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RegisteredGuildModel {
+    #[serde(rename = "_id")]
+    pub id: bson::oid::ObjectId,
     pub guild_id: u64,
     //Channel to send broadcast messages
     pub clan_name: Option<String>,
@@ -38,6 +42,7 @@ impl RegisteredGuildModel {
         let verification_code = Self::generate_code();
         let hashed_verification_code = hash_string(verification_code.clone());
         Self {
+            id: bson::oid::ObjectId::new(),
             guild_id,
             clan_name: None,
             broadcast_channel: None,
@@ -129,19 +134,6 @@ impl GuildsDb {
         }
     }
 
-    pub async fn get_guild_by_discord_id(
-        &self,
-        discord_id: u64,
-    ) -> Result<Option<RegisteredGuildModel>, anyhow::Error> {
-        let collection = self
-            .db
-            .collection::<RegisteredGuildModel>(RegisteredGuildModel::COLLECTION_NAME);
-        let filter = doc! {"guild_id": bson::to_bson(&discord_id).unwrap()};
-        Ok(collection
-            .find_one(filter, None)
-            .await
-            .expect("Failed to find document for the Discord guild."))
-    }
     pub async fn get_guild_by_code_and_clan_name(
         &self,
         code: String,
@@ -206,5 +198,34 @@ impl GuildsDb {
             .delete_one(filter, None)
             .await
             .expect("Failed to delete document for the Discord guild.");
+    }
+
+    pub async fn list_clans(&self) -> Result<Vec<RegisteredGuildModel>, anyhow::Error> {
+        let collection = self
+            .db
+            .collection::<RegisteredGuildModel>(RegisteredGuildModel::COLLECTION_NAME);
+        let opts = FindOptions::builder().sort(doc! { "clan_name": 1 }).build();
+        let filter = doc! {"clan_name": {"$ne": ""}};
+        let result = collection.find(filter, opts).await;
+
+        return match result {
+            Ok(cursor) => Ok(cursor.try_collect().await.unwrap()),
+            Err(e) => Err(anyhow::Error::new(e)),
+        };
+    }
+
+    pub async fn get_by_id(
+        &self,
+        id: bson::oid::ObjectId,
+    ) -> Result<Option<RegisteredGuildModel>, mongodb::error::Error> {
+        let collection = self
+            .db
+            .collection::<RegisteredGuildModel>(RegisteredGuildModel::COLLECTION_NAME);
+        let filter = doc! { "_id": bson::to_bson(&id).unwrap()};
+        let result = collection.find_one(filter.clone(), None).await;
+        return match result {
+            Ok(possible_guild) => Ok(possible_guild),
+            Err(e) => Err(e),
+        };
     }
 }

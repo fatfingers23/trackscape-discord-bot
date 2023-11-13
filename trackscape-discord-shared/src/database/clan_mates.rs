@@ -1,6 +1,7 @@
 use crate::database::ClanMatesDb;
 use anyhow::Error;
 use async_trait::async_trait;
+use futures::TryStreamExt;
 use mockall::predicate::*;
 use mockall::*;
 use mongodb::bson::{doc, DateTime};
@@ -15,6 +16,7 @@ pub struct ClanMateModel {
     pub player_name: String,
     pub wom_player_id: Option<u64>,
     pub previous_names: Vec<String>,
+    pub rank: Option<String>,
     pub created_at: DateTime,
 }
 
@@ -28,6 +30,7 @@ impl ClanMateModel {
             wom_player_id,
             previous_names: Vec::new(),
             player_name,
+            rank: None,
             created_at: DateTime::now(),
         }
     }
@@ -60,6 +63,10 @@ pub trait ClanMates {
         &self,
         player_name: String,
     ) -> Result<Option<ClanMateModel>, anyhow::Error>;
+
+    async fn get_clan_member_count(&self, guild_id: u64) -> Result<u64, Error>;
+
+    async fn get_clan_mates_by_guild_id(&self, guild_id: u64) -> Result<Vec<ClanMateModel>, Error>;
 }
 
 #[async_trait]
@@ -123,5 +130,28 @@ impl ClanMates for ClanMatesDb {
         };
         let result = collection.find_one(filter, None).await?;
         Ok(result)
+    }
+
+    async fn get_clan_member_count(&self, guild_id: u64) -> Result<u64, Error> {
+        let collection = self
+            .db
+            .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
+        let filter = doc! {
+            "guild_id": bson::to_bson(&guild_id).unwrap(),
+        };
+        let result = collection.count_documents(filter, None).await?;
+        Ok(result)
+    }
+
+    async fn get_clan_mates_by_guild_id(&self, guild_id: u64) -> Result<Vec<ClanMateModel>, Error> {
+        let collection = self
+            .db
+            .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
+        let filter = doc! {
+            "guild_id": bson::to_bson(&guild_id).unwrap(),
+        };
+        let result = collection.find(filter, None).await?;
+        let clan_mates = result.try_collect().await?;
+        Ok(clan_mates)
     }
 }
