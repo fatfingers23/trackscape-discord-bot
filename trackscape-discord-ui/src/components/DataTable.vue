@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import type {PropType} from "vue";
+  import {computed, ref} from "vue";
 
   type column = {
     name: string,
@@ -15,32 +16,60 @@
       type: Array as PropType<column[]>,
       required: true
     },
-
+    searchField: {
+      type: String,
+      required: false,
+      default: ""
+    }
   })
+
+  let searchedTerm = ref<string>("");
+
+
+  let filteredData = computed(() => {
+    return props.data.filter((item) => {
+      return item[props.searchField].toLowerCase().includes(searchedTerm.value.toLowerCase());
+    });
+  });
+
+
 </script>
 
 <template>
-  <table class="table">
-    <thead>
-      <tr>
-        <th v-for="(column, index) in props.columns"
-            :key="index">{{ column.name }}</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr v-for="(item, index) in data"
-          :key="index">
-        <th v-for="(column, index) in props.columns"
+  <div>
+    <input
+      v-if="props.searchField !== ''"
+      v-model="searchedTerm"
+      type="text"
+      placeholder="Search"
+      class="input input-bordered w-full md:max-w-md max-w-full mb-3" />
+    <table class="table">
+      <thead>
+        <tr>
+          <th v-for="(column, index) in props.columns"
+              :key="index">{{ column.name }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-if="filteredData.length === 0"
+            class="text-center min-w-full">
+          <td><p>No results found</p></td>
+        </tr>
+
+        <tr v-for="(item, index) in filteredData"
             :key="index">
-          <slot name="row-item"
-                :column="column"
-                :item="item">
-            {{ item[column.key] }}
-          </slot>
-        </th>
-      </tr>
-    </tbody>
-  </table>
+          <th v-for="(column, index) in props.columns"
+              :key="index">
+            <slot name="row-item"
+                  :column="column"
+                  :item="item">
+              {{ item[column.key] }}
+            </slot>
+          </th>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </template>
 
 <style scoped>

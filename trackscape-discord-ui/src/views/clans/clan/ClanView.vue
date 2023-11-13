@@ -13,6 +13,7 @@ let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 const route = useRoute()
 const clanId = route.params.clanId as string;
 
+
 let clanDetail = ref<ClanDetail>()
 
 client.getClanDetail(clanId).then((clan) => {
@@ -42,16 +43,7 @@ const tabMenus = [
   },
 ]
 
-const columns = [
-  {
-    name: 'Members',
-    key: 'player_name'
-  },
-  {
-    name: 'View WOM',
-    key: 'player_name'
-  }
-];
+
 
 
 </script>
@@ -87,7 +79,7 @@ const columns = [
           </g>
 
         </svg>
-        <span class="text-xs text-gray-200">{{clanDetail?.registered_members}}</span>
+        <span class="text-xs text-gray-200">{{clanDetail?.registered_members}} (Only those so far recorded)</span>
       </div>
     </div>
   </PageTitle>
@@ -103,29 +95,12 @@ const columns = [
          :key="index"
          :class="['tab', {'tab-active': tabMenu.active}]">{{tabMenu.name}}</a>
     </div>
-    <!--    This will be the subrouter view-->
-    <div v-if="clanDetail !== undefined"
-         class="p-5 shadow-xl bg-base-100 " >
-      <div class="overflow-x-auto">
-        <DataTable :columns="columns"
-                   :data="clanDetail.members"
 
-        >
-          <template #row-item="{item, column}" >
-            <template v-if="column.name == 'View WOM'">
-              <a class="link"
-                 :href="`https://www.wiseoldman.net/players/${item.player_name}`"> View WOM</a></template>
-            <template v-else>{{item[column.key]}}</template>
-          </template>
-        </DataTable>
-      </div>
-    </div>
-
-    <!--    <DiscordWidget-->
-    <!--      v-if="clanDetail !== undefined"-->
-    <!--      :discord_id="clanDetail?.discord_guild_id" />-->
+    <router-view v-slot="{ Component}" >
+      <component :is="Component"
+                 :clanDetail="clanDetail" />
+    </router-view>
   </div>
-
 
 
 </template>
