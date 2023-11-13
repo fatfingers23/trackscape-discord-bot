@@ -65,7 +65,9 @@
               :key="index">
             <slot name="row-item"
                   :column="column"
-                  :item="item">
+                  :item="item"
+                  :index="index"
+            >
               {{ item[column.key] }}
             </slot>
           </th>

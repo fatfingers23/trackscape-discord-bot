@@ -34,6 +34,10 @@ if (props.clanDetail) {
 
 const columns = [
   {
+    name: 'Rank',
+    key:'rank'
+  },
+  {
     name: 'Member',
     key: 'player_name'
   },
@@ -51,9 +55,20 @@ const columns = [
         v-if="collectionLogLeaderboard !== undefined"
         :columns="columns"
         :data="collectionLogLeaderboard"
-
       >
-
+        <template #row-item="{item, column, index}" >
+          <div class="text-sma md:text-base">
+            <span v-if="column.key == 'rank'">
+              {{index + 1}}
+            </span>
+            <span v-else-if="column.key == 'total'">
+              {{item[column.key].toLocaleString()}}
+            </span>
+            <span v-else>
+              {{item[column.key]}}
+            </span>
+          </div>
+        </template>
       </DataTable>
     </div>
   </div>
