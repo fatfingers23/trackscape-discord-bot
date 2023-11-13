@@ -1,6 +1,7 @@
 use crate::database::ClanMateCollectionLogTotalsDb;
 use anyhow::Error;
 use async_trait::async_trait;
+use futures::TryStreamExt;
 use log::info;
 use mockall::automock;
 use mongodb::bson::{doc, DateTime};
@@ -28,6 +29,12 @@ impl ClanMateCollectionLogTotalModel {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ClanMateCollectionLogTotalsView {
+    pub player_name: String,
+    pub total: i64,
+}
+
 #[automock]
 #[async_trait]
 pub trait ClanMateCollectionLogTotals {
@@ -39,6 +46,11 @@ pub trait ClanMateCollectionLogTotals {
         player_id: bson::oid::ObjectId,
         total: i64,
     ) -> Result<(), anyhow::Error>;
+
+    async fn get_guild_totals(
+        &self,
+        guild_id: u64,
+    ) -> Result<Vec<ClanMateCollectionLogTotalsView>, anyhow::Error>;
 }
 
 #[async_trait]
@@ -83,5 +95,64 @@ impl ClanMateCollectionLogTotals for ClanMateCollectionLogTotalsDb {
             .await
             .expect("Error inserting new collection log total.");
         Ok(())
+    }
+
+    async fn get_guild_totals(
+        &self,
+        guild_id: u64,
+    ) -> Result<Vec<ClanMateCollectionLogTotalsView>, anyhow::Error> {
+        let collection = self.db.collection::<ClanMateCollectionLogTotalModel>(
+            ClanMateCollectionLogTotalModel::COLLECTION_NAME,
+        );
+
+        let filter = doc! {
+            "guild_id": bson::to_bson(&guild_id).unwrap(),
+        };
+
+        let mut cursor = collection
+            .aggregate(
+                vec![
+                    doc! {
+                        "$match": filter
+                    },
+                    doc! {
+                        "$lookup": {
+                            "from": "clan_mates",
+                            "localField": "player_id",
+                            "foreignField": "_id",
+                            "as": "clan_mate"
+                        }
+                    },
+                    doc! {
+                        "$unwind": "$clan_mate"
+                    },
+                    doc! {
+                        "$project": {
+                            "player_name": "$clan_mate.player_name",
+                            "total": 1
+                        }
+                    },
+                    doc! {
+                        "$sort": {
+                            "total": -1
+                        }
+                    },
+                ],
+                None,
+            )
+            .await?;
+
+        let mut results: Vec<ClanMateCollectionLogTotalsView> = Vec::new();
+
+        // Iterate through the results and map them to the struct
+        while let Some(result) = cursor.try_next().await? {
+            if let Ok(view) =
+                bson::from_bson::<ClanMateCollectionLogTotalsView>(bson::Bson::Document(result))
+            {
+                results.push(view);
+            }
+        }
+
+        return Ok(results);
     }
 }

@@ -6,13 +6,11 @@ import TrackscapeApiClient from "@/services/TrackscapeApiClient";
 import {ref} from "vue";
 import type {ClanDetail} from "@/services/TrackscapeApiTypes";
 import DiscordWidget from "@/components/DiscordWidget.vue";
-import DataTable from "@/components/DataTable.vue";
 
 let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 
 const route = useRoute()
 const clanId = route.params.clanId as string;
-
 
 let clanDetail = ref<ClanDetail>()
 
@@ -33,18 +31,15 @@ client.getClanDetail(clanId).then((clan) => {
 const tabMenus = [
   {
     name: 'Members',
-    path: 'clan-detail',
+    routeName: 'members',
     active: true
   },
   {
     name: 'Collection Logs',
-    path: 'clan-detail',
+    routeName: 'collection-log',
     active: false
   },
 ]
-
-
-
 
 </script>
 
@@ -91,9 +86,10 @@ const tabMenus = [
       :discord_id="clanDetail?.discord_guild_id" />
     <div
       class="pt-3 pb-3 tabs tabs-bordered min-w-full">
-      <a v-for="(tabMenu,index) in tabMenus"
-         :key="index"
-         :class="['tab', {'tab-active': tabMenu.active}]">{{tabMenu.name}}</a>
+      <router-link v-for="(tabMenu,index) in tabMenus"
+                   :key="index"
+                   :to="{name: tabMenu.routeName, params: {clanId: clanId}}"
+                   :class="['tab', {'tab-active': route.name === tabMenu.routeName}]">{{tabMenu.name}}</router-link>
     </div>
 
     <router-view v-slot="{ Component}" >

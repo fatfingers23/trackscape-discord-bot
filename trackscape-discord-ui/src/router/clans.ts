@@ -13,9 +13,14 @@ export default [
         children: [
             {
                 path: "",
-                name: "clan-detail",
-                component: () => import('@/views/clans/clan/ClanDetailView.vue'),
-                children: []
+                name: "members",
+                component: () => import('@/views/clans/clan/MembersView.vue'),
+
+            },
+            {
+                path: "collectionlog",
+                name: "collection-log",
+                component: () => import('@/views/clans/clan/CollectionLogLeaderboardView.vue'),
             }
         ]
 

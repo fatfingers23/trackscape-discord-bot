@@ -31,7 +31,7 @@ let displayedClans = computed(() => {
       class="input input-bordered w-full md:max-w-md max-w-full" />
   </PageTitle>
 
-  
+
   <TransitionGroup name="list"
                    tag="div"
                    class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -45,13 +45,13 @@ let displayedClans = computed(() => {
 
           <!--            <p>Clan info</p>-->
           <div class="card-actions justify-end">
-            <router-link :to="{name: 'clan-detail', params: {clanId: clan.id}}"
+            <router-link :to="{name: 'members', params: {clanId: clan.id}}"
                          class="btn ">View</router-link>
 
           </div>
         </div>
       </div>
-      <router-view></router-view>
+      <!--      <router-view></router-view>-->
     </div>
   </TransitionGroup>
 

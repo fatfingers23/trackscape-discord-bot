@@ -27,9 +27,15 @@ type ClanDetail = {
     members: ClanMate[]
 }
 
+type ClanMateCollectionLogTotalsView = {
+    player_name: string,
+    total: number,
+}
+
 export type {
     BotInfo,
     Clan,
     ClanDetail,
-    ClanMate
+    ClanMate,
+    ClanMateCollectionLogTotalsView
 };

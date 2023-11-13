@@ -21,7 +21,9 @@ import NavMenu from "@/components/nav-menu.vue";
                src="@/assets/img/Trackscape_Logo_icon.png"
                alt="Trackscape logo"/>
         </div>
-        <p>Trackscape.<br>OSRS tooling for clans!</p>
+        <p>Trackscape<br>OSRS tooling for clans!</p>
+        <a class="link"
+           href="https://github.com/fatfingers23/trackscape-discord-bot">Just show me the code</a>
       </div>
 
     </footer>

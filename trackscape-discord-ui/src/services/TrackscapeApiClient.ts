@@ -1,4 +1,4 @@
-import type {BotInfo, Clan, ClanDetail} from "@/services/TrackscapeApiTypes";
+import type {BotInfo, Clan, ClanDetail, ClanMateCollectionLogTotalsView} from "@/services/TrackscapeApiTypes";
 
 export default class TrackscapeApiClient {
 
@@ -23,6 +23,10 @@ export default class TrackscapeApiClient {
 
     public async getClanDetail(clanId: string): Promise<ClanDetail> {
         return this.get<ClanDetail>(`/clans/${clanId}/detail`);
+    }
+
+    public async getCollectionLogLeaderboard(clanId: string): Promise<ClanMateCollectionLogTotalsView[]> {
+        return this.get<ClanMateCollectionLogTotalsView[]>(`/clans/${clanId}/collection-log`);
     }
 
 }

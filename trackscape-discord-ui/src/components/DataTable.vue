@@ -28,6 +28,9 @@
 
   let filteredData = computed(() => {
     return props.data.filter((item) => {
+      if (props.searchField === "") {
+        return true;
+      }
       return item[props.searchField].toLowerCase().includes(searchedTerm.value.toLowerCase());
     });
   });
