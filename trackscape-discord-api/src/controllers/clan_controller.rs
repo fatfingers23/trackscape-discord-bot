@@ -1,11 +1,9 @@
 use actix_web::{get, web, Error, HttpResponse, Scope};
-use bson::Bson::ObjectId;
 use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use trackscape_discord_shared::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotals;
 use trackscape_discord_shared::database::clan_mates::{ClanMateModel, ClanMates};
-use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
 use trackscape_discord_shared::database::BotMongoDb;
 use web::Data;
 

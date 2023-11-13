@@ -6,4 +6,4 @@ Secrets.dev.toml
 .env
 .DS_Store
 .shuttle-storage
-trackscape-discord-api/ui
+#trackscape-discord-api/ui
