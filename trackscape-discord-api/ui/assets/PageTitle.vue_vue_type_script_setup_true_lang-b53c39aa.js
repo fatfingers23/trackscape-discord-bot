@@ -1,1 +1,0 @@
-import{d as o,b as a,h as e,t as l,z as n,o as r}from"./index-7d450bd6.js";const i={class:"text-left md:my-8 my-4"},d={class:"text-4xl font-bold mb-3"},c=e("div",{class:"divider"},null,-1),p=o({__name:"PageTitle",props:{title:{type:String,required:!0}},setup(t){return(s,_)=>(r(),a("div",i,[e("h1",d,l(t.title),1),c,n(s.$slots,"default")]))}});export{p as _};
