@@ -35,7 +35,6 @@ let open = ref(false);
             </div>
             Trackscape
           </router-link>
-
         </li>
         <li class="divider-accent"></li>
         <nav-items @click="open = false"/>
