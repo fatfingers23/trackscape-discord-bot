@@ -5,22 +5,25 @@ on: [ push, pull_request ]
 name: PushCheck
 
 jobs:
-  lint-frontend:
-    name: Lint Frontend
+  check-frontend:
+    name: Check Frontend
     runs-on: ubuntu-latest
-    strategy:
-        matrix:
-            node-version: [20.x, 21.x]
+    env:
+      working-directory: ./trackscape-discord-ui
     steps:
-      - uses: actions/checkout@v3
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-        run: |
-          npm install
-          npm run lint
-        working-directory: ./trackscape-discord-ui
+          node-version: 20
+      - name: Npm Install
+        working-directory: ${{ env.working-directory }}
+        run: npm install
+      - name: Npm Lint
+        working-directory: ${{ env.working-directory }}
+        run: npm run lint
+      - name: Npm Build
+        working-directory: ${{ env.working-directory }}
+        run: npm run build
 
   check-backend:
     name: Check Backend
