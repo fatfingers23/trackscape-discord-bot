@@ -18,6 +18,6 @@ export default defineConfig({
     }
   },
   build:{
-    outDir: '../trackscape-discord-api/ui'
+    // outDir: '../trackscape-discord-api/ui'
   }
 })

@@ -28,6 +28,7 @@ type ClanDetail = {
 }
 
 type ClanMateCollectionLogTotalsView = {
+    rank: number,
     player_name: string,
     total: number,
 }

@@ -1,12 +1,32 @@
 # Based on https://github.com/actions-rs/meta/blob/master/recipes/quickstart.md
 
-on: [push, pull_request]
+on: [ push, pull_request ]
 
 name: PushCheck
 
 jobs:
-  check:
-    name: Check
+  check-frontend:
+    name: Check Frontend
+    runs-on: ubuntu-latest
+    env:
+      working-directory: ./trackscape-discord-ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Npm Install
+        working-directory: ${{ env.working-directory }}
+        run: npm install
+      - name: Npm Lint
+        working-directory: ${{ env.working-directory }}
+        run: npm run lint
+      - name: Npm Build
+        working-directory: ${{ env.working-directory }}
+        run: npm run build
+
+  check-backend:
+    name: Check Backend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
@@ -24,8 +44,8 @@ jobs:
         with:
           command: check
 
-  test:
-    name: Test Suite
+  test-backend:
+    name: Test Backend
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources

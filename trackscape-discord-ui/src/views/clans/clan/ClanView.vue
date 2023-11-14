@@ -81,7 +81,7 @@ const tabMenus = [
 
   <div class="container bg-base-200">
     <DiscordWidget
-      class=""
+      class="mx-3"
       v-if="clanDetail !== undefined"
       :discord_id="clanDetail?.discord_guild_id" />
     <div

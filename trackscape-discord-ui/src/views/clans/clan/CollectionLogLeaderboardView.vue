@@ -16,7 +16,12 @@ const props = defineProps({
 })
 
 const callEndpoint = (id: string) => client.getCollectionLogLeaderboard(id).then((leaderboard) => {
-  collectionLogLeaderboard.value = leaderboard;
+  let rank = 1;
+  leaderboard.map((item) => {
+    item.rank = rank;
+    rank++;
+  });
+  collectionLogLeaderboard.value = leaderboard
 });
 
 
@@ -50,18 +55,16 @@ const columns = [
 <template>
   <div v-if="props.clanDetail !== undefined"
        class="p-5 shadow-xl bg-base-100 " >
-    <div class="overflow-x-auto">
+    <div class="">
       <DataTable
         v-if="collectionLogLeaderboard !== undefined"
         :columns="columns"
         :data="collectionLogLeaderboard"
+        search-field="player_name"
       >
-        <template #row-item="{item, column, index}" >
+        <template #row-item="{item, column}" >
           <div class="text-sma md:text-base">
-            <span v-if="column.key == 'rank'">
-              {{index + 1}}
-            </span>
-            <span v-else-if="column.key == 'total'">
+            <span v-if="column.key == 'total'">
               {{item[column.key].toLocaleString()}}
             </span>
             <span v-else>
