@@ -5,6 +5,7 @@ import type {PropType} from "vue";
 import {useRoute} from "vue-router";
 import {ref} from "vue";
 import DataTable from "@/components/DataTable.vue";
+import SkeletonTable from "@/components/SkeletonTable.vue";
 
 const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 
@@ -56,27 +57,47 @@ const columns = [
   <div v-if="props.clanDetail !== undefined"
        class="p-5 shadow-xl bg-base-100 " >
     <div class="">
-      <DataTable
-        v-if="collectionLogLeaderboard !== undefined"
-        :columns="columns"
-        :data="collectionLogLeaderboard"
-        search-field="player_name"
-      >
-        <template #row-item="{item, column}" >
-          <div class="text-sma md:text-base">
-            <span v-if="column.key == 'total'">
-              {{item[column.key].toLocaleString()}}
-            </span>
-            <span v-else>
-              {{item[column.key]}}
-            </span>
-          </div>
-        </template>
-      </DataTable>
+      <TransitionGroup name="slide-fade">
+
+        <SkeletonTable v-if="collectionLogLeaderboard === undefined"
+                       :search-field="true"
+                       :columns="3"/>
+
+
+        <DataTable
+          v-if="collectionLogLeaderboard !== undefined"
+          :columns="columns"
+          :data="collectionLogLeaderboard"
+          search-field="player_name"
+        >
+          <template #row-item="{item, column}" >
+            <div class="text-sma md:text-base">
+              <span v-if="column.key == 'total'">
+                {{item[column.key].toLocaleString()}}
+              </span>
+              <span v-else>
+                {{item[column.key]}}
+              </span>
+            </div>
+          </template>
+        </DataTable>
+      </TransitionGroup>
     </div>
   </div>
 </template>
 
 <style scoped>
+.slide-fade-enter-active {
+  transition: all 0.5s ease-in;
+}
 
+.slide-fade-leave-active {
+  transition: all 0.5s cubic-bezier(1, 0.5, 0.8, 1);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateX(-20px);
+  opacity: 0;
+}
 </style>

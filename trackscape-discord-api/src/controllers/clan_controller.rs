@@ -1,7 +1,9 @@
 use actix_web::{get, web, Error, HttpResponse, Scope};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
+use serenity::model::guild::Action::Thread;
 use std::str::FromStr;
+use tokio::time::{sleep, Sleep};
 use trackscape_discord_shared::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotals;
 use trackscape_discord_shared::database::clan_mates::{ClanMateModel, ClanMates};
 use trackscape_discord_shared::database::BotMongoDb;
@@ -105,7 +107,7 @@ async fn collection_log(
     mongodb: Data<BotMongoDb>,
     path: web::Path<(String,)>,
 ) -> Result<HttpResponse, Error> {
-    info!("{:?}", path);
+    sleep(std::time::Duration::from_secs(1)).await;
     let id = path.into_inner().0;
     let possible_parsed_id = bson::oid::ObjectId::from_str(id.as_str());
     let id = match possible_parsed_id {
