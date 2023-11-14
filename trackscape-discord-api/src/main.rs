@@ -105,6 +105,21 @@ async fn actix_web(
 
     let _ = spawn(chat_server.run());
 
+    let celery = celery::app!(
+        broker = RedisBroker { std::env::var("REDIS_ADDR").unwrap_or_else(|_| "redis://127.0.0.1:6379/".into()) },
+        // broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://127.0.0.1:5672".into()) },
+        tasks = [
+            trackscape_discord_shared::jobs::add_job::run,
+        ],
+        // This just shows how we can route certain tasks to certain queues based
+        // on glob matching.
+        task_routes = [
+            "*" => "celery",
+        ],
+        prefetch_count = 2,
+        heartbeat = Some(10),
+    ).await.expect("Error creating celery job client");
+
     let config = move |cfg: &mut ServiceConfig| {
         cfg.service(
             web::scope("/api")
@@ -127,6 +142,7 @@ async fn actix_web(
         .app_data(web::Data::new(HttpBuilder::new(discord_token).build()))
         .app_data(web::Data::new(db))
         .app_data(web::Data::new(persist.clone()))
+        .app_data(web::Data::new(celery.clone()))
         .default_service(web::route().guard(guard::Not(guard::Get())).to(index));
     };
 

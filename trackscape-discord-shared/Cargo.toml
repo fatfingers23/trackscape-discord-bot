@@ -23,6 +23,7 @@ log = "0.4.20"
 async-trait = "0.1.73"
 mockall = "0.11.4"
 anyhow = "1.0.75"
+celery = "0.5.5"
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"

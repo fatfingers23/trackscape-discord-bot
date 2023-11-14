@@ -3,6 +3,7 @@ members = [
     "trackscape-discord-api",
     "trackscape-discord-bot",
     "trackscape-discord-shared",
+    "trackscape-discord-job-worker"
 ]
 
 [workspace.package]

@@ -28,8 +28,22 @@ services:
     command: "cargo shuttle run --release --external --working-directory /app"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+  redis:
+    image: 'redis:alpine'
+    ports:
+      - '${FORWARD_REDIS_PORT:-6379}:6379'
+    volumes:
+      - 'trackscape-redis:/data'
+    networks:
+      - trackscape-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      retries: 3
+      timeout: 5s
 volumes:
     trackscape-db:
+      driver: local
+    trackscape-redis:
       driver: local
 networks:
     trackscape-network:
