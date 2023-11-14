@@ -14,7 +14,6 @@ let open = ref(false);
       class="drawer-toggle" />
     <div class="drawer-content">
       <slot name="content"></slot>
-
     </div>
     <div class="drawer-side">
       <label for="mobile-drawer"
@@ -30,7 +29,6 @@ let open = ref(false);
             to="/"
             tabindex="0"
             class="btn-circle avatar">
-
             <div class="w-10 rounded-full">
               <img src="@/assets/img/Trackscape_Logo_icon.png"
                    alt="Small circle trackscape icon"/>

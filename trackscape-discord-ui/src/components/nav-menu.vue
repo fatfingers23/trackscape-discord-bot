@@ -29,7 +29,7 @@ import NavItems from "@/components/NavItems.vue";
         </div>
       </router-link>
       <router-link to="/"
-                   class="btn btn-ghost normal-case text-xl md:visible invisible md:visible invisible">Trackscape</router-link>
+                   class="btn btn-ghost normal-case text-xl md:visible  invisible">Trackscape</router-link>
 
 
 
@@ -37,7 +37,9 @@ import NavItems from "@/components/NavItems.vue";
     <div class="navbar-end md:flex">
       <ul class="menu menu-horizontal p-0 hidden lg:flex">
         <nav-items/>
+
       </ul>
+
     </div>
   </div>
 
