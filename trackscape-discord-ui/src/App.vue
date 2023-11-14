@@ -2,7 +2,7 @@
 import { RouterView } from 'vue-router'
 
 import NavMenu from "@/components/nav-menu.vue";
-import Drawer from "@/components/Drawer.vue";
+import Drawer from "@/components/NavDrawer.vue";
 </script>
 
 <template>
