@@ -12,9 +12,9 @@ const props = defineProps({
 
   <div class="text-left md:my-8 my-4 ">
     <h1 class="text-4xl font-bold mb-3">
-      {{title}}
+      {{props.title}}
     </h1>
-    <div class="divider"></div>
+    <div class="divider divider-accent"></div>
     <slot></slot>
   </div>
 </template>
