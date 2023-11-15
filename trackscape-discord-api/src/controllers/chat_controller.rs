@@ -1,13 +1,19 @@
 use crate::cache::Cache;
+use crate::services::osrs_broadcast_handler::OSRSBroadcastHandler;
 use crate::websocket_server::DiscordToClanChatMessage;
 use crate::{handler, ChatServerHandle};
+use actix_web::web::Data;
 use actix_web::{error, post, web, Error, HttpRequest, HttpResponse, Scope};
-use log::info;
+use celery::error::CeleryError;
+use celery::task::AsyncResult;
+use celery::Celery;
+use log::{error, info};
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
 use serenity::json;
 use serenity::json::Value;
 use shuttle_persist::PersistInstance;
+use std::sync::Arc;
 use tokio::task::spawn_local;
 use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::GeItemMapping;
@@ -15,8 +21,6 @@ use trackscape_discord_shared::helpers::hash_string;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     get_wiki_clan_rank_image_url, ClanMessage,
 };
-
-use crate::services::osrs_broadcast_handler::OSRSBroadcastHandler;
 use trackscape_discord_shared::wiki_api::wiki_api::WikiQuest;
 
 #[derive(Debug)]
@@ -80,6 +84,7 @@ async fn new_clan_chats(
     new_chat: web::Json<Vec<ClanMessage>>,
     mongodb: web::Data<BotMongoDb>,
     persist: web::Data<PersistInstance>,
+    celery: Data<Arc<Celery>>,
 ) -> actix_web::Result<String> {
     let possible_verification_code = req.headers().get("verification-code");
     if let None = possible_verification_code {
@@ -171,6 +176,24 @@ async fn new_clan_chats(
         }
         //Checks to see if it is a clan broadcast. Clan name and sender are the same if so
         if chat.sender != chat.clan_name {
+            let job_result = celery
+                .send_task(
+                    trackscape_discord_shared::jobs::update_create_clanmate_job::update_create_clanmate::new(
+                        chat.sender.clone(),
+                        chat.rank.clone(),
+                        registered_guild.guild_id,
+                    ),
+                )
+                .await;
+            println!("running job");
+            match job_result {
+                Ok(_) => {
+                    info!("It worked")
+                }
+                Err(err) => {
+                    error!("It failed: {}", err)
+                }
+            }
             continue;
         }
 

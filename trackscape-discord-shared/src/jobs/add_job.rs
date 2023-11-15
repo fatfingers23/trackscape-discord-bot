@@ -1,4 +1,3 @@
-use anyhow::Result;
 use celery::prelude::*;
 
 #[celery::task]

@@ -1,8 +1,10 @@
 use anyhow::Result;
+use dotenv::dotenv;
 use env_logger::Env;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    dotenv().ok();
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     let my_app = celery::app!(
@@ -10,6 +12,7 @@ async fn main() -> Result<()> {
         // broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://127.0.0.1:5672".into()) },
         tasks = [
             trackscape_discord_shared::jobs::add_job::run,
+            trackscape_discord_shared::jobs::update_create_clanmate_job::update_create_clanmate,
         ],
         // This just shows how we can route certain tasks to certain queues based
         // on glob matching.

@@ -13,7 +13,9 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
   shuttle:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - '8000:8000'
       - '8001:8001'
@@ -21,11 +23,30 @@ services:
       MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@host.docker.internal:27017'
       DISCORD_TOKEN: '${DISCORD_TOKEN}'
       TRACKSCAPE_API_BASE: '${TRACKSCAPE_API_BASE}'
+      REDIS_ADDR: '${REDIS_ADDR}'
     depends_on:
       - mongo
+      - redis
     networks:
       - trackscape-network
     command: "cargo shuttle run --release --external --working-directory /app"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  worker:
+    build:
+      context: .
+      dockerfile: Worker.Dockerfile
+    environment:
+      MONGO_DB_URL: 'mongodb://host.docker.internal:27017'
+      DISCORD_TOKEN: '${DISCORD_TOKEN}'
+      TRACKSCAPE_API_BASE: '${TRACKSCAPE_API_BASE}'
+      REDIS_ADDR: '${REDIS_ADDR}'
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - trackscape-network
+    command: ""
     extra_hosts:
       - "host.docker.internal:host-gateway"
   redis:
