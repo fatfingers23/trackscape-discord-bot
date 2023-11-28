@@ -5,6 +5,7 @@ members = [
     "trackscape-discord-shared",
     "trackscape-discord-job-worker"
 ]
+resolver = "2"
 
 [workspace.package]
 edition = "2021"

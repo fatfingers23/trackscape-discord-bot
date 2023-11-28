@@ -36,8 +36,11 @@ pub async fn update_create_clanmate(
 
     let possible_player_cache: RedisResult<String> =
         redis_connection.get(format!("players:{}", player_name.clone()));
+
     let player_cache = match possible_player_cache {
-        Ok(player_cache) => player_cache,
+        Ok(player_cache) => {
+            println!("Player cache: {:?}", player_cache);
+        }
         Err(err) => {
             error!("Failed to get player cache: {:?}", err);
             return Ok(0);
