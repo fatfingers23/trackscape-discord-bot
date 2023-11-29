@@ -1,12 +1,9 @@
-use crate::database::BotMongoDb;
+use crate::database::clan_mates::{ClanMateModel, ClanMates};
 use crate::jobs::job_helpers::{get_mongodb, get_redis_client};
-use anyhow::Error;
 use celery::prelude::*;
-use redis::{Commands, JsonCommands, RedisResult, ToRedisArgs};
-use redis_macros::{FromRedisValue, Json, ToRedisArgs};
+use redis::{Commands, Connection, RedisResult};
+use redis_macros::FromRedisValue;
 use serde::{Deserialize, Serialize};
-use std::env;
-use tracing::error;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRedisValue)]
 struct CachedPlayer {
@@ -16,6 +13,8 @@ struct CachedPlayer {
     pub player_id: String,
 }
 
+///
+/// Adds clan mates to the guild if they're not there already, and updates their rank if it's changed.
 #[celery::task]
 pub async fn update_create_clanmate(
     player_name: String,
@@ -28,25 +27,95 @@ pub async fn update_create_clanmate(
 
     let does_key_exist = match exists {
         Ok(exists) => exists,
-        Err(_) => return Ok(0),
-    };
-
-    let cached_entry: RedisResult<String> =
-        redis_connection.set_ex(redis_key.clone(), "test", 3600);
-
-    let possible_player_cache: RedisResult<String> =
-        redis_connection.get(format!("players:{}", player_name.clone()));
-
-    let player_cache = match possible_player_cache {
-        Ok(player_cache) => {
-            println!("Player cache: {:?}", player_cache);
-        }
         Err(err) => {
-            error!("Failed to get player cache: {:?}", err);
+            println!("Failed to check if key exists: {:?}", err);
             return Ok(0);
         }
     };
     let mongodb = get_mongodb().await;
-    println!("Hello from the job!");
+
+    match does_key_exist {
+        true => {
+            let possible_player_cache: RedisResult<String> =
+                redis_connection.get(redis_key.clone());
+            match possible_player_cache {
+                Ok(cached_player) => {
+                    let mut serialized_player: ClanMateModel =
+                        serde_json::from_str(&cached_player).unwrap();
+
+                    if serialized_player.rank.is_none() {
+                        serialized_player.rank = Some(rank.clone());
+                    }
+                    if serialized_player.rank.clone().unwrap() == rank {
+                        //No need to update rank is the same
+                        return Ok(0);
+                    }
+
+                    serialized_player.rank = Some(rank.clone());
+                    mongodb
+                        .clan_mates
+                        .update_clan_mate(serialized_player.clone())
+                        .await
+                        .unwrap();
+                    write_to_cache(&mut redis_connection, redis_key, serialized_player).await;
+                }
+                Err(err) => {
+                    println!("Failed to get player cache: {:?}", err);
+                }
+            }
+        }
+        false => {
+            let possible_saved_player = mongodb
+                .clan_mates
+                .find_or_create_clan_mate(guild_id, player_name.clone())
+                .await;
+
+            match possible_saved_player {
+                Ok(mut saved_player) => {
+                    if saved_player.rank.is_none() {
+                        saved_player.rank = Some(rank.clone());
+
+                        mongodb
+                            .clan_mates
+                            .update_clan_mate(saved_player.clone())
+                            .await
+                            .unwrap();
+
+                        write_to_cache(&mut redis_connection, redis_key, saved_player.clone())
+                            .await;
+                    }
+
+                    if saved_player.rank.clone().unwrap() == rank {
+                        //No need to update rank is the same
+                        return Ok(0);
+                    }
+
+                    saved_player.rank = Some(rank.clone());
+                    mongodb
+                        .clan_mates
+                        .update_clan_mate(saved_player)
+                        .await
+                        .unwrap();
+                }
+                Err(err) => {
+                    println!("Failed to save or create player: {:?}", err);
+                }
+            }
+        }
+    }
+
+    println!("update create clan mate job finished");
     Ok(4)
+}
+
+async fn write_to_cache(
+    redis_connection: &mut Connection,
+    redis_key: String,
+    updated_player: ClanMateModel,
+) {
+    let _: RedisResult<String> = redis_connection.set_ex(
+        redis_key.clone(),
+        serde_json::to_string(&updated_player).unwrap(),
+        3600,
+    );
 }

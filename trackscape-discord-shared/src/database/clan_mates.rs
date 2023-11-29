@@ -64,6 +64,8 @@ pub trait ClanMates {
         player_name: String,
     ) -> Result<Option<ClanMateModel>, anyhow::Error>;
 
+    async fn update_clan_mate(&self, model: ClanMateModel) -> Result<ClanMateModel, anyhow::Error>;
+
     async fn get_clan_member_count(&self, guild_id: u64) -> Result<u64, Error>;
 
     async fn get_clan_mates_by_guild_id(&self, guild_id: u64) -> Result<Vec<ClanMateModel>, Error>;
@@ -130,6 +132,17 @@ impl ClanMates for ClanMatesDb {
         };
         let result = collection.find_one(filter, None).await?;
         Ok(result)
+    }
+
+    async fn update_clan_mate(&self, model: ClanMateModel) -> Result<ClanMateModel, Error> {
+        let collection = self
+            .db
+            .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
+        let filter = doc! {
+            "_id": bson::to_bson(&model.id).unwrap(),
+        };
+        let _ = collection.replace_one(filter, model.clone(), None).await?;
+        Ok(model)
     }
 
     async fn get_clan_member_count(&self, guild_id: u64) -> Result<u64, Error> {

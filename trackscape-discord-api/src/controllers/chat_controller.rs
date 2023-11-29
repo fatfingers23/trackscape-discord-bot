@@ -176,7 +176,8 @@ async fn new_clan_chats(
         }
         //Checks to see if it is a clan broadcast. Clan name and sender are the same if so
         if chat.sender != chat.clan_name {
-            let job_result = celery
+            //Starts a job to either add the clan mate if not added to guild, or check for rank change
+            let _ = celery
                 .send_task(
                     trackscape_discord_shared::jobs::update_create_clanmate_job::update_create_clanmate::new(
                         chat.sender.clone(),
@@ -185,18 +186,9 @@ async fn new_clan_chats(
                     ),
                 )
                 .await;
-            println!("running job");
-            match job_result {
-                Ok(_) => {
-                    info!("It worked")
-                }
-                Err(err) => {
-                    error!("It failed: {}", err)
-                }
-            }
-            continue;
         }
 
+        //TODO may remove this since the handler does some loging for the website now
         if registered_guild.broadcast_channel.is_none()
             && registered_guild.clan_chat_channel.is_none()
         {
