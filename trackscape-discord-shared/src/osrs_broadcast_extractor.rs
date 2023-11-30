@@ -230,6 +230,8 @@ pub mod osrs_broadcast_extractor {
         XPMilestone,
         LevelMilestone,
         CollectionLog,
+        LeftTheClan,
+        ExpelledFromClan,
         Unknown,
     }
 
@@ -248,6 +250,8 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::LevelMilestone => "Level Milestone".to_string(),
                 BroadcastType::CollectionLog => "Collection Log".to_string(),
                 BroadcastType::Unknown => "Unknown".to_string(),
+                BroadcastType::LeftTheClan => "Left The Clan".to_string(),
+                BroadcastType::ExpelledFromClan => "Expelled From Clan".to_string(),
             }
         }
 
@@ -491,6 +495,31 @@ pub mod osrs_broadcast_extractor {
         None
     }
 
+    pub fn left_the_clan_broadcast_extractor(message: String) -> Option<String> {
+        let re = regex::Regex::new(r"^(?P<player>[\w\s]+) has left the clan.$").unwrap();
+
+        if let Some(captures) = re.captures(message.as_str()) {
+            let name = captures.name("player").unwrap().as_str();
+
+            return Some(name.to_string());
+        }
+        None
+    }
+
+    pub fn expelled_from_clan_broadcast_extractor(message: String) -> Option<String> {
+        let re = regex::Regex::new(
+            r"^(?P<mod>[\w\s]+) has expelled (?P<player>[\w\s]+) from the clan.$",
+        )
+        .unwrap();
+
+        if let Some(captures) = re.captures(message.as_str()) {
+            let name = captures.name("player").unwrap().as_str();
+
+            return Some(name.to_string());
+        }
+        None
+    }
+
     pub fn get_broadcast_type(message_content: String) -> BroadcastType {
         if message_content.contains("received a drop:") {
             return BroadcastType::ItemDrop;
@@ -522,11 +551,15 @@ pub mod osrs_broadcast_extractor {
         if message_content.contains("has reached") && message_content.contains("XP in") {
             return BroadcastType::XPMilestone;
         }
-
         if message_content.contains("received a new collection log item:") {
             return BroadcastType::CollectionLog;
         }
-
+        if message_content.contains("has left the clan.") {
+            return BroadcastType::LeftTheClan;
+        }
+        if message_content.contains("has expelled") && message_content.contains("from the clan.") {
+            return BroadcastType::ExpelledFromClan;
+        }
         return BroadcastType::Unknown;
     }
 
@@ -715,6 +748,32 @@ mod tests {
             assert!(matches!(
                 broadcast_type,
                 osrs_broadcast_extractor::BroadcastType::CollectionLog
+            ));
+        }
+    }
+
+    #[test]
+    fn test_get_left_the_clan_type_broadcast() {
+        let test_left_the_clan = get_has_left_the_clan_messages();
+        for test_left_the_clan in test_left_the_clan {
+            let broadcast_type =
+                osrs_broadcast_extractor::get_broadcast_type(test_left_the_clan.message);
+            assert!(matches!(
+                broadcast_type,
+                osrs_broadcast_extractor::BroadcastType::LeftTheClan
+            ));
+        }
+    }
+
+    #[test]
+    fn test_get_expelled_from_clan_type_broadcast() {
+        let test_expelled_from_clan = get_expelled_from_clan_messages();
+        for test_expelled_from_clan in test_expelled_from_clan {
+            let broadcast_type =
+                osrs_broadcast_extractor::get_broadcast_type(test_expelled_from_clan.message);
+            assert!(matches!(
+                broadcast_type,
+                osrs_broadcast_extractor::BroadcastType::ExpelledFromClan
             ));
         }
     }
@@ -1081,6 +1140,32 @@ mod tests {
             rank_image,
             "https://oldschool.runescape.wiki/images/Clan_icon_-_Deputy_owner.png".to_string()
         );
+    }
+
+    #[test]
+    fn test_left_clan_extractor() {
+        let test_left_clan = get_has_left_the_clan_messages();
+        for test_left_clan in test_left_clan {
+            let possible_left_clan_extract =
+                osrs_broadcast_extractor::left_the_clan_broadcast_extractor(
+                    test_left_clan.message.clone(),
+                );
+            let player_who_left = possible_left_clan_extract.unwrap();
+            assert_eq!(player_who_left, test_left_clan.broadcast);
+        }
+    }
+
+    #[test]
+    fn test_expelled_from_clan_extractor() {
+        let test_expelled_from_clan = get_expelled_from_clan_messages();
+        for test_expelled_from_clan in test_expelled_from_clan {
+            let possible_expelled_from_clan_extract =
+                osrs_broadcast_extractor::expelled_from_clan_broadcast_extractor(
+                    test_expelled_from_clan.message.clone(),
+                );
+            let player_who_was_expelled = possible_expelled_from_clan_extract.unwrap();
+            assert_eq!(player_who_was_expelled, test_expelled_from_clan.broadcast);
+        }
     }
 
     //Test data setup
@@ -1736,5 +1821,25 @@ mod tests {
         });
 
         test_collection_messages
+    }
+
+    fn get_has_left_the_clan_messages() -> Vec<TestBroadcast<String>> {
+        let mut test_has_left_the_clan_messages: Vec<TestBroadcast<String>> = Vec::new();
+        test_has_left_the_clan_messages.push(TestBroadcast {
+            message: "RuneScape Player has left the clan.".to_string(),
+            broadcast: "RuneScape Player".to_string(),
+        });
+
+        test_has_left_the_clan_messages
+    }
+
+    fn get_expelled_from_clan_messages() -> Vec<TestBroadcast<String>> {
+        let mut test_expelled_from_clan_messages: Vec<TestBroadcast<String>> = Vec::new();
+        test_expelled_from_clan_messages.push(TestBroadcast {
+            message: "mod has expelled bob joe from the clan.".to_string(),
+            broadcast: "bob joe".to_string(),
+        });
+
+        test_expelled_from_clan_messages
     }
 }

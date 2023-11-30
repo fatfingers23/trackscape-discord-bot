@@ -2,16 +2,6 @@ use crate::database::clan_mates::{ClanMateModel, ClanMates};
 use crate::jobs::job_helpers::{get_mongodb, get_redis_client};
 use celery::prelude::*;
 use redis::{Commands, Connection, RedisResult};
-use redis_macros::FromRedisValue;
-use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRedisValue)]
-struct CachedPlayer {
-    pub player_name: String,
-    pub rank: String,
-    pub guild_id: u64,
-    pub player_id: String,
-}
 
 ///
 /// Adds clan mates to the guild if they're not there already, and updates their rank if it's changed.

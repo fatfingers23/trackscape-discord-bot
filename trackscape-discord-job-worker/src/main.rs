@@ -9,7 +9,6 @@ async fn main() -> Result<()> {
 
     let my_app = celery::app!(
         broker = RedisBroker { std::env::var("REDIS_ADDR").unwrap_or_else(|_| "redis://127.0.0.1:6379/".into()) },
-        // broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://127.0.0.1:5672".into()) },
         tasks = [
             trackscape_discord_shared::jobs::add_job::run,
             trackscape_discord_shared::jobs::update_create_clanmate_job::update_create_clanmate,

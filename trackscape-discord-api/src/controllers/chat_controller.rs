@@ -205,6 +205,8 @@ async fn new_clan_chats(
             .load::<Vec<WikiQuest>>("quests")
             .map_err(|e| info!("Saving Quests Error: {e}"));
 
+        let cloned_celery = Arc::clone(&**celery);
+
         let handler = OSRSBroadcastHandler::new(
             chat.clone(),
             item_mapping_from_state,
@@ -214,6 +216,7 @@ async fn new_clan_chats(
             mongodb.drop_logs.clone(),
             mongodb.clan_mate_collection_log_totals.clone(),
             mongodb.clan_mates.clone(),
+            cloned_celery,
         );
         let possible_broadcast = handler.extract_message().await;
 

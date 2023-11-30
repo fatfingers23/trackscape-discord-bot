@@ -1,10 +1,13 @@
+use celery::Celery;
 use log::error;
 use num_format::{Locale, ToFormattedString};
+use std::sync::Arc;
 use trackscape_discord_shared::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotals;
 use trackscape_discord_shared::database::clan_mates::ClanMates;
 use trackscape_discord_shared::database::drop_logs_db::DropLogs;
 use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
 use trackscape_discord_shared::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
+use trackscape_discord_shared::jobs::add_job;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     collection_log_broadcast_extractor, diary_completed_broadcast_extractor,
     drop_broadcast_extractor, get_broadcast_type, invite_broadcast_extractor,
@@ -26,7 +29,7 @@ pub struct BroadcastMessageToDiscord {
     pub item_quantity: Option<i64>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct OSRSBroadcastHandler<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> {
     clan_message: ClanMessage,
     item_mapping: Option<GeItemMapping>,
@@ -36,6 +39,7 @@ pub struct OSRSBroadcastHandler<T: DropLogs, CL: ClanMateCollectionLogTotals, CM
     drop_log_db: T,
     collection_log_db: CL,
     clan_mates_db: CM,
+    job_queue: Arc<Celery>,
 }
 
 impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastHandler<T, CL, CM> {
@@ -48,6 +52,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
         drop_log_db: T,
         collection_log_db: CL,
         clan_mates_db: CM,
+        job_queue: Arc<Celery>,
     ) -> Self {
         Self {
             clan_message,
@@ -64,11 +69,13 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
             drop_log_db,
             collection_log_db,
             clan_mates_db,
+            job_queue,
         }
     }
 
     pub async fn extract_message(&self) -> Option<BroadcastMessageToDiscord> {
         let broadcast_type = get_broadcast_type(self.clan_message.message.clone());
+        let _ = self.job_queue.send_task(add_job::run::new()).await;
         match broadcast_type {
             BroadcastType::RaidDrop => {
                 let drop_item = raid_broadcast_extractor(self.clan_message.message.clone());
@@ -316,6 +323,8 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                 }
             }
             BroadcastType::CollectionLog => self.collection_log_handler().await,
+            // BroadcastType::LeftTheClan => {}
+            // BroadcastType::ExpelledFromClan => {}
             _ => None,
         }
     }
@@ -404,6 +413,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
             }
         }
     }
+
     fn pk_handler(&self) -> Option<BroadcastMessageToDiscord> {
         let possible_pk_broadcast = pk_broadcast_extractor(self.clan_message.message.clone());
         match possible_pk_broadcast {
