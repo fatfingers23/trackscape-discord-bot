@@ -3,6 +3,7 @@ use celery::error::CeleryError;
 use celery::prelude::Task;
 use celery::task::{AsyncResult, Signature};
 use celery::{error, Celery};
+use mockall::automock;
 use std::sync::Arc;
 
 pub mod add_job;

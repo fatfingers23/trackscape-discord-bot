@@ -650,9 +650,12 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use celery::broker::mock;
-    use celery::CeleryBuilder;
+    use async_trait::async_trait;
+    use celery::error::CeleryError;
+    use celery::prelude::Task;
+    use celery::task::{AsyncResult, Signature};
     use log::info;
+    use mockall::mock;
     use trackscape_discord_shared::database::clan_mate_collection_log_totals::MockClanMateCollectionLogTotals;
     use trackscape_discord_shared::database::clan_mates::MockClanMates;
     use trackscape_discord_shared::database::drop_logs_db::MockDropLogs;
@@ -661,6 +664,23 @@ mod tests {
         DiaryTier, QuestDifficulty,
     };
 
+    mock! {
+        pub JobQueue {
+            async fn send_task<T: Task + 'static>(&self, task_sig: Signature<T>) -> Result<AsyncResult, CeleryError>;
+        }
+    }
+
+    #[async_trait]
+    impl JobQueue for MockJobQueue {
+        async fn send_task<T: Task>(
+            &self,
+            task_sig: Signature<T>,
+        ) -> Result<AsyncResult, CeleryError> {
+            Ok(AsyncResult {
+                task_id: "".to_string(),
+            })
+        }
+    }
     #[tokio::test]
     async fn test_drop_item_handler_no_message_sent() {
         let clan_message = ClanMessage {
@@ -696,7 +716,7 @@ mod tests {
             info!("Should not be calling this function");
         });
 
-        let job_queue = build_basic_celery().await;
+        let mock_job_queue = MockJobQueue::new();
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
@@ -707,7 +727,7 @@ mod tests {
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
-            Arc::from(job_queue),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.drop_item_handler().await;
@@ -757,7 +777,7 @@ mod tests {
             info!("Should not be calling this function");
         });
 
-        let job_queue = build_basic_celery().await;
+        let mock_job_queue = MockJobQueue::new();
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
@@ -768,7 +788,7 @@ mod tests {
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
-            Arc::from(job_queue),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.drop_item_handler().await;
@@ -818,7 +838,7 @@ mod tests {
             info!("Should not be calling this function");
         });
 
-        let job_queue = build_basic_celery().await;
+        let mock_job_queue = MockJobQueue::new();
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
@@ -829,7 +849,7 @@ mod tests {
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
-            Arc::from(job_queue),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.drop_item_handler().await;
@@ -880,7 +900,7 @@ mod tests {
             info!("Should not be calling this function");
         });
 
-        let job_queue = build_basic_celery().await;
+        let mock_job_queue = MockJobQueue::new();
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
@@ -891,7 +911,7 @@ mod tests {
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
-            Arc::from(job_queue),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.drop_item_handler().await;
@@ -942,7 +962,7 @@ mod tests {
             }
         }
 
-        let job_queue = build_basic_celery().await;
+        let mock_job_queue = MockJobQueue::new();
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
@@ -953,7 +973,7 @@ mod tests {
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
-            Arc::from(job_queue),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.quest_handler();
@@ -1003,7 +1023,7 @@ mod tests {
             }
         }
 
-        let job_queue = build_basic_celery().await;
+        let mock_job_queue = MockJobQueue::new();
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
@@ -1014,7 +1034,7 @@ mod tests {
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
-            Arc::from(job_queue),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.quest_handler();
@@ -1060,7 +1080,7 @@ mod tests {
             }
         }
         let quests = Ok(Vec::new());
-        let job_queue = build_basic_celery().await;
+        let mock_job_queue = MockJobQueue::new();
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
@@ -1071,7 +1091,7 @@ mod tests {
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
-            Arc::from(job_queue),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.pk_handler();
@@ -1118,7 +1138,7 @@ mod tests {
             }
         }
 
-        let job_queue = build_basic_celery().await;
+        let mock_job_queue = MockJobQueue::new();
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
@@ -1129,7 +1149,7 @@ mod tests {
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
-            Arc::from(job_queue),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.diary_handler();
@@ -1175,7 +1195,7 @@ mod tests {
             }
         }
 
-        let job_queue = build_basic_celery().await;
+        let mock_job_queue = MockJobQueue::new();
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
@@ -1186,7 +1206,7 @@ mod tests {
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
-            Arc::from(job_queue),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.diary_handler();
@@ -1200,35 +1220,6 @@ mod tests {
                 assert_eq!(true, false);
             }
         }
-    }
-
-    async fn build_basic_celery() -> Arc<Celery> {
-        let broker_url = "mock://localhost:8000";
-        let test = broker_url.split_once("://");
-        println!("{:?}", test);
-        // let celery = CeleryBuilder::new("mock-app", "mock://localhost")
-        //     .build()
-        //     .await
-        //     .unwrap();
-        let mock_broker = mock::MockBroker::new();
-        let celery = celery::app!(
-            // broker = mock::MockBrokerBuilder::new(broker_url),
-            broker = MockBroker { mock_broker },
-            // broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://127.0.0.1:5672".into()) },
-            tasks = [
-
-            ],
-            // This just shows how we can route certain tasks to certain queues based
-            // on glob matching.
-            task_routes = [
-                "*" => "celery",
-            ],
-            prefetch_count = 2,
-            heartbeat = Some(10),
-        )
-        .await
-        .expect("Error creating celery job client");
-        celery
     }
 
     // #[tokio::test]
