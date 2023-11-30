@@ -18,6 +18,7 @@ use tokio::task::spawn_local;
 use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::GeItemMapping;
 use trackscape_discord_shared::helpers::hash_string;
+use trackscape_discord_shared::jobs::CeleryJobQueue;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     get_wiki_clan_rank_image_url, ClanMessage,
 };
@@ -206,6 +207,9 @@ async fn new_clan_chats(
             .map_err(|e| info!("Saving Quests Error: {e}"));
 
         let cloned_celery = Arc::clone(&**celery);
+        let celery_job_queue = Arc::new(CeleryJobQueue {
+            celery: cloned_celery,
+        });
 
         let handler = OSRSBroadcastHandler::new(
             chat.clone(),
@@ -216,7 +220,7 @@ async fn new_clan_chats(
             mongodb.drop_logs.clone(),
             mongodb.clan_mate_collection_log_totals.clone(),
             mongodb.clan_mates.clone(),
-            cloned_celery,
+            celery_job_queue,
         );
         let possible_broadcast = handler.extract_message().await;
 

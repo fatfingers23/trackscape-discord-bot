@@ -7,7 +7,7 @@ use trackscape_discord_shared::database::clan_mates::ClanMates;
 use trackscape_discord_shared::database::drop_logs_db::DropLogs;
 use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
 use trackscape_discord_shared::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
-use trackscape_discord_shared::jobs::add_job;
+use trackscape_discord_shared::jobs::{add_job, JobQueue};
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     collection_log_broadcast_extractor, diary_completed_broadcast_extractor,
     drop_broadcast_extractor, get_broadcast_type, invite_broadcast_extractor,
@@ -30,7 +30,12 @@ pub struct BroadcastMessageToDiscord {
 }
 
 #[derive(Clone)]
-pub struct OSRSBroadcastHandler<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> {
+pub struct OSRSBroadcastHandler<
+    T: DropLogs,
+    CL: ClanMateCollectionLogTotals,
+    CM: ClanMates,
+    J: JobQueue,
+> {
     clan_message: ClanMessage,
     item_mapping: Option<GeItemMapping>,
     quests: Option<Vec<WikiQuest>>,
@@ -39,10 +44,12 @@ pub struct OSRSBroadcastHandler<T: DropLogs, CL: ClanMateCollectionLogTotals, CM
     drop_log_db: T,
     collection_log_db: CL,
     clan_mates_db: CM,
-    job_queue: Arc<Celery>,
+    job_queue: Arc<J>,
 }
 
-impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastHandler<T, CL, CM> {
+impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
+    OSRSBroadcastHandler<T, CL, CM, J>
+{
     pub fn new(
         clan_message: ClanMessage,
         item_mapping_from_state: Result<GeItemMapping, ()>,
@@ -52,7 +59,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
         drop_log_db: T,
         collection_log_db: CL,
         clan_mates_db: CM,
-        job_queue: Arc<Celery>,
+        job_queue: Arc<J>,
     ) -> Self {
         Self {
             clan_message,
@@ -643,6 +650,8 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
 #[cfg(test)]
 mod tests {
     use super::*;
+    use celery::broker::mock;
+    use celery::CeleryBuilder;
     use log::info;
     use trackscape_discord_shared::database::clan_mate_collection_log_totals::MockClanMateCollectionLogTotals;
     use trackscape_discord_shared::database::clan_mates::MockClanMates;
@@ -686,6 +695,9 @@ mod tests {
         drop_log_db_mock.expect_new_drop_log().returning(|_, _| {
             info!("Should not be calling this function");
         });
+
+        let job_queue = build_basic_celery().await;
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -695,6 +707,7 @@ mod tests {
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(job_queue),
         );
 
         let extracted_message = handler.drop_item_handler().await;
@@ -744,6 +757,8 @@ mod tests {
             info!("Should not be calling this function");
         });
 
+        let job_queue = build_basic_celery().await;
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -753,6 +768,7 @@ mod tests {
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(job_queue),
         );
 
         let extracted_message = handler.drop_item_handler().await;
@@ -802,6 +818,8 @@ mod tests {
             info!("Should not be calling this function");
         });
 
+        let job_queue = build_basic_celery().await;
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -811,6 +829,7 @@ mod tests {
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(job_queue),
         );
 
         let extracted_message = handler.drop_item_handler().await;
@@ -861,6 +880,8 @@ mod tests {
             info!("Should not be calling this function");
         });
 
+        let job_queue = build_basic_celery().await;
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -870,6 +891,7 @@ mod tests {
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(job_queue),
         );
 
         let extracted_message = handler.drop_item_handler().await;
@@ -887,8 +909,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_quest_handler_message_sent() {
+    #[tokio::test]
+    async fn test_quest_handler_message_sent() {
         let clan_message = ClanMessage {
             sender: "Insomniacs".to_string(),
             message: "RuneScape Player has completed a quest: The Fremennik Isles".to_string(),
@@ -920,6 +942,8 @@ mod tests {
             }
         }
 
+        let job_queue = build_basic_celery().await;
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -929,6 +953,7 @@ mod tests {
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(job_queue),
         );
 
         let extracted_message = handler.quest_handler();
@@ -945,8 +970,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_quest_handler_message_not_sent() {
+    #[tokio::test]
+    async fn test_quest_handler_message_not_sent() {
         let clan_message = ClanMessage {
             sender: "Insomniacs".to_string(),
             message: "RuneScape Player has completed a quest: Cook's Assistant".to_string(),
@@ -978,6 +1003,8 @@ mod tests {
             }
         }
 
+        let job_queue = build_basic_celery().await;
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -987,6 +1014,7 @@ mod tests {
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(job_queue),
         );
 
         let extracted_message = handler.quest_handler();
@@ -1002,8 +1030,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_pk_value_handler_low() {
+    #[tokio::test]
+    async fn test_pk_value_handler_low() {
         let clan_message = ClanMessage {
             sender: "Insomniacs".to_string(),
             message: "HolidayPanda has been defeated by next trial in The Wilderness and lost (33,601 coins) worth of loot."
@@ -1032,6 +1060,7 @@ mod tests {
             }
         }
         let quests = Ok(Vec::new());
+        let job_queue = build_basic_celery().await;
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
@@ -1042,6 +1071,7 @@ mod tests {
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(job_queue),
         );
 
         let extracted_message = handler.pk_handler();
@@ -1058,8 +1088,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_diary_handler_message_sent() {
+    #[tokio::test]
+    async fn test_diary_handler_message_sent() {
         let clan_message = ClanMessage {
             sender: "Insomniacs".to_string(),
             message: "RuneScape Player has completed the Hard Ardougne diary.".to_string(),
@@ -1088,6 +1118,8 @@ mod tests {
             }
         }
 
+        let job_queue = build_basic_celery().await;
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -1097,6 +1129,7 @@ mod tests {
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(job_queue),
         );
 
         let extracted_message = handler.diary_handler();
@@ -1112,8 +1145,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_diary_handler_message_not_sent() {
+    #[tokio::test]
+    async fn test_diary_handler_message_not_sent() {
         let clan_message = ClanMessage {
             sender: "Insomniacs".to_string(),
             message: "RuneScape Player has completed the Easy Ardougne diary.".to_string(),
@@ -1142,6 +1175,8 @@ mod tests {
             }
         }
 
+        let job_queue = build_basic_celery().await;
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -1151,6 +1186,7 @@ mod tests {
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(job_queue),
         );
 
         let extracted_message = handler.diary_handler();
@@ -1164,6 +1200,35 @@ mod tests {
                 assert_eq!(true, false);
             }
         }
+    }
+
+    async fn build_basic_celery() -> Arc<Celery> {
+        let broker_url = "mock://localhost:8000";
+        let test = broker_url.split_once("://");
+        println!("{:?}", test);
+        // let celery = CeleryBuilder::new("mock-app", "mock://localhost")
+        //     .build()
+        //     .await
+        //     .unwrap();
+        let mock_broker = mock::MockBroker::new();
+        let celery = celery::app!(
+            // broker = mock::MockBrokerBuilder::new(broker_url),
+            broker = MockBroker { mock_broker },
+            // broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://127.0.0.1:5672".into()) },
+            tasks = [
+
+            ],
+            // This just shows how we can route certain tasks to certain queues based
+            // on glob matching.
+            task_routes = [
+                "*" => "celery",
+            ],
+            prefetch_count = 2,
+            heartbeat = Some(10),
+        )
+        .await
+        .expect("Error creating celery job client");
+        celery
     }
 
     // #[tokio::test]

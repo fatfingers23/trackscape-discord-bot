@@ -25,6 +25,3 @@ mockall = "0.11.4"
 anyhow = "1.0.75"
 celery = "0.5.5"
 redis = { version = "0.23.3", features = ["json"] }
-
-[dev-dependencies]
-pretty_assertions = "1.4.0"
