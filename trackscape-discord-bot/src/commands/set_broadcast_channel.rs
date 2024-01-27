@@ -9,17 +9,20 @@ use serenity::builder;
 use serenity::client::Context;
 use serenity::model::channel::ChannelType;
 use serenity::model::prelude::Permissions;
-use tracing::info;
+use tracing::{error, info};
 
 pub fn register() -> builder::CreateCommand {
     CreateCommand::new("set_broadcast_channel")
         .description("Sets a Channel to receive broadcasts. This will get embed messages for Pets, drops, pks, quests, etc")
         .default_member_permissions(Permissions::MANAGE_GUILD)
-        .add_option(CreateCommandOption::new(
-            CommandOptionType::Channel,
-            "channel",
-            "The discord channel to get broadcast messages in.",
-        ))
+        .add_option(
+            CreateCommandOption::new(
+                CommandOptionType::Channel,
+                "channel", 
+                "The discord channel to get broadcast messages in.", 
+             )
+            .required(true)
+        )
 }
 
 pub async fn run(
@@ -31,10 +34,21 @@ pub async fn run(
     let option = options.get(0).expect("Expected Channel Id option");
 
     if let CommandDataOptionValue::Channel(channel) = option.value {
-        if channel.type_id() != ChannelType::Text.type_id() {
+        let possible_actual_channel = channel.to_channel(&ctx).await;
+        if possible_actual_channel.is_err() {
+            error!("Error getting channel: {:?}", possible_actual_channel.err());
+            return Some("Error getting channel".to_string());
+        }
+        let guild_channel = possible_actual_channel
+            .expect("Expected channel")
+            .guild()
+            .expect("Expected guild channel");
+        info!("Guild Channel: {:?}", guild_channel);
+        if guild_channel.kind != ChannelType::Text {
+            error!("Please select a text channel.");
             return Some("Please select a text channel.".to_string());
         }
-        info!("Channel: {:?}", channel);
+
         let saved_guild_query = db.guilds.get_by_guild_id(guild_id).await;
 
         return match saved_guild_query {
@@ -51,7 +65,7 @@ pub async fn run(
                         Ok(_) => {}
                         Err(error) => {
                             info!("Error sending message: {}", error);
-                            return Some("Error sending a message to the selected channel. Please check that the bot has permission to access this channel. Broadcast messages will be sent once this is resolved.".to_string())
+                            return Some("Error sending a message to the selected channel. Please check that the bot has permission to access this channel. Broadcast messages will be sent once this is resolved.".to_string());
                         }
                     }
                     //TODO: Send message to channel with verfication code and a picture of where to add it
