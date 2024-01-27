@@ -1,9 +1,8 @@
 use actix_web::{get, web, Error, HttpResponse, Scope};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
-use serenity::model::guild::Action::Thread;
 use std::str::FromStr;
-use tokio::time::{sleep, Sleep};
+use tokio::time::sleep;
 use trackscape_discord_shared::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotals;
 use trackscape_discord_shared::database::clan_mates::{ClanMateModel, ClanMates};
 use trackscape_discord_shared::database::BotMongoDb;

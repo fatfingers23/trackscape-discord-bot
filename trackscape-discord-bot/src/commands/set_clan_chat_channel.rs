@@ -1,26 +1,26 @@
 use crate::database::BotMongoDb;
-use serenity::builder;
+use serenity::all::{
+    CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommand,
+    CreateCommandOption, CreateMessage,
+};
 use serenity::client::Context;
 use serenity::model::channel::ChannelType;
-use serenity::model::prelude::application_command::{CommandDataOption, CommandDataOptionValue};
-use serenity::model::prelude::command::CommandOptionType;
+use std::any::Any;
+
 use serenity::model::prelude::Permissions;
 use tracing::info;
 
-pub fn register(
-    command: &mut builder::CreateApplicationCommand,
-) -> &mut builder::CreateApplicationCommand {
+pub fn register() -> CreateCommand {
+    let command = CreateCommand::new("set_clan_chat_channel");
     command
         .name("set_clan_chat_channel")
         .description("This channel will set the channel in game CC messages are sent to.")
         .default_member_permissions(Permissions::MANAGE_GUILD)
-        .create_option(|option| {
-            option
-                .name("channel")
-                .description("The channel to set as the CC channel.")
-                .kind(CommandOptionType::Channel)
-                .required(true)
-        })
+        .add_option(CreateCommandOption::new(
+            CommandOptionType::Channel,
+            "channel",
+            "The channel to set to receive ingame CC messages.",
+        ))
 }
 
 pub async fn run(
@@ -29,14 +29,10 @@ pub async fn run(
     db: &BotMongoDb,
     guild_id: u64,
 ) -> Option<String> {
-    let option = options
-        .get(0)
-        .expect("Expected Channel Id option")
-        .resolved
-        .as_ref()
-        .expect("Expected Chanel Id object");
-    if let CommandDataOptionValue::Channel(channel) = option {
-        if channel.kind != ChannelType::Text {
+    let option = options.get(0).expect("Expected Channel Id option");
+
+    if let CommandDataOptionValue::Channel(channel) = option.value {
+        if channel.type_id() != ChannelType::Text.type_id() {
             return Some("Please select a text channel.".to_string());
         }
         info!("Channel: {:?}", channel);
@@ -47,15 +43,16 @@ pub async fn run(
             Ok(possible_guild) => match possible_guild {
                 Some(mut saved_guild) => {
                     let saved_guild_code = saved_guild.verification_code.clone();
-                    saved_guild.clan_chat_channel = Some(channel.id.0);
+                    saved_guild.clan_chat_channel = Some(channel.get());
                     db.guilds.update_guild(saved_guild).await;
+                    let _ = channel
+                        .send_message(&ctx.http,
+                                      CreateMessage::new()
+                                          .content("This channel has been set as the clan chat channel.".to_string()))
+                        .await;
                     let result = channel
-                        .id
-                        .send_message(&ctx.http, |m| {
-                            m.content(format!(
-                                "This channel has been set as the clan chat channel."
-                            ))
-                        })
+                        .send_message(&ctx.http,
+                            CreateMessage::new().content("This channel has been set as the clan chat channel.".to_string()))
                         .await;
 
                     match result {

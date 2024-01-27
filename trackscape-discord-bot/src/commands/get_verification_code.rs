@@ -1,17 +1,10 @@
 use crate::database::BotMongoDb;
-
-use serenity::builder;
+use serenity::all::{CommandDataOption, CreateCommand};
 use serenity::client::Context;
-
-use serenity::model::prelude::application_command::CommandDataOption;
-
 use serenity::model::prelude::Permissions;
 
-pub fn register(
-    command: &mut builder::CreateApplicationCommand,
-) -> &mut builder::CreateApplicationCommand {
-    command
-        .name("get_verification_code")
+pub fn register() -> CreateCommand {
+    CreateCommand::new("get_verification_code")
         .description("Gets the verification code for the server to be used in the RuneLite plugin.")
         .default_member_permissions(Permissions::MANAGE_GUILD)
 }

@@ -4,14 +4,11 @@ use crate::websocket_server::DiscordToClanChatMessage;
 use crate::{handler, ChatServerHandle};
 use actix_web::web::Data;
 use actix_web::{error, post, web, Error, HttpRequest, HttpResponse, Scope};
-use celery::error::CeleryError;
-use celery::task::AsyncResult;
 use celery::Celery;
-use log::{error, info};
+use log::info;
+use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor};
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
-use serenity::json;
-use serenity::json::Value;
 use shuttle_persist::PersistInstance;
 use std::sync::Arc;
 use tokio::task::spawn_local;
@@ -152,7 +149,6 @@ async fn new_clan_chats(
 
         match registered_guild.clan_chat_channel {
             Some(channel_id) => {
-                let mut clan_chat_to_discord = CreateMessage::default();
                 let author_image = match chat.clan_name.clone() == chat.sender.clone() {
                     true => {
                         "https://oldschool.runescape.wiki/images/Your_Clan_icon.png".to_string()
@@ -160,18 +156,19 @@ async fn new_clan_chats(
                     false => get_wiki_clan_rank_image_url(chat.rank.clone()),
                 };
 
-                clan_chat_to_discord.embed(|e| {
-                    e.title("")
-                        .author(|a| a.name(chat.sender.clone()).icon_url(author_image))
+                let clan_chat_to_discord = CreateMessage::new().embed(
+                    CreateEmbed::new()
+                        .title("")
+                        .author(CreateEmbedAuthor::new(chat.sender.clone()).icon_url(author_image))
                         .description(chat.message.clone())
                         .color(0x0000FF)
-                        .timestamp(right_now)
-                });
-                let map = json::hashmap_to_json_map(clan_chat_to_discord.0);
-                discord_http_client
-                    .send_message(channel_id, &Value::from(map))
-                    .await
-                    .unwrap();
+                        .timestamp(right_now),
+                );
+
+                let channel = ChannelId::new(channel_id);
+                let _ = discord_http_client
+                    .send_message(channel, vec![], &clan_chat_to_discord)
+                    .await;
             }
             _ => {}
         }
@@ -230,31 +227,30 @@ async fn new_clan_chats(
                 info!("Broadcast: {:?}", broadcast);
                 info!("{}\n", chat.message.clone());
 
-                let mut create_message = CreateMessage::default();
-                create_message.embed(|e| {
-                    e.title(broadcast.title)
-                        .description(broadcast.message)
-                        .color(0x0000FF)
-                        .timestamp(right_now);
-                    match broadcast.icon_url {
-                        None => {}
-                        Some(icon_url) => {
-                            e.image(icon_url);
-                        }
+                let mut broadcast_embed = CreateEmbed::new()
+                    .title(broadcast.title.clone())
+                    .description(broadcast.message.clone())
+                    .color(0x0000FF)
+                    .timestamp(right_now);
+                match broadcast.icon_url {
+                    None => {}
+                    Some(icon_url) => {
+                        broadcast_embed = broadcast_embed.image(icon_url);
                     }
-                    e
-                });
-
+                }
+                let broadcast_message = CreateMessage::new().embed(broadcast_embed);
                 let possible_channel_to_send_broadcast = match league_world {
                     true => registered_guild.leagues_broadcast_channel,
                     false => registered_guild.broadcast_channel,
                 };
                 if let Some(channel_to_send_broadcast) = possible_channel_to_send_broadcast {
-                    let map = json::hashmap_to_json_map(create_message.0);
-                    discord_http_client
-                        .send_message(channel_to_send_broadcast, &Value::from(map))
-                        .await
-                        .unwrap();
+                    let _ = discord_http_client
+                        .send_message(
+                            ChannelId::new(channel_to_send_broadcast),
+                            vec![],
+                            &broadcast_message,
+                        )
+                        .await;
                 }
             }
         };

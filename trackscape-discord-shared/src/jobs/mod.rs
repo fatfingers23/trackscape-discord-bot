@@ -2,8 +2,7 @@ use async_trait::async_trait;
 use celery::error::CeleryError;
 use celery::prelude::Task;
 use celery::task::{AsyncResult, Signature};
-use celery::{error, Celery};
-use mockall::automock;
+use celery::Celery;
 use std::sync::Arc;
 
 pub mod add_job;

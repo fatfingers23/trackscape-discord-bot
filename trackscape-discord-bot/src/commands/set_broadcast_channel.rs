@@ -1,27 +1,25 @@
 use crate::database::BotMongoDb;
+use serenity::all::{
+    CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommand,
+    CreateCommandOption, CreateMessage,
+};
+use std::any::Any;
 
 use serenity::builder;
 use serenity::client::Context;
 use serenity::model::channel::ChannelType;
-use serenity::model::prelude::application_command::{CommandDataOption, CommandDataOptionValue};
-use serenity::model::prelude::command::CommandOptionType;
 use serenity::model::prelude::Permissions;
 use tracing::info;
 
-pub fn register(
-    command: &mut builder::CreateApplicationCommand,
-) -> &mut builder::CreateApplicationCommand {
-    command
-        .name("set_broadcast_channel")
+pub fn register() -> builder::CreateCommand {
+    CreateCommand::new("set_broadcast_channel")
         .description("Sets a Channel to receive broadcasts. This will get embed messages for Pets, drops, pks, quests, etc")
         .default_member_permissions(Permissions::MANAGE_GUILD)
-        .create_option(|option| {
-            option
-                .name("channel")
-                .description("The discord channel to get broadcast messages in.")
-                .kind(CommandOptionType::Channel)
-                .required(true)
-        })
+        .add_option(CreateCommandOption::new(
+            CommandOptionType::Channel,
+            "channel",
+            "The discord channel to get broadcast messages in.",
+        ))
 }
 
 pub async fn run(
@@ -30,14 +28,10 @@ pub async fn run(
     db: &BotMongoDb,
     guild_id: u64,
 ) -> Option<String> {
-    let option = options
-        .get(0)
-        .expect("Expected Channel Id option")
-        .resolved
-        .as_ref()
-        .expect("Expected Chanel Id object");
-    if let CommandDataOptionValue::Channel(channel) = option {
-        if channel.kind != ChannelType::Text {
+    let option = options.get(0).expect("Expected Channel Id option");
+
+    if let CommandDataOptionValue::Channel(channel) = option.value {
+        if channel.type_id() != ChannelType::Text.type_id() {
             return Some("Please select a text channel.".to_string());
         }
         info!("Channel: {:?}", channel);
@@ -47,16 +41,11 @@ pub async fn run(
             Ok(possible_guild) => match possible_guild {
                 Some(mut saved_guild) => {
                     let saved_guild_code = saved_guild.verification_code.clone();
-                    saved_guild.broadcast_channel = Some(channel.id.0);
+                    saved_guild.broadcast_channel = Some(channel.get());
                     db.guilds.update_guild(saved_guild).await;
                     let send_message = channel
-                        .id
-                        .send_message(&ctx.http, |m| {
-                            m.content(format!(
-                                "This channel has been set as the broadcast chat channel."
-                            ))
-                        })
-                        .await;
+                        .send_message(&ctx.http,
+                                      CreateMessage::new().content("This channel has been set as the broadcast chat channel.".to_string())).await;
 
                     match send_message {
                         Ok(_) => {}
