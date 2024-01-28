@@ -1,48 +1,47 @@
 use crate::database::BotMongoDb;
-use serenity::builder;
+use serenity::all::{
+    CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommandOption,
+};
+use serenity::builder::CreateCommand;
 use serenity::client::Context;
-use serenity::model::prelude::application_command::{CommandDataOption, CommandDataOptionValue};
-use serenity::model::prelude::command::CommandOptionType;
 use serenity::model::prelude::Permissions;
 use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::QuestDifficulty;
 
-pub fn register(
-    command: &mut builder::CreateApplicationCommand,
-) -> &mut builder::CreateApplicationCommand {
-    command
-        .name("quests")
+pub fn register() -> CreateCommand {
+    CreateCommand::new("quests")
         .description(
             "Sets min quest difficulty to trigger a broadcast. Anything below will not send",
         )
         .default_member_permissions(Permissions::MANAGE_GUILD)
-        .create_option(|option| {
-            option
-                .name("difficulty")
-                .description("Min quest difficulty to send a broadcast.")
-                .kind(CommandOptionType::String)
-                .add_string_choice(
-                    QuestDifficulty::Novice.to_string(),
-                    QuestDifficulty::Novice.to_string(),
-                )
-                .add_string_choice(
-                    QuestDifficulty::Intermediate.to_string(),
-                    QuestDifficulty::Intermediate.to_string(),
-                )
-                .add_string_choice(
-                    QuestDifficulty::Experienced.to_string(),
-                    QuestDifficulty::Experienced.to_string(),
-                )
-                .add_string_choice(
-                    QuestDifficulty::Master.to_string(),
-                    QuestDifficulty::Master.to_string(),
-                )
-                .add_string_choice(
-                    QuestDifficulty::Grandmaster.to_string(),
-                    QuestDifficulty::Grandmaster.to_string(),
-                )
-                .required(true)
-        })
+        .add_option(
+            CreateCommandOption::new(
+                CommandOptionType::String,
+                "difficulty",
+                "Min quest difficulty to send a broadcast",
+            )
+            .add_string_choice(
+                QuestDifficulty::Novice.to_string(),
+                QuestDifficulty::Novice.to_string(),
+            )
+            .add_string_choice(
+                QuestDifficulty::Intermediate.to_string(),
+                QuestDifficulty::Intermediate.to_string(),
+            )
+            .add_string_choice(
+                QuestDifficulty::Experienced.to_string(),
+                QuestDifficulty::Experienced.to_string(),
+            )
+            .add_string_choice(
+                QuestDifficulty::Master.to_string(),
+                QuestDifficulty::Master.to_string(),
+            )
+            .add_string_choice(
+                QuestDifficulty::Grandmaster.to_string(),
+                QuestDifficulty::Grandmaster.to_string(),
+            )
+            .required(true),
+        )
 }
 
 pub async fn run(
@@ -55,14 +54,10 @@ pub async fn run(
     match saved_guild_query {
         Ok(saved_guild) => {
             let mut saved_guild = saved_guild.unwrap_or(RegisteredGuildModel::new(guild_id));
-            let possible_broadcast_type = command
-                .get(0)
-                .expect("Expected broadcast type option")
-                .resolved
-                .as_ref()
-                .expect("Expected broadcast type object");
+            let possible_broadcast_type = command.get(0).expect("Expected broadcast type option");
 
-            return if let CommandDataOptionValue::String(quest_difficulty) = possible_broadcast_type
+            return if let CommandDataOptionValue::String(quest_difficulty) =
+                possible_broadcast_type.clone().value
             {
                 saved_guild.min_quest_difficulty = Some(QuestDifficulty::from_string(
                     quest_difficulty.clone().to_string(),

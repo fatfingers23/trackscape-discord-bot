@@ -23,6 +23,5 @@ log = "0.4.20"
 async-trait = "0.1.73"
 mockall = "0.11.4"
 anyhow = "1.0.75"
-
-[dev-dependencies]
-pretty_assertions = "1.4.0"
+celery = "0.5.5"
+redis = { version = "0.23.3", features = ["json"] }

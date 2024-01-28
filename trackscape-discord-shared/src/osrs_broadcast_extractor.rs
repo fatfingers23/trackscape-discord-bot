@@ -217,6 +217,17 @@ pub mod osrs_broadcast_extractor {
         pub item_icon: Option<String>,
     }
 
+    pub enum CofferTransaction {
+        Withdrawal,
+        Donation,
+    }
+
+    pub struct CofferTransactionBroadcast {
+        pub player: String,
+        pub gp: i64,
+        pub transaction_type: CofferTransaction,
+    }
+
     #[derive(PartialEq, Deserialize, Serialize, Debug, Clone)]
     pub enum BroadcastType {
         ItemDrop,
@@ -230,6 +241,10 @@ pub mod osrs_broadcast_extractor {
         XPMilestone,
         LevelMilestone,
         CollectionLog,
+        LeftTheClan,
+        ExpelledFromClan,
+        CofferDonation,
+        CofferWithdrawal,
         Unknown,
     }
 
@@ -248,6 +263,10 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::LevelMilestone => "Level Milestone".to_string(),
                 BroadcastType::CollectionLog => "Collection Log".to_string(),
                 BroadcastType::Unknown => "Unknown".to_string(),
+                BroadcastType::LeftTheClan => "Left The Clan".to_string(),
+                BroadcastType::ExpelledFromClan => "Expelled From Clan".to_string(),
+                BroadcastType::CofferDonation => "Coffer Donation".to_string(),
+                BroadcastType::CofferWithdrawal => "Coffer Withdrawal".to_string(),
             }
         }
 
@@ -266,6 +285,27 @@ pub mod osrs_broadcast_extractor {
                 "Collection Log" => BroadcastType::CollectionLog,
                 _ => BroadcastType::Unknown,
             }
+        }
+
+        pub fn iter() -> Vec<BroadcastType> {
+            vec![
+                BroadcastType::ItemDrop,
+                BroadcastType::PetDrop,
+                BroadcastType::Quest,
+                BroadcastType::Diary,
+                BroadcastType::RaidDrop,
+                BroadcastType::Pk,
+                BroadcastType::Invite,
+                BroadcastType::LootKey,
+                BroadcastType::XPMilestone,
+                BroadcastType::LevelMilestone,
+                BroadcastType::CollectionLog,
+                BroadcastType::Unknown,
+                BroadcastType::LeftTheClan,
+                BroadcastType::ExpelledFromClan,
+                BroadcastType::CofferDonation,
+                BroadcastType::CofferWithdrawal,
+            ]
         }
 
         pub fn to_slug(&self) -> String {
@@ -491,6 +531,85 @@ pub mod osrs_broadcast_extractor {
         None
     }
 
+    pub fn left_the_clan_broadcast_extractor(message: String) -> Option<String> {
+        let re = regex::Regex::new(r"^(?P<player>[\w\s]+) has left the clan.$").unwrap();
+
+        if let Some(captures) = re.captures(message.as_str()) {
+            let name = captures.name("player").unwrap().as_str();
+
+            return Some(name.to_string());
+        }
+        None
+    }
+
+    pub fn expelled_from_clan_broadcast_extractor(message: String) -> Option<String> {
+        let re = regex::Regex::new(
+            r"^(?P<mod>[\w\s]+) has expelled (?P<player>[\w\s]+) from the clan.$",
+        )
+        .unwrap();
+
+        if let Some(captures) = re.captures(message.as_str()) {
+            let name = captures.name("player").unwrap().as_str();
+
+            return Some(name.to_string());
+        }
+        None
+    }
+
+    pub fn coffer_donation_broadcast_extractor(
+        message: String,
+    ) -> Option<CofferTransactionBroadcast> {
+        let re = regex::Regex::new(
+            r"(?P<player>[\w\s]+) has (withdrawn|deposited) (?P<gp>[0-9,]+) coins (from|into) the coffer."
+        )
+            .unwrap();
+
+        if let Some(captures) = re.captures(message.as_str()) {
+            let player = captures.name("player").unwrap().as_str();
+            let gp = captures
+                .name("gp")
+                .unwrap()
+                .as_str()
+                .replace(",", "")
+                .parse()
+                .unwrap();
+
+            return Some(CofferTransactionBroadcast {
+                player: player.to_string(),
+                gp,
+                transaction_type: CofferTransaction::Donation,
+            });
+        }
+        None
+    }
+
+    pub fn coffer_withdrawal_broadcast_extractor(
+        message: String,
+    ) -> Option<CofferTransactionBroadcast> {
+        let re = regex::Regex::new(
+            r"(?P<player>[\w\s]+) has (withdrawn|deposited) (?P<gp>[0-9,]+) coins (from|into) the coffer."
+        )
+            .unwrap();
+
+        if let Some(captures) = re.captures(message.as_str()) {
+            let player = captures.name("player").unwrap().as_str();
+            let gp = captures
+                .name("gp")
+                .unwrap()
+                .as_str()
+                .replace(",", "")
+                .parse()
+                .unwrap();
+
+            return Some(CofferTransactionBroadcast {
+                player: player.to_string(),
+                gp,
+                transaction_type: CofferTransaction::Withdrawal,
+            });
+        }
+        None
+    }
+
     pub fn get_broadcast_type(message_content: String) -> BroadcastType {
         if message_content.contains("received a drop:") {
             return BroadcastType::ItemDrop;
@@ -522,11 +641,21 @@ pub mod osrs_broadcast_extractor {
         if message_content.contains("has reached") && message_content.contains("XP in") {
             return BroadcastType::XPMilestone;
         }
-
         if message_content.contains("received a new collection log item:") {
             return BroadcastType::CollectionLog;
         }
-
+        if message_content.contains("has left the clan.") {
+            return BroadcastType::LeftTheClan;
+        }
+        if message_content.contains("has expelled") && message_content.contains("from the clan.") {
+            return BroadcastType::ExpelledFromClan;
+        }
+        if message_content.contains("deposited") && message_content.contains("the coffer.") {
+            return BroadcastType::CofferDonation;
+        }
+        if message_content.contains("withdrawn") && message_content.contains("from the coffer.") {
+            return BroadcastType::CofferWithdrawal;
+        }
         return BroadcastType::Unknown;
     }
 
@@ -577,9 +706,10 @@ pub mod osrs_broadcast_extractor {
 mod tests {
     use super::*;
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-        get_wiki_clan_rank_image_url, CollectionLogBroadcast, DiaryCompletedBroadcast, DiaryTier,
-        InviteBroadcast, LevelMilestoneBroadcast, PetDropBroadcast, PkBroadcast,
-        QuestCompletedBroadcast, XPMilestoneBroadcast,
+        get_wiki_clan_rank_image_url, CofferTransaction, CofferTransactionBroadcast,
+        CollectionLogBroadcast, DiaryCompletedBroadcast, DiaryTier, InviteBroadcast,
+        LevelMilestoneBroadcast, PetDropBroadcast, PkBroadcast, QuestCompletedBroadcast,
+        XPMilestoneBroadcast,
     };
     use tracing::info;
 
@@ -715,6 +845,32 @@ mod tests {
             assert!(matches!(
                 broadcast_type,
                 osrs_broadcast_extractor::BroadcastType::CollectionLog
+            ));
+        }
+    }
+
+    #[test]
+    fn test_get_left_the_clan_type_broadcast() {
+        let test_left_the_clan = get_has_left_the_clan_messages();
+        for test_left_the_clan in test_left_the_clan {
+            let broadcast_type =
+                osrs_broadcast_extractor::get_broadcast_type(test_left_the_clan.message);
+            assert!(matches!(
+                broadcast_type,
+                osrs_broadcast_extractor::BroadcastType::LeftTheClan
+            ));
+        }
+    }
+
+    #[test]
+    fn test_get_expelled_from_clan_type_broadcast() {
+        let test_expelled_from_clan = get_expelled_from_clan_messages();
+        for test_expelled_from_clan in test_expelled_from_clan {
+            let broadcast_type =
+                osrs_broadcast_extractor::get_broadcast_type(test_expelled_from_clan.message);
+            assert!(matches!(
+                broadcast_type,
+                osrs_broadcast_extractor::BroadcastType::ExpelledFromClan
             ));
         }
     }
@@ -1081,6 +1237,66 @@ mod tests {
             rank_image,
             "https://oldschool.runescape.wiki/images/Clan_icon_-_Deputy_owner.png".to_string()
         );
+    }
+
+    #[test]
+    fn test_left_clan_extractor() {
+        let test_left_clan = get_has_left_the_clan_messages();
+        for test_left_clan in test_left_clan {
+            let possible_left_clan_extract =
+                osrs_broadcast_extractor::left_the_clan_broadcast_extractor(
+                    test_left_clan.message.clone(),
+                );
+            let player_who_left = possible_left_clan_extract.unwrap();
+            assert_eq!(player_who_left, test_left_clan.broadcast);
+        }
+    }
+
+    #[test]
+    fn test_expelled_from_clan_extractor() {
+        let test_expelled_from_clan = get_expelled_from_clan_messages();
+        for test_expelled_from_clan in test_expelled_from_clan {
+            let possible_expelled_from_clan_extract =
+                osrs_broadcast_extractor::expelled_from_clan_broadcast_extractor(
+                    test_expelled_from_clan.message.clone(),
+                );
+            let player_who_was_expelled = possible_expelled_from_clan_extract.unwrap();
+            assert_eq!(player_who_was_expelled, test_expelled_from_clan.broadcast);
+        }
+    }
+
+    #[test]
+    fn test_coffer_donation_extractor() {
+        let test_coffer_donation = get_clan_coffer_deposit_broadcast_messages();
+        for test_coffer_donation in test_coffer_donation {
+            let possible_coffer_donation_extract =
+                osrs_broadcast_extractor::coffer_donation_broadcast_extractor(
+                    test_coffer_donation.message.clone(),
+                );
+            let coffer_donation = possible_coffer_donation_extract.unwrap();
+            assert_eq!(
+                coffer_donation.player,
+                test_coffer_donation.broadcast.player
+            );
+            assert_eq!(coffer_donation.gp, test_coffer_donation.broadcast.gp);
+        }
+    }
+
+    #[test]
+    fn test_coffer_withdrawal_extractor() {
+        let test_coffer_withdrawal = get_clan_coffer_withdraw_broadcast_messages();
+        for test_coffer_withdrawal in test_coffer_withdrawal {
+            let possible_coffer_withdrawal_extract =
+                osrs_broadcast_extractor::coffer_withdrawal_broadcast_extractor(
+                    test_coffer_withdrawal.message.clone(),
+                );
+            let coffer_withdrawal = possible_coffer_withdrawal_extract.unwrap();
+            assert_eq!(
+                coffer_withdrawal.player,
+                test_coffer_withdrawal.broadcast.player
+            );
+            assert_eq!(coffer_withdrawal.gp, test_coffer_withdrawal.broadcast.gp);
+        }
     }
 
     //Test data setup
@@ -1736,5 +1952,66 @@ mod tests {
         });
 
         test_collection_messages
+    }
+
+    fn get_has_left_the_clan_messages() -> Vec<TestBroadcast<String>> {
+        let mut test_has_left_the_clan_messages: Vec<TestBroadcast<String>> = Vec::new();
+        test_has_left_the_clan_messages.push(TestBroadcast {
+            message: "RuneScape Player has left the clan.".to_string(),
+            broadcast: "RuneScape Player".to_string(),
+        });
+
+        test_has_left_the_clan_messages
+    }
+
+    fn get_expelled_from_clan_messages() -> Vec<TestBroadcast<String>> {
+        let mut test_expelled_from_clan_messages: Vec<TestBroadcast<String>> = Vec::new();
+        test_expelled_from_clan_messages.push(TestBroadcast {
+            message: "mod has expelled bob joe from the clan.".to_string(),
+            broadcast: "bob joe".to_string(),
+        });
+
+        test_expelled_from_clan_messages
+    }
+
+    fn get_clan_coffer_deposit_broadcast_messages() -> Vec<TestBroadcast<CofferTransactionBroadcast>>
+    {
+        let mut test_clan_coffer_broadcast_messages: Vec<
+            TestBroadcast<CofferTransactionBroadcast>,
+        > = Vec::new();
+        test_clan_coffer_broadcast_messages.push(TestBroadcast {
+            message: "RuneScape Player has deposited 1,000,000 coins into the coffer.".to_string(),
+            broadcast: CofferTransactionBroadcast {
+                player: "RuneScape Player".to_string(),
+                gp: 1_000_000,
+                transaction_type: CofferTransaction::Donation,
+            },
+        });
+        test_clan_coffer_broadcast_messages
+    }
+
+    fn get_clan_coffer_withdraw_broadcast_messages(
+    ) -> Vec<TestBroadcast<CofferTransactionBroadcast>> {
+        let mut test_clan_coffer_broadcast_messages: Vec<
+            TestBroadcast<CofferTransactionBroadcast>,
+        > = Vec::new();
+        test_clan_coffer_broadcast_messages.push(TestBroadcast {
+            message: "RuneScape Player has withdrawn 1,000,000 coins from the coffer.".to_string(),
+            broadcast: CofferTransactionBroadcast {
+                player: "RuneScape Player".to_string(),
+                gp: 1_000_000,
+                transaction_type: CofferTransaction::Withdrawal,
+            },
+        });
+
+        test_clan_coffer_broadcast_messages.push(TestBroadcast {
+            message: "RuneScape Player has withdrawn 1 coins from the coffer.".to_string(),
+            broadcast: CofferTransactionBroadcast {
+                player: "RuneScape Player".to_string(),
+                gp: 1,
+                transaction_type: CofferTransaction::Withdrawal,
+            },
+        });
+        test_clan_coffer_broadcast_messages
     }
 }

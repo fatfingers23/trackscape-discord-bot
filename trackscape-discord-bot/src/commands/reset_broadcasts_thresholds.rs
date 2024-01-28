@@ -1,37 +1,36 @@
 use crate::database::BotMongoDb;
-use serenity::builder;
+use serenity::all::{
+    CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommandOption,
+};
+use serenity::builder::CreateCommand;
 use serenity::client::Context;
-use serenity::model::prelude::application_command::{CommandDataOption, CommandDataOptionValue};
-use serenity::model::prelude::command::CommandOptionType;
 use serenity::model::prelude::Permissions;
 use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::BroadcastType;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::BroadcastType::ItemDrop;
 
-pub fn register(
-    command: &mut builder::CreateApplicationCommand,
-) -> &mut builder::CreateApplicationCommand {
-    command
-        .name("reset")
+pub fn register() -> CreateCommand {
+    CreateCommand::new("reset")
         .description("Resets a selected broadcast threshold or min broadcast level.")
         .default_member_permissions(Permissions::MANAGE_GUILD)
-        .create_option(|option| {
-            option
-                .name("broadcast")
-                .description("Broadcast type to reset notifications back to default.")
-                .kind(CommandOptionType::String)
-                .add_string_choice(BroadcastType::ItemDrop.to_string(), ItemDrop.to_slug())
-                .add_string_choice(BroadcastType::Pk.to_string(), BroadcastType::Pk.to_slug())
-                .add_string_choice(
-                    BroadcastType::Quest.to_string(),
-                    BroadcastType::Quest.to_slug(),
-                )
-                .add_string_choice(
-                    BroadcastType::Diary.to_string(),
-                    BroadcastType::Diary.to_slug(),
-                )
-                .required(true)
-        })
+        .add_option(
+            CreateCommandOption::new(
+                CommandOptionType::String,
+                "broadcast",
+                "Broadcast type to reset notifications back to default.",
+            )
+            .add_string_choice(ItemDrop.to_string(), ItemDrop.to_slug())
+            .add_string_choice(BroadcastType::Pk.to_string(), BroadcastType::Pk.to_slug())
+            .add_string_choice(
+                BroadcastType::Quest.to_string(),
+                BroadcastType::Quest.to_slug(),
+            )
+            .add_string_choice(
+                BroadcastType::Diary.to_string(),
+                BroadcastType::Diary.to_slug(),
+            )
+            .required(true),
+        )
 }
 
 pub async fn run(
@@ -44,14 +43,11 @@ pub async fn run(
     match saved_guild_query {
         Ok(saved_guild) => {
             let mut saved_guild = saved_guild.unwrap_or(RegisteredGuildModel::new(guild_id));
-            let broadcast_type = command
-                .get(0)
-                .expect("Expected broadcast type option")
-                .resolved
-                .as_ref()
-                .expect("Expected broadcast type object");
+            let broadcast_type = command.get(0).expect("Expected broadcast type option");
 
-            return if let CommandDataOptionValue::String(broadcast_type) = broadcast_type {
+            return if let CommandDataOptionValue::String(broadcast_type) =
+                broadcast_type.clone().value
+            {
                 let broadcast_type = BroadcastType::from_string(broadcast_type.replace("_", " "));
                 match broadcast_type {
                     BroadcastType::ItemDrop => {

@@ -1,22 +1,24 @@
 use crate::cache::Cache;
+use crate::services::osrs_broadcast_handler::OSRSBroadcastHandler;
 use crate::websocket_server::DiscordToClanChatMessage;
 use crate::{handler, ChatServerHandle};
+use actix_web::web::Data;
 use actix_web::{error, post, web, Error, HttpRequest, HttpResponse, Scope};
+use celery::Celery;
 use log::info;
+use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor};
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
-use serenity::json;
-use serenity::json::Value;
 use shuttle_persist::PersistInstance;
+use std::sync::Arc;
 use tokio::task::spawn_local;
 use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::GeItemMapping;
 use trackscape_discord_shared::helpers::hash_string;
+use trackscape_discord_shared::jobs::CeleryJobQueue;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     get_wiki_clan_rank_image_url, ClanMessage,
 };
-
-use crate::services::osrs_broadcast_handler::OSRSBroadcastHandler;
 use trackscape_discord_shared::wiki_api::wiki_api::WikiQuest;
 
 #[derive(Debug)]
@@ -80,6 +82,7 @@ async fn new_clan_chats(
     new_chat: web::Json<Vec<ClanMessage>>,
     mongodb: web::Data<BotMongoDb>,
     persist: web::Data<PersistInstance>,
+    celery: Data<Arc<Celery>>,
 ) -> actix_web::Result<String> {
     let possible_verification_code = req.headers().get("verification-code");
     if let None = possible_verification_code {
@@ -146,7 +149,6 @@ async fn new_clan_chats(
 
         match registered_guild.clan_chat_channel {
             Some(channel_id) => {
-                let mut clan_chat_to_discord = CreateMessage::default();
                 let author_image = match chat.clan_name.clone() == chat.sender.clone() {
                     true => {
                         "https://oldschool.runescape.wiki/images/Your_Clan_icon.png".to_string()
@@ -154,26 +156,38 @@ async fn new_clan_chats(
                     false => get_wiki_clan_rank_image_url(chat.rank.clone()),
                 };
 
-                clan_chat_to_discord.embed(|e| {
-                    e.title("")
-                        .author(|a| a.name(chat.sender.clone()).icon_url(author_image))
+                let clan_chat_to_discord = CreateMessage::new().embed(
+                    CreateEmbed::new()
+                        .title("")
+                        .author(CreateEmbedAuthor::new(chat.sender.clone()).icon_url(author_image))
                         .description(chat.message.clone())
                         .color(0x0000FF)
-                        .timestamp(right_now)
-                });
-                let map = json::hashmap_to_json_map(clan_chat_to_discord.0);
-                discord_http_client
-                    .send_message(channel_id, &Value::from(map))
-                    .await
-                    .unwrap();
+                        .timestamp(right_now),
+                );
+
+                let channel = ChannelId::new(channel_id);
+                let _ = discord_http_client
+                    .send_message(channel, vec![], &clan_chat_to_discord)
+                    .await;
             }
             _ => {}
         }
         //Checks to see if it is a clan broadcast. Clan name and sender are the same if so
         if chat.sender != chat.clan_name {
+            //Starts a job to either add the clan mate if not added to guild, or check for rank change
+            let _ = celery
+                .send_task(
+                    trackscape_discord_shared::jobs::update_create_clanmate_job::update_create_clanmate::new(
+                        chat.sender.clone(),
+                        chat.rank.clone(),
+                        registered_guild.guild_id,
+                    ),
+                )
+                .await;
             continue;
         }
 
+        //TODO may remove this since the handler does some loging for the website now
         if registered_guild.broadcast_channel.is_none()
             && registered_guild.clan_chat_channel.is_none()
         {
@@ -190,6 +204,11 @@ async fn new_clan_chats(
             .load::<Vec<WikiQuest>>("quests")
             .map_err(|e| info!("Saving Quests Error: {e}"));
 
+        let cloned_celery = Arc::clone(&**celery);
+        let celery_job_queue = Arc::new(CeleryJobQueue {
+            celery: cloned_celery,
+        });
+
         let handler = OSRSBroadcastHandler::new(
             chat.clone(),
             item_mapping_from_state,
@@ -199,6 +218,7 @@ async fn new_clan_chats(
             mongodb.drop_logs.clone(),
             mongodb.clan_mate_collection_log_totals.clone(),
             mongodb.clan_mates.clone(),
+            celery_job_queue,
         );
         let possible_broadcast = handler.extract_message().await;
 
@@ -208,31 +228,30 @@ async fn new_clan_chats(
                 info!("Broadcast: {:?}", broadcast);
                 info!("{}\n", chat.message.clone());
 
-                let mut create_message = CreateMessage::default();
-                create_message.embed(|e| {
-                    e.title(broadcast.title)
-                        .description(broadcast.message)
-                        .color(0x0000FF)
-                        .timestamp(right_now);
-                    match broadcast.icon_url {
-                        None => {}
-                        Some(icon_url) => {
-                            e.image(icon_url);
-                        }
+                let mut broadcast_embed = CreateEmbed::new()
+                    .title(broadcast.title.clone())
+                    .description(broadcast.message.clone())
+                    .color(0x0000FF)
+                    .timestamp(right_now);
+                match broadcast.icon_url {
+                    None => {}
+                    Some(icon_url) => {
+                        broadcast_embed = broadcast_embed.image(icon_url);
                     }
-                    e
-                });
-
+                }
+                let broadcast_message = CreateMessage::new().embed(broadcast_embed);
                 let possible_channel_to_send_broadcast = match league_world {
                     true => registered_guild.leagues_broadcast_channel,
                     false => registered_guild.broadcast_channel,
                 };
                 if let Some(channel_to_send_broadcast) = possible_channel_to_send_broadcast {
-                    let map = json::hashmap_to_json_map(create_message.0);
-                    discord_http_client
-                        .send_message(channel_to_send_broadcast, &Value::from(map))
-                        .await
-                        .unwrap();
+                    let _ = discord_http_client
+                        .send_message(
+                            ChannelId::new(channel_to_send_broadcast),
+                            vec![],
+                            &broadcast_message,
+                        )
+                        .await;
                 }
             }
         };

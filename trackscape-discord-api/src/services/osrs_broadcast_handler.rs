@@ -1,13 +1,17 @@
 use log::error;
 use num_format::{Locale, ToFormattedString};
+use std::sync::Arc;
 use trackscape_discord_shared::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotals;
 use trackscape_discord_shared::database::clan_mates::ClanMates;
 use trackscape_discord_shared::database::drop_logs_db::DropLogs;
 use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
 use trackscape_discord_shared::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
+use trackscape_discord_shared::jobs::JobQueue;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
+    coffer_donation_broadcast_extractor, coffer_withdrawal_broadcast_extractor,
     collection_log_broadcast_extractor, diary_completed_broadcast_extractor,
-    drop_broadcast_extractor, get_broadcast_type, invite_broadcast_extractor,
+    drop_broadcast_extractor, expelled_from_clan_broadcast_extractor, get_broadcast_type,
+    invite_broadcast_extractor, left_the_clan_broadcast_extractor,
     levelmilestone_broadcast_extractor, pet_broadcast_extractor, pk_broadcast_extractor,
     quest_completed_broadcast_extractor, raid_broadcast_extractor, xpmilestone_broadcast_extractor,
     BroadcastType, ClanMessage,
@@ -26,8 +30,13 @@ pub struct BroadcastMessageToDiscord {
     pub item_quantity: Option<i64>,
 }
 
-#[derive(Debug, Clone)]
-pub struct OSRSBroadcastHandler<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> {
+#[derive(Clone)]
+pub struct OSRSBroadcastHandler<
+    T: DropLogs,
+    CL: ClanMateCollectionLogTotals,
+    CM: ClanMates,
+    J: JobQueue,
+> {
     clan_message: ClanMessage,
     item_mapping: Option<GeItemMapping>,
     quests: Option<Vec<WikiQuest>>,
@@ -36,9 +45,12 @@ pub struct OSRSBroadcastHandler<T: DropLogs, CL: ClanMateCollectionLogTotals, CM
     drop_log_db: T,
     collection_log_db: CL,
     clan_mates_db: CM,
+    job_queue: Arc<J>,
 }
 
-impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastHandler<T, CL, CM> {
+impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
+    OSRSBroadcastHandler<T, CL, CM, J>
+{
     pub fn new(
         clan_message: ClanMessage,
         item_mapping_from_state: Result<GeItemMapping, ()>,
@@ -48,6 +60,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
         drop_log_db: T,
         collection_log_db: CL,
         clan_mates_db: CM,
+        job_queue: Arc<J>,
     ) -> Self {
         Self {
             clan_message,
@@ -64,11 +77,13 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
             drop_log_db,
             collection_log_db,
             clan_mates_db,
+            job_queue: job_queue,
         }
     }
 
     pub async fn extract_message(&self) -> Option<BroadcastMessageToDiscord> {
         let broadcast_type = get_broadcast_type(self.clan_message.message.clone());
+
         match broadcast_type {
             BroadcastType::RaidDrop => {
                 let drop_item = raid_broadcast_extractor(self.clan_message.message.clone());
@@ -235,6 +250,98 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                     }
                 }
             }
+            BroadcastType::ExpelledFromClan => {
+                let possible_expelled_broadcast =
+                    expelled_from_clan_broadcast_extractor(self.clan_message.message.clone());
+
+                match possible_expelled_broadcast {
+                    None => {
+                        error!(
+                            "Failed to extract left clan info from message: {}",
+                            self.clan_message.message.clone()
+                        );
+                        None
+                    }
+                    Some(clan_mate_who_got_kicked) => {
+                        let job = trackscape_discord_shared::jobs::remove_clanmate_job::remove_clanmate::new(
+                            clan_mate_who_got_kicked.clone(),
+                            self.registered_guild.guild_id,
+                        );
+                        let _ = self.job_queue.send_task(job).await;
+
+                        let is_disallowed = self
+                            .registered_guild
+                            .disallowed_broadcast_types
+                            .iter()
+                            .find(|&x| {
+                                if let BroadcastType::LeftTheClan = x {
+                                    return true;
+                                }
+                                false
+                            });
+                        if is_disallowed.is_some() {
+                            return None;
+                        }
+                        Some(BroadcastMessageToDiscord {
+                            type_of_broadcast: BroadcastType::LeftTheClan,
+                            player_it_happened_to: clan_mate_who_got_kicked,
+                            message: self.clan_message.message.clone(),
+                            icon_url: Some(
+                                "https://oldschool.runescape.wiki/images/Your_Clan_icon.png"
+                                    .to_string(),
+                            ),
+                            title: ":boot: Someone has been expelled!".to_string(),
+                            item_quantity: None,
+                        })
+                    }
+                }
+            }
+            BroadcastType::LeftTheClan => {
+                let possible_left_broadcast =
+                    left_the_clan_broadcast_extractor(self.clan_message.message.clone());
+
+                match possible_left_broadcast {
+                    None => {
+                        error!(
+                            "Failed to extract left clan info from message: {}",
+                            self.clan_message.message.clone()
+                        );
+                        None
+                    }
+                    Some(clan_mate_who_left) => {
+                        let job = trackscape_discord_shared::jobs::remove_clanmate_job::remove_clanmate::new(
+                            clan_mate_who_left.clone(),
+                            self.registered_guild.guild_id,
+                        );
+                        let _ = self.job_queue.send_task(job).await;
+
+                        let is_disallowed = self
+                            .registered_guild
+                            .disallowed_broadcast_types
+                            .iter()
+                            .find(|&x| {
+                                if let BroadcastType::LeftTheClan = x {
+                                    return true;
+                                }
+                                false
+                            });
+                        if is_disallowed.is_some() {
+                            return None;
+                        }
+                        Some(BroadcastMessageToDiscord {
+                            type_of_broadcast: BroadcastType::LeftTheClan,
+                            player_it_happened_to: clan_mate_who_left,
+                            message: self.clan_message.message.clone(),
+                            icon_url: Some(
+                                "https://oldschool.runescape.wiki/images/Your_Clan_icon.png"
+                                    .to_string(),
+                            ),
+                            title: ":people_hugging: Someone has left the clan!".to_string(),
+                            item_quantity: None,
+                        })
+                    }
+                }
+            }
             BroadcastType::LevelMilestone => {
                 let possible_levelmilestone_broadcast =
                     levelmilestone_broadcast_extractor(self.clan_message.message.clone());
@@ -316,6 +423,88 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
                 }
             }
             BroadcastType::CollectionLog => self.collection_log_handler().await,
+            BroadcastType::CofferDonation => {
+                let possible_coffer_donation =
+                    coffer_donation_broadcast_extractor(self.clan_message.message.clone());
+
+                match possible_coffer_donation {
+                    None => {
+                        error!(
+                            "Failed to extract coffer donation info from message: {}",
+                            self.clan_message.message.clone()
+                        );
+                        None
+                    }
+                    Some(coffer_donation) => {
+                        let is_disallowed = self
+                            .registered_guild
+                            .disallowed_broadcast_types
+                            .iter()
+                            .find(|&x| {
+                                if let BroadcastType::CofferDonation = x {
+                                    return true;
+                                }
+                                false
+                            });
+                        if is_disallowed.is_some() {
+                            return None;
+                        }
+
+                        Some(BroadcastMessageToDiscord {
+                            type_of_broadcast: BroadcastType::CofferDonation,
+                            player_it_happened_to: coffer_donation.player,
+                            message: self.clan_message.message.clone(),
+                            icon_url: Some(
+                                "https://oldschool.runescape.wiki/images/thumb/Clan_Coffer.png/943px-Clan_Coffer.png"
+                                    .to_string(),
+                            ),
+                            title: ":coin: New Donation!".to_string(),
+                            item_quantity: None,
+                        })
+                    }
+                }
+            }
+            BroadcastType::CofferWithdrawal => {
+                let possible_coffer_withdrawal =
+                    coffer_withdrawal_broadcast_extractor(self.clan_message.message.clone());
+
+                match possible_coffer_withdrawal {
+                    None => {
+                        error!(
+                            "Failed to extract coffer withdrawal info from message: {}",
+                            self.clan_message.message.clone()
+                        );
+                        None
+                    }
+                    Some(coffer_withdrawal) => {
+                        let is_disallowed = self
+                            .registered_guild
+                            .disallowed_broadcast_types
+                            .iter()
+                            .find(|&x| {
+                                if let BroadcastType::CofferWithdrawal = x {
+                                    return true;
+                                }
+                                false
+                            });
+                        if is_disallowed.is_some() {
+                            return None;
+                        }
+
+                        Some(BroadcastMessageToDiscord {
+                            type_of_broadcast: BroadcastType::CofferWithdrawal,
+                            player_it_happened_to: coffer_withdrawal.player,
+                            message: self.clan_message.message.clone(),
+                            icon_url: Some(
+                                "https://oldschool.runescape.wiki/images/thumb/Clan_Coffer.png/943px-Clan_Coffer.png"
+                                    .to_string(),
+                            ),
+                            title: ":person_running: New Clan Coffer Withdrawal!".to_string(),
+                            item_quantity: None,
+                        })
+                    }
+                }
+            }
             _ => None,
         }
     }
@@ -404,6 +593,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
             }
         }
     }
+
     fn pk_handler(&self) -> Option<BroadcastMessageToDiscord> {
         let possible_pk_broadcast = pk_broadcast_extractor(self.clan_message.message.clone());
         match possible_pk_broadcast {
@@ -633,7 +823,12 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates> OSRSBroadcastH
 #[cfg(test)]
 mod tests {
     use super::*;
+    use async_trait::async_trait;
+    use celery::error::CeleryError;
+    use celery::prelude::Task;
+    use celery::task::{AsyncResult, Signature};
     use log::info;
+    use mockall::mock;
     use trackscape_discord_shared::database::clan_mate_collection_log_totals::MockClanMateCollectionLogTotals;
     use trackscape_discord_shared::database::clan_mates::MockClanMates;
     use trackscape_discord_shared::database::drop_logs_db::MockDropLogs;
@@ -642,6 +837,23 @@ mod tests {
         DiaryTier, QuestDifficulty,
     };
 
+    mock! {
+        pub JobQueue {
+            async fn send_task<T: Task + 'static>(&self, task_sig: Signature<T>) -> Result<AsyncResult, CeleryError>;
+        }
+    }
+
+    #[async_trait]
+    impl JobQueue for MockJobQueue {
+        async fn send_task<T: Task>(
+            &self,
+            task_sig: Signature<T>,
+        ) -> Result<AsyncResult, CeleryError> {
+            Ok(AsyncResult {
+                task_id: "".to_string(),
+            })
+        }
+    }
     #[tokio::test]
     async fn test_drop_item_handler_no_message_sent() {
         let clan_message = ClanMessage {
@@ -676,6 +888,9 @@ mod tests {
         drop_log_db_mock.expect_new_drop_log().returning(|_, _| {
             info!("Should not be calling this function");
         });
+
+        let mock_job_queue = MockJobQueue::new();
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -685,6 +900,7 @@ mod tests {
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.drop_item_handler().await;
@@ -734,6 +950,8 @@ mod tests {
             info!("Should not be calling this function");
         });
 
+        let mock_job_queue = MockJobQueue::new();
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -743,6 +961,7 @@ mod tests {
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.drop_item_handler().await;
@@ -792,6 +1011,8 @@ mod tests {
             info!("Should not be calling this function");
         });
 
+        let mock_job_queue = MockJobQueue::new();
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -801,6 +1022,7 @@ mod tests {
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.drop_item_handler().await;
@@ -851,6 +1073,8 @@ mod tests {
             info!("Should not be calling this function");
         });
 
+        let mock_job_queue = MockJobQueue::new();
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -860,6 +1084,7 @@ mod tests {
             drop_log_db_mock,
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.drop_item_handler().await;
@@ -877,8 +1102,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_quest_handler_message_sent() {
+    #[tokio::test]
+    async fn test_quest_handler_message_sent() {
         let clan_message = ClanMessage {
             sender: "Insomniacs".to_string(),
             message: "RuneScape Player has completed a quest: The Fremennik Isles".to_string(),
@@ -910,6 +1135,8 @@ mod tests {
             }
         }
 
+        let mock_job_queue = MockJobQueue::new();
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -919,6 +1146,7 @@ mod tests {
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.quest_handler();
@@ -935,8 +1163,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_quest_handler_message_not_sent() {
+    #[tokio::test]
+    async fn test_quest_handler_message_not_sent() {
         let clan_message = ClanMessage {
             sender: "Insomniacs".to_string(),
             message: "RuneScape Player has completed a quest: Cook's Assistant".to_string(),
@@ -968,6 +1196,8 @@ mod tests {
             }
         }
 
+        let mock_job_queue = MockJobQueue::new();
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -977,6 +1207,7 @@ mod tests {
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.quest_handler();
@@ -992,8 +1223,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_pk_value_handler_low() {
+    #[tokio::test]
+    async fn test_pk_value_handler_low() {
         let clan_message = ClanMessage {
             sender: "Insomniacs".to_string(),
             message: "HolidayPanda has been defeated by next trial in The Wilderness and lost (33,601 coins) worth of loot."
@@ -1022,6 +1253,7 @@ mod tests {
             }
         }
         let quests = Ok(Vec::new());
+        let mock_job_queue = MockJobQueue::new();
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
@@ -1032,6 +1264,7 @@ mod tests {
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.pk_handler();
@@ -1048,8 +1281,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_diary_handler_message_sent() {
+    #[tokio::test]
+    async fn test_diary_handler_message_sent() {
         let clan_message = ClanMessage {
             sender: "Insomniacs".to_string(),
             message: "RuneScape Player has completed the Hard Ardougne diary.".to_string(),
@@ -1078,6 +1311,8 @@ mod tests {
             }
         }
 
+        let mock_job_queue = MockJobQueue::new();
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -1087,6 +1322,7 @@ mod tests {
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.diary_handler();
@@ -1102,8 +1338,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_diary_handler_message_not_sent() {
+    #[tokio::test]
+    async fn test_diary_handler_message_not_sent() {
         let clan_message = ClanMessage {
             sender: "Insomniacs".to_string(),
             message: "RuneScape Player has completed the Easy Ardougne diary.".to_string(),
@@ -1132,6 +1368,8 @@ mod tests {
             }
         }
 
+        let mock_job_queue = MockJobQueue::new();
+
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
@@ -1141,6 +1379,7 @@ mod tests {
             MockDropLogs::new(),
             MockClanMateCollectionLogTotals::new(),
             MockClanMates::new(),
+            Arc::from(mock_job_queue),
         );
 
         let extracted_message = handler.diary_handler();

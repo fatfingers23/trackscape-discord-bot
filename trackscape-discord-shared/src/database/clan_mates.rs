@@ -64,9 +64,20 @@ pub trait ClanMates {
         player_name: String,
     ) -> Result<Option<ClanMateModel>, anyhow::Error>;
 
+    async fn update_clan_mate(&self, model: ClanMateModel) -> Result<ClanMateModel, anyhow::Error>;
+
     async fn get_clan_member_count(&self, guild_id: u64) -> Result<u64, Error>;
 
     async fn get_clan_mates_by_guild_id(&self, guild_id: u64) -> Result<Vec<ClanMateModel>, Error>;
+
+    async fn remove_clan_mate(&self, guild_id: u64, player_name: String) -> Result<(), Error>;
+
+    async fn change_name(
+        &self,
+        guild_id: u64,
+        old_name: String,
+        new_name: String,
+    ) -> Result<(), Error>;
 }
 
 #[async_trait]
@@ -132,6 +143,17 @@ impl ClanMates for ClanMatesDb {
         Ok(result)
     }
 
+    async fn update_clan_mate(&self, model: ClanMateModel) -> Result<ClanMateModel, Error> {
+        let collection = self
+            .db
+            .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
+        let filter = doc! {
+            "_id": bson::to_bson(&model.id).unwrap(),
+        };
+        let _ = collection.replace_one(filter, model.clone(), None).await?;
+        Ok(model)
+    }
+
     async fn get_clan_member_count(&self, guild_id: u64) -> Result<u64, Error> {
         let collection = self
             .db
@@ -153,5 +175,40 @@ impl ClanMates for ClanMatesDb {
         let result = collection.find(filter, None).await?;
         let clan_mates = result.try_collect().await?;
         Ok(clan_mates)
+    }
+
+    async fn remove_clan_mate(&self, guild_id: u64, player_name: String) -> Result<(), Error> {
+        let collection = self
+            .db
+            .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
+        let filter = doc! {
+                "guild_id":bson::to_bson(&guild_id).unwrap(),
+                "player_name": bson::to_bson(&player_name).unwrap()
+        };
+        let result = collection.delete_one(filter, None).await?;
+        if result.deleted_count == 0 {
+            return Err(anyhow::anyhow!("Failed to remove clan mate"));
+        }
+        Ok(())
+    }
+
+    async fn change_name(
+        &self,
+        guild_id: u64,
+        old_name: String,
+        new_name: String,
+    ) -> Result<(), Error> {
+        let mut clan_mate = self.find_by_current_name(old_name.clone()).await?;
+        if clan_mate.is_none() {
+            return Err(anyhow::anyhow!("Failed to find clan mate"));
+        }
+        let mut clan_mate = clan_mate.unwrap();
+        if clan_mate.guild_id != guild_id {
+            return Err(anyhow::anyhow!("Clan mate is not in this clan!"));
+        }
+        clan_mate.previous_names.push(old_name);
+        clan_mate.player_name = new_name;
+        self.update_clan_mate(clan_mate).await?;
+        Ok(())
     }
 }

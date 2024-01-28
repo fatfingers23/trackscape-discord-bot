@@ -1,30 +1,29 @@
 use crate::database::BotMongoDb;
-use serenity::builder;
+use serenity::all::{
+    CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommandOption,
+};
+use serenity::builder::CreateCommand;
 use serenity::client::Context;
-use serenity::model::prelude::application_command::{CommandDataOption, CommandDataOptionValue};
-use serenity::model::prelude::command::CommandOptionType;
 use serenity::model::prelude::Permissions;
 use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::DiaryTier;
 
-pub fn register(
-    command: &mut builder::CreateApplicationCommand,
-) -> &mut builder::CreateApplicationCommand {
-    command
-        .name("diaries")
+pub fn register() -> CreateCommand {
+    CreateCommand::new("diaries")
         .description("Sets min diary tier to trigger a broadcast. Anything below will not send")
         .default_member_permissions(Permissions::MANAGE_GUILD)
-        .create_option(|option| {
-            option
-                .name("tier")
-                .description("Min diary tier difficulty to send a broadcast.")
-                .kind(CommandOptionType::String)
-                .add_string_choice(DiaryTier::Easy.to_string(), DiaryTier::Easy.to_string())
-                .add_string_choice(DiaryTier::Medium.to_string(), DiaryTier::Medium.to_string())
-                .add_string_choice(DiaryTier::Hard.to_string(), DiaryTier::Hard.to_string())
-                .add_string_choice(DiaryTier::Elite.to_string(), DiaryTier::Elite.to_string())
-                .required(true)
-        })
+        .add_option(
+            CreateCommandOption::new(
+                CommandOptionType::String,
+                "tier",
+                "Min diary tier difficulty to send a broadcast.",
+            )
+            .add_string_choice(DiaryTier::Easy.to_string(), DiaryTier::Easy.to_string())
+            .add_string_choice(DiaryTier::Medium.to_string(), DiaryTier::Medium.to_string())
+            .add_string_choice(DiaryTier::Hard.to_string(), DiaryTier::Hard.to_string())
+            .add_string_choice(DiaryTier::Elite.to_string(), DiaryTier::Elite.to_string())
+            .required(true),
+        )
 }
 
 pub async fn run(
@@ -37,14 +36,11 @@ pub async fn run(
     match saved_guild_query {
         Ok(saved_guild) => {
             let mut saved_guild = saved_guild.unwrap_or(RegisteredGuildModel::new(guild_id));
-            let possible_diary_tier = command
-                .get(0)
-                .expect("Expected diary tier option")
-                .resolved
-                .as_ref()
-                .expect("Expected diary tier object");
+            let possible_diary_tier = command.get(0).expect("Expected diary tier option");
 
-            return if let CommandDataOptionValue::String(diary_tier) = possible_diary_tier {
+            return if let CommandDataOptionValue::String(diary_tier) =
+                possible_diary_tier.clone().value
+            {
                 saved_guild.min_diary_tier =
                     Some(DiaryTier::from_string(diary_tier.clone().to_string()));
                 db.guilds.update_guild(saved_guild).await;

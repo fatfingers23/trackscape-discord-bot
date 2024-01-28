@@ -3,9 +3,11 @@ mod on_boarding_message;
 
 use crate::on_boarding_message::send_on_boarding;
 use dotenv::dotenv;
+use serenity::all::{
+    Command, CreateInteractionResponse, CreateInteractionResponseMessage, Interaction,
+};
 use serenity::async_trait;
-use serenity::model::application::command::Command;
-use serenity::model::application::interaction::Interaction;
+use serenity::builder::CreateCommand;
 use serenity::model::channel::Message;
 use serenity::model::gateway::Ready;
 use serenity::model::guild::{Guild, UnavailableGuild};
@@ -35,9 +37,12 @@ impl TypeMapKey for ServerCount {
 
 #[async_trait]
 impl EventHandler for Bot {
-    async fn guild_create(&self, ctx: Context, guild: Guild, is_new: bool) {
+    async fn guild_create(&self, ctx: Context, guild: Guild, is_new: Option<bool>) {
         info!("Guild: {}", guild.name);
-        self.mongo_db.guilds.create_if_new_guild(guild.id.0).await;
+        self.mongo_db
+            .guilds
+            .create_if_new_guild(guild.id.get())
+            .await;
         let server_count = {
             let data_read = ctx.data.read().await;
             data_read
@@ -52,14 +57,15 @@ impl EventHandler for Bot {
             .send_server_count(new_server_count as i64)
             .await;
 
-        if is_new {
+        if is_new.unwrap_or(false) {
             //This fires if it's a new guild it's been added to
             if let Some(guild_system_channel) = guild.system_channel_id {
                 send_on_boarding(guild_system_channel, &ctx).await;
             }
             info!(
                 "Joined a new Discord Server Id: {} and name {}",
-                guild.id.0, guild.name
+                guild.id.get(),
+                guild.name
             );
         }
     }
@@ -73,7 +79,7 @@ impl EventHandler for Bot {
         }
 
         if !incomplete.unavailable {
-            self.mongo_db.guilds.delete_guild(incomplete.id.0).await;
+            self.mongo_db.guilds.delete_guild(incomplete.id.get()).await;
             info!("The guild mention has been deleted when removed.");
         }
 
@@ -100,7 +106,7 @@ impl EventHandler for Bot {
         match possible_guild_id {
             None => {}
             Some(guild_id) => {
-                let guild_id = guild_id.0;
+                let guild_id = guild_id.get();
                 let guild = self.mongo_db.guilds.get_by_guild_id(guild_id).await;
                 match guild {
                     Ok(guild) => {
@@ -111,7 +117,7 @@ impl EventHandler for Bot {
                         if unwrapped_guild.clan_chat_channel.is_none() {
                             return;
                         }
-                        if unwrapped_guild.clan_chat_channel.unwrap() == msg.channel_id.0 {
+                        if unwrapped_guild.clan_chat_channel.unwrap() == msg.channel_id.get() {
                             let mut map = HashMap::new();
                             let mut shortened_message = msg.content.clone();
                             // 78 is the max length of a message in game
@@ -157,45 +163,10 @@ impl EventHandler for Bot {
     async fn ready(&self, ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
         if self.dev_guild_id.is_some() {
-            create_commands_for_guild(&GuildId(self.dev_guild_id.unwrap()), ctx.clone()).await;
+            create_commands_for_guild(&GuildId::new(self.dev_guild_id.unwrap()), ctx.clone()).await;
         } else {
             let global_guild_commands =
-                Command::set_global_application_commands(&ctx.http, |commands| {
-                    commands
-                        .create_application_command(|command| {
-                            commands::set_clan_chat_channel::register(command)
-                        })
-                        .create_application_command(|command| {
-                            commands::set_broadcast_channel::register(command)
-                        })
-                        .create_application_command(|command| {
-                            commands::get_verification_code::register(command)
-                        })
-                        .create_application_command(|command| commands::info::register(command))
-                        .create_application_command(|command| {
-                            commands::set_threshold_command::register(command)
-                        })
-                        .create_application_command(|command| {
-                            commands::set_quest_min_command::register(command)
-                        })
-                        .create_application_command(|command| {
-                            commands::set_diary_min_command::register(command)
-                        })
-                        .create_application_command(|command| {
-                            commands::reset_broadcasts_thresholds::register(command)
-                        })
-                        .create_application_command(|command| {
-                            commands::toggle_broadcasts::register(command)
-                        })
-                        .create_application_command(|command| {
-                            commands::set_wom_id_command::register(command)
-                        })
-                        .create_application_command(|command| {
-                            commands::set_leagues_broadcast_channel::register(command)
-                        })
-                })
-                .await;
-
+                Command::set_global_commands(&ctx.http, get_commands()).await;
             match global_guild_commands {
                 Ok(_) => {}
                 Err(e) => {
@@ -206,14 +177,14 @@ impl EventHandler for Bot {
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::ApplicationCommand(command) = interaction.clone() {
+        if let Interaction::Command(command) = interaction.clone() {
             let content = match command.data.name.as_str() {
                 "set_clan_chat_channel" => {
                     commands::set_clan_chat_channel::run(
                         &command.data.options,
                         &ctx,
                         &self.mongo_db,
-                        command.guild_id.unwrap().0,
+                        command.guild_id.unwrap().get(),
                     )
                     .await
                 }
@@ -222,7 +193,7 @@ impl EventHandler for Bot {
                         &command.data.options,
                         &ctx,
                         &self.mongo_db,
-                        command.guild_id.unwrap().0,
+                        command.guild_id.unwrap().get(),
                     )
                     .await
                 }
@@ -231,7 +202,7 @@ impl EventHandler for Bot {
                         &command.data.options,
                         &ctx,
                         &self.mongo_db,
-                        command.guild_id.unwrap().0,
+                        command.guild_id.unwrap().get(),
                     )
                     .await
                 }
@@ -243,7 +214,7 @@ impl EventHandler for Bot {
                         &command.data.options,
                         &ctx,
                         &self.mongo_db,
-                        command.guild_id.unwrap().0,
+                        command.guild_id.unwrap().get(),
                     )
                     .await
                 }
@@ -252,7 +223,7 @@ impl EventHandler for Bot {
                         &command.data.options,
                         &ctx,
                         &self.mongo_db,
-                        command.guild_id.unwrap().0,
+                        command.guild_id.unwrap().get(),
                     )
                     .await
                 }
@@ -261,7 +232,7 @@ impl EventHandler for Bot {
                         &command.data.options,
                         &ctx,
                         &self.mongo_db,
-                        command.guild_id.unwrap().0,
+                        command.guild_id.unwrap().get(),
                     )
                     .await
                 }
@@ -270,16 +241,16 @@ impl EventHandler for Bot {
                         &command.data.options,
                         &ctx,
                         &self.mongo_db,
-                        command.guild_id.unwrap().0,
+                        command.guild_id.unwrap().get(),
                     )
                     .await
                 }
                 "toggle" => {
-                    commands::toggle_broadcasts::run(
+                    commands::toggle_broadcasts_command::run(
                         &command.data.options,
                         &ctx,
                         &self.mongo_db,
-                        command.guild_id.unwrap().0,
+                        command.guild_id.unwrap().get(),
                     )
                     .await
                 }
@@ -288,7 +259,7 @@ impl EventHandler for Bot {
                         &command.data.options,
                         &ctx,
                         &self.mongo_db,
-                        command.guild_id.unwrap().0,
+                        command.guild_id.unwrap().get(),
                     )
                     .await
                 }
@@ -297,7 +268,25 @@ impl EventHandler for Bot {
                         &command.data.options,
                         &ctx,
                         &self.mongo_db,
-                        command.guild_id.unwrap().0,
+                        command.guild_id.unwrap().get(),
+                    )
+                    .await
+                }
+                "expel" => {
+                    commands::expel_clanmate_command::run(
+                        &command.data.options,
+                        &ctx,
+                        &self.mongo_db,
+                        command.guild_id.unwrap().get(),
+                    )
+                    .await
+                }
+                "name_change" => {
+                    commands::name_change_command::run(
+                        &command.data.options,
+                        &ctx,
+                        &self.mongo_db,
+                        command.guild_id.unwrap().get(),
                     )
                     .await
                 }
@@ -307,56 +296,48 @@ impl EventHandler for Bot {
                 }
             };
 
-            if let Err(why) = command
-                .create_interaction_response(&ctx.http, |response| match content {
-                    None => response.interaction_response_data(|message| {
-                        message.content("Command Completed Successfully.")
-                    }),
-                    Some(reply) => response.interaction_response_data(|message| {
-                        message.content(reply).ephemeral(true)
-                    }),
-                })
-                .await
-            {
+            let message_response = match content {
+                None => CreateInteractionResponse::Message(
+                    CreateInteractionResponseMessage::new()
+                        .content("Command Completed Successfully."),
+                ),
+                Some(reply) => CreateInteractionResponse::Message(
+                    CreateInteractionResponseMessage::new()
+                        .content(reply)
+                        .ephemeral(true),
+                ),
+            };
+
+            if let Err(why) = command.create_response(&ctx.http, message_response).await {
                 println!("Cannot respond to slash command: {}", why);
             }
         }
     }
 }
 
+fn get_commands() -> Vec<CreateCommand> {
+    let mut commands = Vec::new();
+    commands.push(commands::set_clan_chat_channel::register());
+    commands.push(commands::set_broadcast_channel::register());
+    commands.push(commands::get_verification_code::register());
+    commands.push(commands::info::register());
+    commands.push(commands::set_threshold_command::register());
+    commands.push(commands::set_quest_min_command::register());
+    commands.push(commands::set_diary_min_command::register());
+    commands.push(commands::reset_broadcasts_thresholds::register());
+    commands.push(commands::toggle_broadcasts_command::register());
+    commands.push(commands::set_wom_id_command::register());
+    commands.push(commands::expel_clanmate_command::register());
+    commands.push(commands::name_change_command::register());
+    //leagues didnt have any braodcasts this time around and over now
+    // commands.push(commands::set_leagues_broadcast_channel::register());
+    commands
+}
 pub async fn create_commands_for_guild(guild_id: &GuildId, ctx: Context) {
-    let commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
-        commands
-            .create_application_command(|command| {
-                commands::set_clan_chat_channel::register(command)
-            })
-            .create_application_command(|command| {
-                commands::set_broadcast_channel::register(command)
-            })
-            .create_application_command(|command| {
-                commands::get_verification_code::register(command)
-            })
-            .create_application_command(|command| commands::info::register(command))
-            .create_application_command(|command| {
-                commands::set_threshold_command::register(command)
-            })
-            .create_application_command(|command| {
-                commands::set_quest_min_command::register(command)
-            })
-            .create_application_command(|command| {
-                commands::set_diary_min_command::register(command)
-            })
-            .create_application_command(|command| {
-                commands::reset_broadcasts_thresholds::register(command)
-            })
-            .create_application_command(|command| commands::toggle_broadcasts::register(command))
-            .create_application_command(|command| commands::set_wom_id_command::register(command))
-            .create_application_command(|command| {
-                commands::set_leagues_broadcast_channel::register(command)
-            })
-    })
-    .await;
-    match commands {
+    let result = guild_id
+        .set_commands(ctx.http.clone(), get_commands())
+        .await;
+    match result {
         Ok(_) => {}
         Err(e) => {
             error!("Error creating guild commands: {}, for: {}", e, guild_id)

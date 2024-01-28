@@ -3,6 +3,7 @@
 import DataTable from "@/components/DataTable.vue";
 import type {ClanDetail} from "@/services/TrackscapeApiTypes";
 import type {PropType} from "vue";
+import {it} from "vitest";
 
 const props = defineProps({
   clanDetail: {
@@ -15,6 +16,10 @@ const columns = [
   {
     name: 'Members',
     key: 'player_name'
+  },
+  {
+    name: 'Rank',
+    key:'rank'
   },
   {
     name: 'View WOM',
@@ -38,6 +43,20 @@ const columns = [
           <template v-if="column.name == 'View WOM'">
             <a class="link text-sm md:text-base"
                :href="`https://www.wiseoldman.net/players/${item.player_name}`"> View WOM</a></template>
+          <template v-else-if="column.name == 'Rank'">
+            <span v-if="item[column.key] !== null"
+                  class="flex text-sm md:text-base">
+              <img
+                class="w-6 h-6 rounded-full"
+                :alt="`${item[column.key]} icon`"
+                :src="`https://oldschool.runescape.wiki/images/Clan_icon_-_${item[column.key] == 'Deputy Owner'  ? 'Deputy_owner' : item[column.key]}.png`" />
+              {{item[column.key]}}
+            </span>
+            <span v-else
+                  class="text-sm md:text-base">
+              Unrecorded
+            </span>
+          </template>
           <template v-else>
             <span class="text-sma md:text-base">
               {{item[column.key]}}

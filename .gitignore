@@ -7,3 +7,4 @@ Secrets.dev.toml
 .DS_Store
 .shuttle-storage
 #trackscape-discord-api/ui
+cargo-shuttle

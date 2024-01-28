@@ -1,15 +1,10 @@
 use crate::on_boarding_message::send_on_boarding;
-use serenity::builder;
+use serenity::all::{CommandDataOption, CreateCommand};
 use serenity::client::Context;
 use serenity::model::id::ChannelId;
-use serenity::model::prelude::application_command::CommandDataOption;
 
-pub fn register(
-    command: &mut builder::CreateApplicationCommand,
-) -> &mut builder::CreateApplicationCommand {
-    command
-        .name("info")
-        .description("Displays info about the bot")
+pub fn register() -> CreateCommand {
+    CreateCommand::new("info").description("Displays info about the bot")
 }
 
 pub async fn run(
