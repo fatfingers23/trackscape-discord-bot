@@ -1,3 +1,4 @@
+pub mod expel_clanmate_command;
 pub mod get_verification_code;
 pub mod info;
 pub mod reset_broadcasts_thresholds;
