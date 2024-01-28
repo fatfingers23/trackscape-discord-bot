@@ -1,6 +1,7 @@
 pub mod expel_clanmate_command;
 pub mod get_verification_code;
 pub mod info;
+pub mod name_change_command;
 pub mod reset_broadcasts_thresholds;
 pub mod set_broadcast_channel;
 pub mod set_clan_chat_channel;

@@ -281,6 +281,15 @@ impl EventHandler for Bot {
                     )
                     .await
                 }
+                "name_change" => {
+                    commands::name_change_command::run(
+                        &command.data.options,
+                        &ctx,
+                        &self.mongo_db,
+                        command.guild_id.unwrap().get(),
+                    )
+                    .await
+                }
                 _ => {
                     info!("not implemented :(");
                     None
@@ -319,6 +328,7 @@ fn get_commands() -> Vec<CreateCommand> {
     commands.push(commands::toggle_broadcasts_command::register());
     commands.push(commands::set_wom_id_command::register());
     commands.push(commands::expel_clanmate_command::register());
+    commands.push(commands::name_change_command::register());
     //leagues didnt have any braodcasts this time around and over now
     // commands.push(commands::set_leagues_broadcast_channel::register());
     commands

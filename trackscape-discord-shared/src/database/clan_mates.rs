@@ -71,6 +71,13 @@ pub trait ClanMates {
     async fn get_clan_mates_by_guild_id(&self, guild_id: u64) -> Result<Vec<ClanMateModel>, Error>;
 
     async fn remove_clan_mate(&self, guild_id: u64, player_name: String) -> Result<(), Error>;
+
+    async fn change_name(
+        &self,
+        guild_id: u64,
+        old_name: String,
+        new_name: String,
+    ) -> Result<(), Error>;
 }
 
 #[async_trait]
@@ -182,6 +189,26 @@ impl ClanMates for ClanMatesDb {
         if result.deleted_count == 0 {
             return Err(anyhow::anyhow!("Failed to remove clan mate"));
         }
+        Ok(())
+    }
+
+    async fn change_name(
+        &self,
+        guild_id: u64,
+        old_name: String,
+        new_name: String,
+    ) -> Result<(), Error> {
+        let mut clan_mate = self.find_by_current_name(old_name.clone()).await?;
+        if clan_mate.is_none() {
+            return Err(anyhow::anyhow!("Failed to find clan mate"));
+        }
+        let mut clan_mate = clan_mate.unwrap();
+        if clan_mate.guild_id != guild_id {
+            return Err(anyhow::anyhow!("Clan mate is not in this clan!"));
+        }
+        clan_mate.previous_names.push(old_name);
+        clan_mate.player_name = new_name;
+        self.update_clan_mate(clan_mate).await?;
         Ok(())
     }
 }
