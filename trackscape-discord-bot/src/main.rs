@@ -246,7 +246,7 @@ impl EventHandler for Bot {
                     .await
                 }
                 "toggle" => {
-                    commands::toggle_broadcasts::run(
+                    commands::toggle_broadcasts_command::run(
                         &command.data.options,
                         &ctx,
                         &self.mongo_db,
@@ -307,7 +307,7 @@ fn get_commands() -> Vec<CreateCommand> {
     commands.push(commands::set_quest_min_command::register());
     commands.push(commands::set_diary_min_command::register());
     commands.push(commands::reset_broadcasts_thresholds::register());
-    commands.push(commands::toggle_broadcasts::register());
+    commands.push(commands::toggle_broadcasts_command::register());
     commands.push(commands::set_wom_id_command::register());
     //leagues didnt have any braodcasts this time around and over now
     // commands.push(commands::set_leagues_broadcast_channel::register());

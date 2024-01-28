@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 pub mod add_job;
 mod job_helpers;
+pub mod remove_clanmate_job;
 pub mod update_create_clanmate_job;
 
 #[async_trait]

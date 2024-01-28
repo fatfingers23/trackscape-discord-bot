@@ -42,6 +42,14 @@ pub fn register() -> CreateCommand {
                 BroadcastType::Invite.to_slug(),
             )
             .add_string_choice(
+                BroadcastType::LeftTheClan.to_string(),
+                BroadcastType::LeftTheClan.to_slug(),
+            )
+            .add_string_choice(
+                BroadcastType::ExpelledFromClan.to_string(),
+                BroadcastType::ExpelledFromClan.to_slug(),
+            )
+            .add_string_choice(
                 BroadcastType::LevelMilestone.to_string(),
                 BroadcastType::LevelMilestone.to_slug(),
             )

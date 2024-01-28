@@ -12,6 +12,7 @@ async fn main() -> Result<()> {
         tasks = [
             trackscape_discord_shared::jobs::add_job::run,
             trackscape_discord_shared::jobs::update_create_clanmate_job::update_create_clanmate,
+            trackscape_discord_shared::jobs::remove_clanmate_job::remove_clanmate,
         ],
         // This just shows how we can route certain tasks to certain queues based
         // on glob matching.

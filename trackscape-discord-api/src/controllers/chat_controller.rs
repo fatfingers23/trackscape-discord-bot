@@ -184,6 +184,7 @@ async fn new_clan_chats(
                     ),
                 )
                 .await;
+            continue;
         }
 
         //TODO may remove this since the handler does some loging for the website now

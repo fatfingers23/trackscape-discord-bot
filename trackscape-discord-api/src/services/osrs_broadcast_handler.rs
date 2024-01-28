@@ -9,7 +9,8 @@ use trackscape_discord_shared::ge_api::ge_api::{get_item_value_by_id, GeItemMapp
 use trackscape_discord_shared::jobs::JobQueue;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     collection_log_broadcast_extractor, diary_completed_broadcast_extractor,
-    drop_broadcast_extractor, get_broadcast_type, invite_broadcast_extractor,
+    drop_broadcast_extractor, expelled_from_clan_broadcast_extractor, get_broadcast_type,
+    invite_broadcast_extractor, left_the_clan_broadcast_extractor,
     levelmilestone_broadcast_extractor, pet_broadcast_extractor, pk_broadcast_extractor,
     quest_completed_broadcast_extractor, raid_broadcast_extractor, xpmilestone_broadcast_extractor,
     BroadcastType, ClanMessage,
@@ -43,7 +44,7 @@ pub struct OSRSBroadcastHandler<
     drop_log_db: T,
     collection_log_db: CL,
     clan_mates_db: CM,
-    _job_queue: Arc<J>,
+    job_queue: Arc<J>,
 }
 
 impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
@@ -75,7 +76,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
             drop_log_db,
             collection_log_db,
             clan_mates_db,
-            _job_queue: job_queue,
+            job_queue: job_queue,
         }
     }
 
@@ -248,6 +249,98 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     }
                 }
             }
+            BroadcastType::ExpelledFromClan => {
+                let possible_expelled_broadcast =
+                    expelled_from_clan_broadcast_extractor(self.clan_message.message.clone());
+
+                match possible_expelled_broadcast {
+                    None => {
+                        error!(
+                            "Failed to extract left clan info from message: {}",
+                            self.clan_message.message.clone()
+                        );
+                        None
+                    }
+                    Some(clan_mate_who_got_kicked) => {
+                        let job = trackscape_discord_shared::jobs::remove_clanmate_job::remove_clanmate::new(
+                            clan_mate_who_got_kicked.clone(),
+                            self.registered_guild.guild_id,
+                        );
+                        let _ = self.job_queue.send_task(job).await;
+
+                        let is_disallowed = self
+                            .registered_guild
+                            .disallowed_broadcast_types
+                            .iter()
+                            .find(|&x| {
+                                if let BroadcastType::LeftTheClan = x {
+                                    return true;
+                                }
+                                false
+                            });
+                        if is_disallowed.is_some() {
+                            return None;
+                        }
+                        Some(BroadcastMessageToDiscord {
+                            type_of_broadcast: BroadcastType::LeftTheClan,
+                            player_it_happened_to: clan_mate_who_got_kicked,
+                            message: self.clan_message.message.clone(),
+                            icon_url: Some(
+                                "https://oldschool.runescape.wiki/images/Your_Clan_icon.png"
+                                    .to_string(),
+                            ),
+                            title: ":boot: Someone has been expelled!".to_string(),
+                            item_quantity: None,
+                        })
+                    }
+                }
+            }
+            BroadcastType::LeftTheClan => {
+                let possible_left_broadcast =
+                    left_the_clan_broadcast_extractor(self.clan_message.message.clone());
+
+                match possible_left_broadcast {
+                    None => {
+                        error!(
+                            "Failed to extract left clan info from message: {}",
+                            self.clan_message.message.clone()
+                        );
+                        None
+                    }
+                    Some(clan_mate_who_left) => {
+                        let job = trackscape_discord_shared::jobs::remove_clanmate_job::remove_clanmate::new(
+                            clan_mate_who_left.clone(),
+                            self.registered_guild.guild_id,
+                        );
+                        let _ = self.job_queue.send_task(job).await;
+
+                        let is_disallowed = self
+                            .registered_guild
+                            .disallowed_broadcast_types
+                            .iter()
+                            .find(|&x| {
+                                if let BroadcastType::LeftTheClan = x {
+                                    return true;
+                                }
+                                false
+                            });
+                        if is_disallowed.is_some() {
+                            return None;
+                        }
+                        Some(BroadcastMessageToDiscord {
+                            type_of_broadcast: BroadcastType::LeftTheClan,
+                            player_it_happened_to: clan_mate_who_left,
+                            message: self.clan_message.message.clone(),
+                            icon_url: Some(
+                                "https://oldschool.runescape.wiki/images/Your_Clan_icon.png"
+                                    .to_string(),
+                            ),
+                            title: ":people_hugging: Someone has left the clan!".to_string(),
+                            item_quantity: None,
+                        })
+                    }
+                }
+            }
             BroadcastType::LevelMilestone => {
                 let possible_levelmilestone_broadcast =
                     levelmilestone_broadcast_extractor(self.clan_message.message.clone());
@@ -329,8 +422,6 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                 }
             }
             BroadcastType::CollectionLog => self.collection_log_handler().await,
-            // BroadcastType::LeftTheClan => {}
-            // BroadcastType::ExpelledFromClan => {}
             _ => None,
         }
     }

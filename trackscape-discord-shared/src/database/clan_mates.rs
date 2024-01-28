@@ -2,10 +2,12 @@ use crate::database::ClanMatesDb;
 use anyhow::Error;
 use async_trait::async_trait;
 use futures::TryStreamExt;
+use log::info;
 use mockall::predicate::*;
 use mockall::*;
 use mongodb::bson::{doc, DateTime};
 use mongodb::{bson, Database};
+use num_format::Locale::bs;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -69,6 +71,8 @@ pub trait ClanMates {
     async fn get_clan_member_count(&self, guild_id: u64) -> Result<u64, Error>;
 
     async fn get_clan_mates_by_guild_id(&self, guild_id: u64) -> Result<Vec<ClanMateModel>, Error>;
+
+    async fn remove_clan_mate(&self, guild_id: u64, player_name: String) -> Result<(), Error>;
 }
 
 #[async_trait]
@@ -166,5 +170,20 @@ impl ClanMates for ClanMatesDb {
         let result = collection.find(filter, None).await?;
         let clan_mates = result.try_collect().await?;
         Ok(clan_mates)
+    }
+
+    async fn remove_clan_mate(&self, guild_id: u64, player_name: String) -> Result<(), Error> {
+        let collection = self
+            .db
+            .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
+        let filter = doc! {
+                "guild_id":bson::to_bson(&guild_id).unwrap(),
+                "player_name": bson::to_bson(&player_name).unwrap()
+        };
+        let result = collection.delete_one(filter, None).await?;
+        if result.deleted_count == 0 {
+            return Err(anyhow::anyhow!("Failed to remove clan mate"));
+        }
+        Ok(())
     }
 }
