@@ -49,7 +49,7 @@ const columns = [
               <img
                 class="w-6 h-6 rounded-full"
                 :alt="`${item[column.key]} icon`"
-                :src="`https://oldschool.runescape.wiki/images/Clan_icon_-_${item[column.key] == 'Deputy Owner'  ? 'Deputy_owner' : item[column.key]}.png`" />
+                :src="`https://oldschool.runescape.wiki/images/Clan_icon_-_${item[column.key] == 'Deputy Owner'  ? 'Deputy_owner' : item[column.key].replace(' ', '_')}.png`" />
               {{item[column.key]}}
             </span>
             <span v-else
