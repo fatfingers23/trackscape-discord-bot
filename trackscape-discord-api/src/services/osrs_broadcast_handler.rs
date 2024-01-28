@@ -8,6 +8,7 @@ use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
 use trackscape_discord_shared::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
 use trackscape_discord_shared::jobs::JobQueue;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
+    coffer_donation_broadcast_extractor, coffer_withdrawal_broadcast_extractor,
     collection_log_broadcast_extractor, diary_completed_broadcast_extractor,
     drop_broadcast_extractor, expelled_from_clan_broadcast_extractor, get_broadcast_type,
     invite_broadcast_extractor, left_the_clan_broadcast_extractor,
@@ -422,6 +423,88 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                 }
             }
             BroadcastType::CollectionLog => self.collection_log_handler().await,
+            BroadcastType::CofferDonation => {
+                let possible_coffer_donation =
+                    coffer_donation_broadcast_extractor(self.clan_message.message.clone());
+
+                match possible_coffer_donation {
+                    None => {
+                        error!(
+                            "Failed to extract coffer donation info from message: {}",
+                            self.clan_message.message.clone()
+                        );
+                        None
+                    }
+                    Some(coffer_donation) => {
+                        let is_disallowed = self
+                            .registered_guild
+                            .disallowed_broadcast_types
+                            .iter()
+                            .find(|&x| {
+                                if let BroadcastType::CofferDonation = x {
+                                    return true;
+                                }
+                                false
+                            });
+                        if is_disallowed.is_some() {
+                            return None;
+                        }
+
+                        Some(BroadcastMessageToDiscord {
+                            type_of_broadcast: BroadcastType::CofferDonation,
+                            player_it_happened_to: coffer_donation.player,
+                            message: self.clan_message.message.clone(),
+                            icon_url: Some(
+                                "https://oldschool.runescape.wiki/images/thumb/Clan_Coffer.png/943px-Clan_Coffer.png"
+                                    .to_string(),
+                            ),
+                            title: ":coin: New Donation!".to_string(),
+                            item_quantity: None,
+                        })
+                    }
+                }
+            }
+            BroadcastType::CofferWithdrawal => {
+                let possible_coffer_withdrawal =
+                    coffer_withdrawal_broadcast_extractor(self.clan_message.message.clone());
+
+                match possible_coffer_withdrawal {
+                    None => {
+                        error!(
+                            "Failed to extract coffer withdrawal info from message: {}",
+                            self.clan_message.message.clone()
+                        );
+                        None
+                    }
+                    Some(coffer_withdrawal) => {
+                        let is_disallowed = self
+                            .registered_guild
+                            .disallowed_broadcast_types
+                            .iter()
+                            .find(|&x| {
+                                if let BroadcastType::CofferWithdrawal = x {
+                                    return true;
+                                }
+                                false
+                            });
+                        if is_disallowed.is_some() {
+                            return None;
+                        }
+
+                        Some(BroadcastMessageToDiscord {
+                            type_of_broadcast: BroadcastType::CofferWithdrawal,
+                            player_it_happened_to: coffer_withdrawal.player,
+                            message: self.clan_message.message.clone(),
+                            icon_url: Some(
+                                "https://oldschool.runescape.wiki/images/thumb/Clan_Coffer.png/943px-Clan_Coffer.png"
+                                    .to_string(),
+                            ),
+                            title: ":person_running: New Clan Coffer Withdrawal!".to_string(),
+                            item_quantity: None,
+                        })
+                    }
+                }
+            }
             _ => None,
         }
     }

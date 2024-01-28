@@ -2,12 +2,10 @@ use crate::database::ClanMatesDb;
 use anyhow::Error;
 use async_trait::async_trait;
 use futures::TryStreamExt;
-use log::info;
 use mockall::predicate::*;
 use mockall::*;
 use mongodb::bson::{doc, DateTime};
 use mongodb::{bson, Database};
-use num_format::Locale::bs;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

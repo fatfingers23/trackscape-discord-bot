@@ -3,7 +3,6 @@ use serenity::all::{
     CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommand,
     CreateCommandOption, CreateMessage,
 };
-use std::any::Any;
 
 use serenity::builder;
 use serenity::client::Context;

@@ -1,12 +1,10 @@
 use crate::database::BotMongoDb;
-use num_format::Locale::tr;
 use serenity::all::{
     CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommand,
     CreateCommandOption, CreateMessage,
 };
 use serenity::client::Context;
 use serenity::model::channel::ChannelType;
-use std::any::Any;
 
 use serenity::model::prelude::Permissions;
 use tracing::{error, info};

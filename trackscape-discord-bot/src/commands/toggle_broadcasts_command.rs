@@ -7,62 +7,22 @@ use serenity::client::Context;
 use serenity::model::prelude::Permissions;
 use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::BroadcastType;
-use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::BroadcastType::ItemDrop;
 
 pub fn register() -> CreateCommand {
+    let mut broadcast_type_option = CreateCommandOption::new(
+        CommandOptionType::SubCommandGroup,
+        "broadcasts",
+        "Commands for managing broadcasts.",
+    );
+    for broadcast_type in BroadcastType::iter() {
+        broadcast_type_option = broadcast_type_option
+            .add_string_choice(broadcast_type.to_string(), broadcast_type.to_slug());
+    }
+
     CreateCommand::new("toggle")
         .description("Turns on or off a broadcast type to be sent.")
         .default_member_permissions(Permissions::MANAGE_GUILD)
-        .add_option(
-            CreateCommandOption::new(
-                CommandOptionType::String,
-                "broadcast",
-                "Broadcast type to toggle on or off.",
-            )
-            .add_string_choice(BroadcastType::ItemDrop.to_string(), ItemDrop.to_slug())
-            .add_string_choice(BroadcastType::Pk.to_string(), BroadcastType::Pk.to_slug())
-            .add_string_choice(
-                BroadcastType::Quest.to_string(),
-                BroadcastType::Quest.to_slug(),
-            )
-            .add_string_choice(
-                BroadcastType::Diary.to_string(),
-                BroadcastType::Diary.to_slug(),
-            )
-            .add_string_choice(
-                BroadcastType::RaidDrop.to_string(),
-                BroadcastType::RaidDrop.to_slug(),
-            )
-            .add_string_choice(
-                BroadcastType::PetDrop.to_string(),
-                BroadcastType::PetDrop.to_slug(),
-            )
-            .add_string_choice(
-                BroadcastType::Invite.to_string(),
-                BroadcastType::Invite.to_slug(),
-            )
-            .add_string_choice(
-                BroadcastType::LeftTheClan.to_string(),
-                BroadcastType::LeftTheClan.to_slug(),
-            )
-            .add_string_choice(
-                BroadcastType::ExpelledFromClan.to_string(),
-                BroadcastType::ExpelledFromClan.to_slug(),
-            )
-            .add_string_choice(
-                BroadcastType::LevelMilestone.to_string(),
-                BroadcastType::LevelMilestone.to_slug(),
-            )
-            .add_string_choice(
-                BroadcastType::XPMilestone.to_string(),
-                BroadcastType::XPMilestone.to_slug(),
-            )
-            .add_string_choice(
-                BroadcastType::CollectionLog.to_string(),
-                BroadcastType::CollectionLog.to_slug(),
-            )
-            .required(true),
-        )
+        .add_option(broadcast_type_option.required(true))
         .add_option(
             CreateCommandOption::new(
                 CommandOptionType::Boolean,

@@ -1,7 +1,6 @@
 use crate::database::clan_mates::ClanMates;
 use crate::jobs::job_helpers::get_mongodb;
 use celery::prelude::*;
-use celery::task::Signature;
 
 ///
 /// Removes a clan mate
