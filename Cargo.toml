@@ -3,7 +3,8 @@ members = [
     "trackscape-discord-api",
     "trackscape-discord-bot",
     "trackscape-discord-shared",
-    "trackscape-discord-job-worker"
+    "trackscape-discord-job-worker",
+    "trackscape-discord-cron-job-worker"
 ]
 resolver = "2"
 

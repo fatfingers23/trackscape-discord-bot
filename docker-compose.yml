@@ -15,7 +15,7 @@ services:
   shuttle:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: dockerfiles/Shuttle.Dockerfile
     ports:
       - '8000:8000'
       - '8001:8001'
@@ -35,10 +35,26 @@ services:
   worker:
     build:
       context: .
-      dockerfile: Worker.Dockerfile
+      dockerfile: dockerfiles/Worker.Dockerfile
     environment:
       MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@host.docker.internal:27017'
       DISCORD_TOKEN: '${DISCORD_TOKEN}'
+      TRACKSCAPE_API_BASE: '${TRACKSCAPE_API_BASE}'
+      REDIS_ADDR: '${REDIS_ADDR}'
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - trackscape-network
+    command: ""
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  cron-worker:
+    build:
+      context: .
+      dockerfile: dockerfiles/CronWorker.Dockerfile
+    environment:
+      MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@host.docker.internal:27017'
       TRACKSCAPE_API_BASE: '${TRACKSCAPE_API_BASE}'
       REDIS_ADDR: '${REDIS_ADDR}'
     depends_on:

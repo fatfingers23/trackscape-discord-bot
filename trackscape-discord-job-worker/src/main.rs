@@ -7,7 +7,7 @@ async fn main() -> Result<()> {
     dotenv().ok();
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
-    let my_app = celery::app!(
+    let instant_job_app = celery::app!(
         broker = RedisBroker { std::env::var("REDIS_ADDR").unwrap_or_else(|_| "redis://127.0.0.1:6379/".into()) },
         tasks = [
             trackscape_discord_shared::jobs::add_job::run,
@@ -23,10 +23,10 @@ async fn main() -> Result<()> {
         heartbeat = Some(10),
     ).await?;
 
-    my_app.display_pretty().await;
-    my_app.consume_from(&["celery"]).await?;
+    instant_job_app.display_pretty().await;
+    instant_job_app.consume_from(&["celery"]).await?;
 
-    my_app.close().await?;
+    instant_job_app.close().await?;
 
     Ok(())
 }

@@ -4474,6 +4474,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "trackscape-discord-cron-job-worker"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "celery",
+ "dotenv",
+ "env_logger",
+ "log",
+ "redis 0.22.3",
+ "serde",
+ "serde_json",
+ "tokio",
+ "trackscape-discord-shared",
+]
+
+[[package]]
 name = "trackscape-discord-job-worker"
 version = "0.1.0"
 dependencies = [
