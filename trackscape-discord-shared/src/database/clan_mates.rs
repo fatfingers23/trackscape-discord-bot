@@ -94,7 +94,7 @@ impl ClanMates for ClanMatesDb {
         let possible_clan_mate = self.find_by_current_name(player_name.clone()).await?;
         return Ok(match possible_clan_mate {
             None => {
-                self.create_new_clan_mate(guild_id, player_name, None)
+                self.create_new_clan_mate(guild_id, player_name.replace(" ", "\u{a0}"), None)
                     .await?
             }
             Some(clan_mate) => clan_mate,
@@ -110,7 +110,8 @@ impl ClanMates for ClanMatesDb {
         let collection = self
             .db
             .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
-        let clan_mate = ClanMateModel::new(guild_id, player_name, wom_player_id);
+        let clan_mate =
+            ClanMateModel::new(guild_id, player_name.replace(" ", "\u{a0}"), wom_player_id);
         let _ = collection.insert_one(clan_mate.clone(), None).await?;
         Ok(clan_mate)
     }
@@ -123,7 +124,7 @@ impl ClanMates for ClanMatesDb {
             .db
             .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
         let filter = doc! {
-            "player_name": bson::to_bson(&player_name).unwrap(),
+            "player_name": bson::to_bson(&player_name.replace(" ", "\u{a0}")).unwrap(),
         };
         let result = collection.find_one(filter, None).await?;
         Ok(result)
@@ -137,16 +138,17 @@ impl ClanMates for ClanMatesDb {
             .db
             .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
         let filter = doc! {
-            "previous_names": bson::to_bson(&player_name).unwrap(),
+            "previous_names": bson::to_bson(&player_name.replace(" ", "\u{a0}")).unwrap(),
         };
         let result = collection.find_one(filter, None).await?;
         Ok(result)
     }
 
-    async fn update_clan_mate(&self, model: ClanMateModel) -> Result<ClanMateModel, Error> {
+    async fn update_clan_mate(&self, mut model: ClanMateModel) -> Result<ClanMateModel, Error> {
         let collection = self
             .db
             .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
+        model.player_name = model.player_name.replace(" ", "\u{a0}");
         let filter = doc! {
             "_id": bson::to_bson(&model.id).unwrap(),
         };
@@ -183,7 +185,7 @@ impl ClanMates for ClanMatesDb {
             .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
         let filter = doc! {
                 "guild_id":bson::to_bson(&guild_id).unwrap(),
-                "player_name": bson::to_bson(&player_name).unwrap()
+                "player_name": bson::to_bson(&player_name.replace(" ", "\u{a0}")).unwrap()
         };
         let result = collection.delete_one(filter, None).await?;
         if result.deleted_count == 0 {
@@ -206,8 +208,10 @@ impl ClanMates for ClanMatesDb {
         if clan_mate.guild_id != guild_id {
             return Err(anyhow::anyhow!("Clan mate is not in this clan!"));
         }
-        clan_mate.previous_names.push(old_name);
-        clan_mate.player_name = new_name;
+        clan_mate
+            .previous_names
+            .push(old_name.replace(" ", "\u{a0}"));
+        clan_mate.player_name = new_name.replace(" ", "\u{a0}");
         self.update_clan_mate(clan_mate).await?;
         Ok(())
     }
