@@ -57,6 +57,7 @@ services:
       MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@host.docker.internal:27017'
       TRACKSCAPE_API_BASE: '${TRACKSCAPE_API_BASE}'
       REDIS_ADDR: '${REDIS_ADDR}'
+      WOM_API_KEY: '${WOM_API_KEY}'
     depends_on:
       - mongo
       - redis

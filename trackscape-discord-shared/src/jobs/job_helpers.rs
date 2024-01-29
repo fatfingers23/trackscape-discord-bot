@@ -1,4 +1,5 @@
 use crate::database::{BotMongoDb, MongoDb};
+use crate::wom;
 use redis::{Connection, RedisResult};
 use std::env;
 
@@ -12,4 +13,9 @@ pub fn get_redis_client() -> RedisResult<Connection> {
     redis::Client::open(redis_url)
         .expect("Could not connect to redis")
         .get_connection()
+}
+
+pub fn get_wom_client() -> wom::Client {
+    let api_key = env::var("WOM_API_KEY").ok();
+    wom::Client::new(api_key)
 }

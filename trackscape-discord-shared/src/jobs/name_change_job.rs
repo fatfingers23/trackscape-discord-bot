@@ -1,16 +1,19 @@
 use crate::database::clan_mates::{ClanMateModel, ClanMates};
-use crate::jobs::job_helpers::{get_mongodb, get_redis_client};
+use crate::jobs::job_helpers::{get_mongodb, get_redis_client, get_wom_client};
 use celery::prelude::*;
 use log::info;
 use redis::{Commands, Connection, RedisResult};
 
-#[celery::task]
+// #[celery::task]
 pub async fn name_change() -> TaskResult<i32> {
     //Loop guilds Maybe fire off to other jobs?
+    let wom_client = get_wom_client();
+    let player = wom_client
+        .player_client
+        .search("IFat Fingers".to_string(), None)
+        .await;
 
-    //Once you find a name has a newer name take the list of older ones and see if they need to be merged
-    //Merge any of those results
-    //Update the name
-    info!("Starting name change job");
+    println!("Player: {:?}", player);
+    println!("Starting name change job");
     Ok(4)
 }
