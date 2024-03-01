@@ -1,19 +1,103 @@
-use crate::database::clan_mates::{ClanMateModel, ClanMates};
-use crate::jobs::job_helpers::{get_mongodb, get_redis_client, get_wom_client};
+use crate::database::clan_mates::ClanMates;
+use crate::jobs::job_helpers::{get_mongodb, get_wom_client};
 use celery::prelude::*;
-use log::info;
-use redis::{Commands, Connection, RedisResult};
+use num_format::Locale::en;
+use std::env;
+use tracing::info;
+use wom_rs;
+use wom_rs::models::name::NameChangeStatus;
+use wom_rs::WomClient;
 
-// #[celery::task]
+const RATE_LIMIT: i32 = 100;
+
+#[celery::task]
 pub async fn name_change() -> TaskResult<i32> {
-    //Loop guilds Maybe fire off to other jobs?
+    info!("Running name change job");
+    return Ok(0);
     let wom_client = get_wom_client();
-    let player = wom_client
-        .player_client
-        .search("IFat Fingers".to_string(), None)
-        .await;
+    let mongodb = get_mongodb().await;
 
-    println!("Player: {:?}", player);
-    println!("Starting name change job");
+    let mut one_minute_from_now = chrono::Utc::now() + chrono::Duration::minutes(1);
+    let mut requests_sent = 0;
+
+    let guilds = mongodb
+        .guilds
+        .list_clans()
+        .await
+        .expect("Failed to get all guilds");
+
+    for guild in guilds {
+        let players = mongodb
+            .clan_mates
+            .get_clan_mates_by_guild_id(guild.guild_id)
+            .await
+            .expect("Failed to get clan mates");
+        for mut player in players {
+            tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+
+            let time = chrono::Utc::now();
+            if time > one_minute_from_now {
+                requests_sent = 0;
+                one_minute_from_now = chrono::Utc::now() + chrono::Duration::minutes(1);
+            }
+
+            if requests_sent >= RATE_LIMIT {
+                let time_of_rate_limit_reached = chrono::Utc::now();
+                let time_until_next_minute = one_minute_from_now - time_of_rate_limit_reached;
+                println!(
+                    "Rate limit reached, waiting for next minute. Sleeping for: {:?}",
+                    time_until_next_minute
+                );
+
+                tokio::time::sleep(time_until_next_minute.to_std().unwrap()).await;
+                requests_sent = 0;
+                one_minute_from_now = chrono::Utc::now() + chrono::Duration::minutes(1);
+            }
+
+            let player_name = player.player_name.clone();
+            let player_name_change_result = wom_client
+                .player_client
+                .get_name_changes(player_name.clone())
+                .await;
+            requests_sent += 1;
+            println!("{}", requests_sent);
+            match player_name_change_result {
+                Ok(player_name_changes) => {
+                    let latest_name_change = player_name_changes
+                        .iter()
+                        .filter(|name_change| name_change.status == NameChangeStatus::Approved)
+                        .max_by(|a, b| a.resolved_at.cmp(&b.resolved_at));
+                    if latest_name_change.is_none() {
+                        println!("No name changes found for player: {}", player_name);
+                        continue;
+                    }
+                    let latest_name = latest_name_change.unwrap().new_name.clone();
+                    if latest_name.to_lowercase()
+                        == player.player_name.replace("\u{a0}", " ").to_lowercase()
+                    {
+                        println!("No new name changes found for player: {}", player_name);
+                        continue;
+                    }
+                    player.previous_names.push(player_name.clone());
+                    player.player_name = latest_name.clone();
+                    mongodb
+                        .clan_mates
+                        .update_clan_mate(player.clone())
+                        .await
+                        .expect("Failed to update clan mate");
+                    println!(
+                        "Updated player: {:?} with new name: {:?}",
+                        player_name, latest_name
+                    );
+                }
+
+                Err(err) => {
+                    println!("Failed to get name changes for player: {}", player_name);
+                    continue;
+                }
+            }
+        }
+    }
+
     Ok(4)
 }

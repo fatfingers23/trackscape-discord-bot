@@ -1,7 +1,8 @@
 use crate::database::{BotMongoDb, MongoDb};
-use crate::wom;
+
 use redis::{Connection, RedisResult};
 use std::env;
+use wom_rs::WomClient;
 
 pub async fn get_mongodb() -> BotMongoDb {
     let mongodb_url = env::var("MONGO_DB_URL").expect("MONGO_DB_URL not set!");
@@ -15,7 +16,7 @@ pub fn get_redis_client() -> RedisResult<Connection> {
         .get_connection()
 }
 
-pub fn get_wom_client() -> wom::Client {
-    let api_key = env::var("WOM_API_KEY").ok();
-    wom::Client::new(api_key)
+pub fn get_wom_client() -> WomClient {
+    let api_key = env::var("WOM_API_KEY").expect("WOM_API_KEY not set!");
+    WomClient::new_with_key(api_key)
 }
