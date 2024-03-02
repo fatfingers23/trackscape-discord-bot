@@ -1,9 +1,8 @@
 use crate::database::clan_mates::ClanMates;
 use crate::jobs::job_helpers::{get_mongodb, get_wom_client};
 use celery::prelude::*;
-use num_format::Locale::en;
-use std::env;
-use tracing::info;
+use log::info;
+
 use wom_rs;
 use wom_rs::models::name::NameChangeStatus;
 use wom_rs::WomClient;
@@ -11,9 +10,8 @@ use wom_rs::WomClient;
 const RATE_LIMIT: i32 = 100;
 
 #[celery::task]
-pub async fn name_change() -> TaskResult<i32> {
+pub async fn name_change() -> TaskResult<()> {
     info!("Running name change job");
-    return Ok(0);
     let wom_client = get_wom_client();
     let mongodb = get_mongodb().await;
 
@@ -44,7 +42,7 @@ pub async fn name_change() -> TaskResult<i32> {
             if requests_sent >= RATE_LIMIT {
                 let time_of_rate_limit_reached = chrono::Utc::now();
                 let time_until_next_minute = one_minute_from_now - time_of_rate_limit_reached;
-                println!(
+                info!(
                     "Rate limit reached, waiting for next minute. Sleeping for: {:?}",
                     time_until_next_minute
                 );
@@ -60,7 +58,7 @@ pub async fn name_change() -> TaskResult<i32> {
                 .get_name_changes(player_name.clone())
                 .await;
             requests_sent += 1;
-            println!("{}", requests_sent);
+            info!("{}", requests_sent);
             match player_name_change_result {
                 Ok(player_name_changes) => {
                     let latest_name_change = player_name_changes
@@ -68,14 +66,14 @@ pub async fn name_change() -> TaskResult<i32> {
                         .filter(|name_change| name_change.status == NameChangeStatus::Approved)
                         .max_by(|a, b| a.resolved_at.cmp(&b.resolved_at));
                     if latest_name_change.is_none() {
-                        println!("No name changes found for player: {}", player_name);
+                        info!("No name changes found for player: {}", player_name);
                         continue;
                     }
                     let latest_name = latest_name_change.unwrap().new_name.clone();
                     if latest_name.to_lowercase()
                         == player.player_name.replace("\u{a0}", " ").to_lowercase()
                     {
-                        println!("No new name changes found for player: {}", player_name);
+                        info!("No new name changes found for player: {}", player_name);
                         continue;
                     }
                     player.previous_names.push(player_name.clone());
@@ -85,19 +83,19 @@ pub async fn name_change() -> TaskResult<i32> {
                         .update_clan_mate(player.clone())
                         .await
                         .expect("Failed to update clan mate");
-                    println!(
+                    info!(
                         "Updated player: {:?} with new name: {:?}",
                         player_name, latest_name
                     );
                 }
 
                 Err(err) => {
-                    println!("Failed to get name changes for player: {}", player_name);
+                    info!("Failed to get name changes for player: {}", player_name);
                     continue;
                 }
             }
         }
     }
 
-    Ok(4)
+    Ok(())
 }

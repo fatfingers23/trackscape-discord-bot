@@ -79,11 +79,11 @@ services:
       retries: 3
       timeout: 5s
 volumes:
-    trackscape-db:
-      driver: local
-    trackscape-redis:
-      driver: local
+  trackscape-db:
+    driver: local
+  trackscape-redis:
+    driver: local
 networks:
-    trackscape-network:
-      driver: bridge
+  trackscape-network:
+    driver: bridge
 

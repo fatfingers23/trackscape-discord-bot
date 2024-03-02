@@ -12,11 +12,9 @@ async fn main() -> Result<()> {
     let mut cron_job_worker = celery::beat!(
         broker = RedisBroker { std::env::var("REDIS_ADDR").unwrap_or_else(|_| "redis://127.0.0.1:6379/".into()) },
         tasks = [
-            
-            //TODO do not think this is working
             "name_change" => {
                 name_change,
-                schedule = CronSchedule::from_string("*/1 * * * *")?,
+                schedule = CronSchedule::from_string("0 0,12 * * *")?,
                 args = (),
             },
         ],
@@ -25,7 +23,6 @@ async fn main() -> Result<()> {
         ],
     ).await?;
     // trackscape_discord_shared::jobs::name_change_job::name_change().await?;
-
     cron_job_worker.start().await?;
     Ok(())
 }
