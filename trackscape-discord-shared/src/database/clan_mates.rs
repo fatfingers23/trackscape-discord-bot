@@ -216,3 +216,11 @@ impl ClanMates for ClanMatesDb {
         Ok(())
     }
 }
+
+pub fn name_compare(name1: &str, name2: &str) -> bool {
+    name_normalize(name1) == name_normalize(name2)
+}
+
+pub fn name_normalize(name: &str) -> String {
+    name.replace(" ", "\u{a0}").to_lowercase()
+}

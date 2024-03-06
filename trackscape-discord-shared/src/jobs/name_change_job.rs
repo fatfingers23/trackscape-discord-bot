@@ -1,4 +1,4 @@
-use crate::database::clan_mates::ClanMates;
+use crate::database::clan_mates::{name_compare, ClanMates};
 use crate::jobs::job_helpers::get_mongodb;
 use crate::wom::{get_wom_client, ApiLimiter};
 use celery::prelude::*;
@@ -55,19 +55,16 @@ pub async fn name_change() -> TaskResult<()> {
                         continue;
                     }
                     let latest_name = latest_name_change.unwrap().new_name.clone();
-                    if latest_name.to_lowercase()
-                        == player.player_name.replace("\u{a0}", " ").to_lowercase()
-                    {
+                    if name_compare(&latest_name, &player.player_name) {
                         info!("No new name changes found for player: {}", player_name);
                         continue;
                     }
-                    player.previous_names.push(player_name.clone());
-                    player.player_name = latest_name.clone();
                     mongodb
                         .clan_mates
-                        .update_clan_mate(player.clone())
+                        .change_name(guild.guild_id, player_name.clone(), latest_name.clone())
                         .await
-                        .expect("Failed to update clan mate");
+                        .expect("Failed to change name");
+
                     info!(
                         "Updated player: {:?} with new name: {:?}",
                         player_name, latest_name

@@ -1,13 +1,18 @@
-use crate::database::clan_mates::ClanMates;
+use crate::database::clan_mates::{name_compare, ClanMateModel, ClanMates};
 use crate::jobs::job_helpers::get_mongodb;
-use crate::wom::get_wom_client;
+use crate::wom::{get_wom_client, ApiLimiter};
 use celery::task::TaskResult;
+use log::{error, info};
+
+use wom_rs::models::name::NameChangeStatus;
 use wom_rs::Pagination;
 
-#[celery::task]
+// #[celery::task]
 pub async fn wom_guild_sync() -> TaskResult<()> {
     let mongodb = get_mongodb().await;
     let wom_client = get_wom_client();
+    let mut limiter = ApiLimiter::new();
+
     let guilds = mongodb
         .guilds
         .list_clans()
@@ -16,20 +21,36 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
 
     for guild in guilds {
         if guild.wom_id.is_none() {
+            info!("No wom id found for guild: {:?}", guild.clan_name);
             continue;
         }
+        info!("Syncing guild: {:?}", guild.clan_name);
         let wom_id = guild.wom_id.unwrap();
-        let wom_group = wom_client.group_client.get_group_details(wom_id).await;
-        let wom_group_name_changes = wom_client
-            .group_client
-            .get_group_name_changes(
-                wom_id,
-                Some(Pagination {
-                    offset: None,
-                    limit: Some(100),
-                }),
+
+        let wom_group = limiter
+            .api_limit_request(
+                || async { wom_client.group_client.get_group_details(wom_id).await },
+                None,
             )
             .await;
+        let wom_group_name_changes = limiter
+            .api_limit_request(
+                || async {
+                    wom_client
+                        .group_client
+                        .get_group_name_changes(
+                            wom_id,
+                            Some(Pagination {
+                                offset: None,
+                                limit: Some(50),
+                            }),
+                        )
+                        .await
+                },
+                None,
+            )
+            .await
+            .expect("Failed to get group name changes");
 
         if wom_group.is_err() {
             continue;
@@ -41,22 +62,108 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
             .expect("Failed to get clan mates");
 
         let wom_group = wom_group.unwrap();
-        for member in wom_group.memberships {
-            let player = guild_clan_mates.iter().find(|x| {
-                x.player_name.replace("\u{a0}", "").to_lowercase()
-                    == member.player.username.to_lowercase()
-            });
+        for member in wom_group.memberships.clone() {
+            let player = guild_clan_mates
+                .iter()
+                .find(|x| name_compare(&x.player_name, &member.player.username));
+            let mut player_whose_name_is_changing: Option<&ClanMateModel> = None;
+
+            if player.is_some() {
+                info!("Player found: {:?}", member.player.username)
+            }
+
             if player.is_none() {
-                //TODO check name change first
-                mongodb
+                let name_change = wom_group_name_changes
+                    .iter()
+                    .filter(|name_change| {
+                        name_change.status == NameChangeStatus::Approved
+                            && name_change.resolved_at.is_some()
+                    })
+                    .max_by(|a, b| {
+                        a.resolved_at
+                            .unwrap()
+                            .cmp(&b.resolved_at.unwrap())
+                            .reverse()
+                    });
+
+                if let Some(name_change) = name_change {
+                    player_whose_name_is_changing = guild_clan_mates
+                        .iter()
+                        .find(|x| name_compare(&x.player_name, &name_change.old_name.clone()));
+                    if player_whose_name_is_changing.is_none() {
+                        info!(
+                            "Player not found for name change: {:?}",
+                            name_change.old_name
+                        );
+                    } else {
+                        if player_whose_name_is_changing
+                            .unwrap()
+                            .previous_names
+                            .contains(&name_change.new_name.replace(" ", "\u{a0}"))
+                        {
+                            info!("Player already has this name: {:?}", name_change.new_name);
+                            continue;
+                        }
+                        info!(
+                            "Changing name: {:?} to: {:?}",
+                            name_change.old_name, member.player.username
+                        );
+                        let name_change = mongodb
+                            .clan_mates
+                            .change_name(
+                                guild.guild_id,
+                                name_change.old_name.clone(),
+                                member.player.display_name.clone(),
+                            )
+                            .await;
+
+                        if name_change.is_err() {
+                            error!("Failed to change name: {:?}", name_change.err());
+                        }
+                    }
+                }
+            }
+            if player_whose_name_is_changing.is_some() || player.is_some() {
+                continue;
+            }
+            info!("Creating new clan mate: {:?}", member.player.username);
+
+            let create_new_clan_mate = mongodb
+                .clan_mates
+                .create_new_clan_mate(
+                    guild.guild_id,
+                    member.player.username,
+                    Some(member.player.id as u64),
+                )
+                .await;
+            if create_new_clan_mate.is_err() {
+                error!(
+                    "Failed to create new clan mate: {:?}",
+                    create_new_clan_mate.err()
+                );
+            }
+        }
+
+        let fresh_guild_clan_mates = mongodb
+            .clan_mates
+            .get_clan_mates_by_guild_id(guild.guild_id)
+            .await
+            .expect("Failed to get clan mates");
+
+        for db_member in fresh_guild_clan_mates {
+            let member = wom_group
+                .memberships
+                .iter()
+                .find(|x| name_compare(&x.player.username, &db_member.player_name));
+            if member.is_none() {
+                info!("Removing clan mate: {:?}", db_member.player_name);
+                let remove_clan_mate = mongodb
                     .clan_mates
-                    .create_new_clan_mate(
-                        guild.guild_id,
-                        member.player.username,
-                        Some(member.player.id as u64),
-                    )
-                    .await
-                    .expect("Failed to create new clan mate");
+                    .remove_clan_mate(guild.guild_id, db_member.player_name.clone())
+                    .await;
+                if remove_clan_mate.is_err() {
+                    error!("Failed to remove clan mate: {:?}", remove_clan_mate.err());
+                }
             }
         }
     }

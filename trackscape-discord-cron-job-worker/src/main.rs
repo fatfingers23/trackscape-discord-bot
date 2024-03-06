@@ -3,6 +3,7 @@ use celery::beat::CronSchedule;
 use dotenv::dotenv;
 use env_logger::Env;
 use trackscape_discord_shared::jobs::name_change_job::name_change;
+use trackscape_discord_shared::jobs::wom_guild_sync_job::wom_guild_sync;
 
 /// This is not really a worker but more of something to send jobs to the worker at certain times.
 #[tokio::main]
@@ -18,18 +19,18 @@ async fn main() -> Result<()> {
                 schedule = CronSchedule::from_string("0 0,12 * * *")?,
                 args = (),
             },
-            "wom_guild_sync" => {
-                trackscape_discord_shared::jobs::wom_guild_sync_job::wom_guild_sync,
-                //Off set by at least 4 or 5 hours from name_change
-                schedule = CronSchedule::from_string("*/1 * * * *")?,
-                args = (),
-            }
+            // "wom_guild_sync" => {
+            //     trackscape_discord_shared::jobs::wom_guild_sync_job::wom_guild_sync,
+            //     //Off set by at least 4 or 5 hours from name_change
+            //     schedule = CronSchedule::from_string("*/1 * * * *")?,
+            //     args = (),
+            // }
         ],
         task_routes = [
             "*" => "cron_job_queue"
         ],
     ).await?;
-    // trackscape_discord_shared::jobs::name_change_job::name_change().await?;
+    wom_guild_sync().await?;
     cron_job_worker.start().await?;
     Ok(())
 }

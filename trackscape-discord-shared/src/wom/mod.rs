@@ -27,9 +27,9 @@ impl ApiLimiter {
         &mut self,
         f: impl FnOnce() -> Fut,
         wait_before: Option<std::time::Duration>,
-    ) -> anyhow::Result<Vec<T>>
+    ) -> anyhow::Result<T>
     where
-        Fut: Future<Output = anyhow::Result<Vec<T>>>,
+        Fut: Future<Output = anyhow::Result<T>>,
     {
         if let Some(wait_before) = wait_before {
             tokio::time::sleep(wait_before).await;
