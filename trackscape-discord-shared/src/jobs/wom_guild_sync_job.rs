@@ -55,6 +55,7 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
         if wom_group.is_err() {
             continue;
         }
+
         let guild_clan_mates = mongodb
             .clan_mates
             .get_clan_mates_by_guild_id(guild.guild_id)
@@ -63,16 +64,25 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
 
         let wom_group = wom_group.unwrap();
         for member in wom_group.memberships.clone() {
-            let player = guild_clan_mates
+            //Checks to see if the wom player is in the db list
+            let player_in_db_check = guild_clan_mates
                 .iter()
                 .find(|x| name_compare(&x.player_name, &member.player.username));
             let mut player_whose_name_is_changing: Option<&ClanMateModel> = None;
 
-            if player.is_some() {
-                info!("Player found: {:?}", member.player.username)
+            if player_in_db_check.is_some() {
+                info!("Player found: {:?}", member.player.username);
+                let mut found_player = player_in_db_check.unwrap().clone();
+                found_player.wom_player_id = Some(member.player.id as u64);
+                let update_clan_mate = mongodb.clan_mates.update_clan_mate(found_player).await;
+                if update_clan_mate.is_err() {
+                    error!("Failed to update clan mate: {:?}", update_clan_mate.err());
+                }
             }
 
-            if player.is_none() {
+            //If wom player is not found in db list
+            if player_in_db_check.is_none() {
+                //Checks to see if maybe it was a name change
                 let name_change = wom_group_name_changes
                     .iter()
                     .filter(|name_change| {
@@ -86,16 +96,21 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
                             .reverse()
                     });
 
+                //If it is a name change
                 if let Some(name_change) = name_change {
+                    //Get the db player whose name is changing
                     player_whose_name_is_changing = guild_clan_mates
                         .iter()
                         .find(|x| name_compare(&x.player_name, &name_change.old_name.clone()));
+
+                    //If the db player is not found
                     if player_whose_name_is_changing.is_none() {
                         info!(
                             "Player not found for name change: {:?}",
                             name_change.old_name
                         );
                     } else {
+                        //If the db player already has the new name
                         if player_whose_name_is_changing
                             .unwrap()
                             .previous_names
@@ -123,7 +138,9 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
                     }
                 }
             }
-            if player_whose_name_is_changing.is_some() || player.is_some() {
+
+            //If the player is already in the db list or the name change was successful
+            if player_whose_name_is_changing.is_some() || player_in_db_check.is_some() {
                 continue;
             }
             info!("Creating new clan mate: {:?}", member.player.username);
@@ -144,12 +161,14 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
             }
         }
 
+        //Grabs a new list with fresh entries from name chanegs and new clanmates
         let fresh_guild_clan_mates = mongodb
             .clan_mates
             .get_clan_mates_by_guild_id(guild.guild_id)
             .await
             .expect("Failed to get clan mates");
 
+        //checks for who has left the clan
         for db_member in fresh_guild_clan_mates {
             let member = wom_group
                 .memberships
