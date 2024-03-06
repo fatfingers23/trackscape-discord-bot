@@ -14,11 +14,13 @@ async fn main() -> Result<()> {
             trackscape_discord_shared::jobs::update_create_clanmate_job::update_create_clanmate,
             trackscape_discord_shared::jobs::remove_clanmate_job::remove_clanmate,
             trackscape_discord_shared::jobs::name_change_job::name_change,
+            trackscape_discord_shared::jobs::wom_guild_sync_job::wom_guild_sync,
         ],
         // This just shows how we can route certain tasks to certain queues based
         // on glob matching.
         task_routes = [
             "name_change" => "cron_job_queue",
+            "wom_guild_sync" => "cron_job_queue",
             "*" => "celery",
         ],
         prefetch_count = 2,

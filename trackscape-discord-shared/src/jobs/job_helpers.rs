@@ -15,8 +15,3 @@ pub fn get_redis_client() -> RedisResult<Connection> {
         .expect("Could not connect to redis")
         .get_connection()
 }
-
-pub fn get_wom_client() -> WomClient {
-    let api_key = env::var("WOM_API_KEY").expect("WOM_API_KEY not set!");
-    WomClient::new_with_key(api_key)
-}

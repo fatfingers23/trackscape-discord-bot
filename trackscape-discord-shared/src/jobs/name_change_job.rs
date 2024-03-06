@@ -1,11 +1,10 @@
 use crate::database::clan_mates::ClanMates;
-use crate::jobs::job_helpers::{get_mongodb, get_wom_client};
+use crate::jobs::job_helpers::get_mongodb;
+use crate::wom::{get_wom_client, ApiLimiter};
 use celery::prelude::*;
 use log::info;
-
 use wom_rs;
 use wom_rs::models::name::NameChangeStatus;
-use wom_rs::WomClient;
 
 const RATE_LIMIT: i32 = 100;
 
@@ -15,8 +14,7 @@ pub async fn name_change() -> TaskResult<()> {
     let wom_client = get_wom_client();
     let mongodb = get_mongodb().await;
 
-    let mut one_minute_from_now = chrono::Utc::now() + chrono::Duration::minutes(1);
-    let mut requests_sent = 0;
+    let mut limiter = ApiLimiter::new();
 
     let guilds = mongodb
         .guilds
@@ -31,34 +29,21 @@ pub async fn name_change() -> TaskResult<()> {
             .await
             .expect("Failed to get clan mates");
         for mut player in players {
-            tokio::time::sleep(std::time::Duration::from_millis(400)).await;
-
-            let time = chrono::Utc::now();
-            if time > one_minute_from_now {
-                requests_sent = 0;
-                one_minute_from_now = chrono::Utc::now() + chrono::Duration::minutes(1);
-            }
-
-            if requests_sent >= RATE_LIMIT {
-                let time_of_rate_limit_reached = chrono::Utc::now();
-                let time_until_next_minute = one_minute_from_now - time_of_rate_limit_reached;
-                info!(
-                    "Rate limit reached, waiting for next minute. Sleeping for: {:?}",
-                    time_until_next_minute
-                );
-
-                tokio::time::sleep(time_until_next_minute.to_std().unwrap()).await;
-                requests_sent = 0;
-                one_minute_from_now = chrono::Utc::now() + chrono::Duration::minutes(1);
-            }
-
             let player_name = player.player_name.clone();
-            let player_name_change_result = wom_client
-                .player_client
-                .get_name_changes(player_name.clone())
+            let player_name_change_result = limiter
+                .api_limit_request(
+                    || async {
+                        let player_name_change_result = wom_client
+                            .player_client
+                            .get_name_changes(player_name.clone())
+                            .await;
+
+                        player_name_change_result
+                    },
+                    Some(std::time::Duration::from_millis(400)),
+                )
                 .await;
-            requests_sent += 1;
-            info!("{}", requests_sent);
+
             match player_name_change_result {
                 Ok(player_name_changes) => {
                     let latest_name_change = player_name_changes

@@ -10,6 +10,7 @@ mod job_helpers;
 pub mod name_change_job;
 pub mod remove_clanmate_job;
 pub mod update_create_clanmate_job;
+pub mod wom_guild_sync_job;
 
 #[async_trait]
 pub trait JobQueue {
