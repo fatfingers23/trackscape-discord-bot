@@ -63,7 +63,11 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
             .expect("Failed to get clan mates");
 
         let wom_group = wom_group.unwrap();
+        //using rip fuse previous name W4z0 as an example
         for member in wom_group.memberships.clone() {
+            if member.player.username == "rip fuse" {
+                info!("Found rip fuse");
+            }
             //Checks to see if the wom player is in the db list
             let player_in_db_check = guild_clan_mates
                 .iter()
@@ -88,6 +92,7 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
                     .filter(|name_change| {
                         name_change.status == NameChangeStatus::Approved
                             && name_change.resolved_at.is_some()
+                            && name_compare(&name_change.new_name, &member.player.username)
                     })
                     .max_by(|a, b| {
                         a.resolved_at
@@ -111,7 +116,6 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
                         );
                     } else {
                         //If the db player already has the new name
-                        //TODO need to double check this works
                         if player_whose_name_is_changing
                             .unwrap()
                             .previous_names
@@ -170,7 +174,6 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
             .expect("Failed to get clan mates");
 
         //checks for who has left the clan
-        //TODO need to make sure its not deleteing people and adding them back
         //CHeck that they still have collection log id for them
         for db_member in fresh_guild_clan_mates {
             let member = wom_group
