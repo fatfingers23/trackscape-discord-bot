@@ -63,7 +63,6 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
             .expect("Failed to get clan mates");
 
         let wom_group = wom_group.unwrap();
-        //using rip fuse previous name W4z0 as an example
         for member in wom_group.memberships.clone() {
             //Checks to see if the wom player is in the db list
             let player_in_db_check = guild_clan_mates
