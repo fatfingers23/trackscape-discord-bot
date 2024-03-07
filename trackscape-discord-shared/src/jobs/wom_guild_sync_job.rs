@@ -111,6 +111,7 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
                         );
                     } else {
                         //If the db player already has the new name
+                        //TODO need to double check this works
                         if player_whose_name_is_changing
                             .unwrap()
                             .previous_names
@@ -149,7 +150,7 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
                 .clan_mates
                 .create_new_clan_mate(
                     guild.guild_id,
-                    member.player.username,
+                    member.player.display_name,
                     Some(member.player.id as u64),
                 )
                 .await;
@@ -169,6 +170,8 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
             .expect("Failed to get clan mates");
 
         //checks for who has left the clan
+        //TODO need to make sure its not deleteing people and adding them back
+        //CHeck that they still have collection log id for them
         for db_member in fresh_guild_clan_mates {
             let member = wom_group
                 .memberships

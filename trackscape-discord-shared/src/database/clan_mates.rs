@@ -126,6 +126,21 @@ impl ClanMates for ClanMatesDb {
         let filter = doc! {
             "player_name": bson::to_bson(&player_name.replace(" ", "\u{a0}")).unwrap(),
         };
+        //TODO possible lower case look up
+        // let agg = vec![doc! {
+        //     "$match": doc!{
+        //         "$expr": doc!{
+        //             "$eq": doc!{
+        //                 "$toLower": doc! {"player_name": bson::to_bson(&player_name.to_lowercase().replace(" ", "\u{a0}")).unwrap()}
+        //             }
+        //         }
+        //     }
+        // }];
+        // let mut multi_results = collection.aggregate(agg, None).await?;
+        // while let Some(result) = multi_results.try_next().await? {
+        //     let doc = bson::from_document(result)?;
+        //     // println!("* {}", doc);
+        // }
         let result = collection.find_one(filter, None).await?;
         Ok(result)
     }
@@ -180,6 +195,7 @@ impl ClanMates for ClanMatesDb {
     }
 
     async fn remove_clan_mate(&self, guild_id: u64, player_name: String) -> Result<(), Error> {
+        //TODO add a bit to clean up other collections too
         let collection = self
             .db
             .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);

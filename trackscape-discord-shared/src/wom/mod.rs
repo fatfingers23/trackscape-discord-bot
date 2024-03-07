@@ -1,6 +1,8 @@
+use crate::database::clan_mates::name_compare;
 use log::info;
 use std::env;
 use std::future::Future;
+use wom_rs::models::name::{NameChange, NameChangeStatus};
 use wom_rs::WomClient;
 
 pub fn get_wom_client() -> WomClient {
@@ -23,6 +25,7 @@ impl ApiLimiter {
         }
     }
 
+    /// Allows WOM calls to be rate limited
     pub async fn api_limit_request<Fut, T>(
         &mut self,
         f: impl FnOnce() -> Fut,
@@ -59,7 +62,22 @@ impl ApiLimiter {
     }
 }
 
-fn fun_test(value: i32, f: &dyn Fn(i32) -> i32) -> i32 {
-    println!("{}", f(value));
-    value
+pub async fn get_latest_name_change(
+    wom_client: &WomClient,
+    player_name: String,
+) -> anyhow::Result<Option<NameChange>> {
+    let player_name_change_result = wom_client
+        .player_client
+        .get_name_changes(player_name.clone())
+        .await
+        .ok();
+    if player_name_change_result.is_none() {
+        return Ok(None);
+    }
+
+    Ok(player_name_change_result
+        .unwrap()
+        .into_iter()
+        .filter(|name_change| name_change.status == NameChangeStatus::Approved)
+        .max_by(|a, b| a.resolved_at.cmp(&b.resolved_at)))
 }
