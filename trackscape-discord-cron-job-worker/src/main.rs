@@ -14,11 +14,11 @@ async fn main() -> Result<()> {
     let mut cron_job_worker = celery::beat!(
         broker = RedisBroker { std::env::var("REDIS_ADDR").unwrap_or_else(|_| "redis://127.0.0.1:6379/".into()) },
         tasks = [
-            "name_change" => {
-                name_change,
-                schedule = CronSchedule::from_string("0 0,12 * * *")?,
-                args = (),
-            },
+            // "name_change" => {
+            //     name_change,
+            //     schedule = CronSchedule::from_string("0 0,12 * * *")?,
+            //     args = (),
+            // },
             // "wom_guild_sync" => {
             //     trackscape_discord_shared::jobs::wom_guild_sync_job::wom_guild_sync,
             //     //Off set by at least 4 or 5 hours from name_change
@@ -31,6 +31,7 @@ async fn main() -> Result<()> {
         ],
     ).await?;
     wom_guild_sync().await?;
+    // name_change().await?;
     cron_job_worker.start().await?;
     Ok(())
 }

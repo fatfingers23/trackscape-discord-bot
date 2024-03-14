@@ -9,6 +9,10 @@ use wom_rs::Pagination;
 
 // #[celery::task]
 pub async fn wom_guild_sync() -> TaskResult<()> {
+    //TODO need to look into the edge case of a name change may not be submitted yet to WOM,
+    //So since it does not see that it makes a new clanmate. Probably just need to check
+    // name changes for in db and combine after the loop and before remove?
+
     let mongodb = get_mongodb().await;
     let wom_client = get_wom_client();
     let mut limiter = ApiLimiter::new();
