@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import TrackscapeApiClient from "@/services/TrackscapeApiClient";
-import type {ClanDetail, ClanMateCollectionLogTotalsView} from "@/services/TrackscapeApiTypes";
-import { type PropType, reactive } from 'vue'
+import type {ClanDetail} from "@/services/TrackscapeApiTypes";
+import { type PropType } from 'vue'
 import {useRoute} from "vue-router";
 import {ref} from "vue";
-import DataTable from "@/components/General/DataTable.vue";
-import SkeletonTable from "@/components/General/SkeletonTable.vue";
 import BroadcastList from '@/components/BroadcastList.vue'
 
 
@@ -17,19 +14,11 @@ const props = defineProps({
   }
 })
 
-
-
-let clan = ref<ClanDetail>();
-
-
 if (props.clanDetail) {
   clanId.value= props.clanDetail.id;
-  // callEndpoint(props.clanDetail.id);
 } else {
   const route = useRoute();
   clanId.value = route.params.clanId as string;
-
-  // callEndpoint(clanId);
 }
 
 
