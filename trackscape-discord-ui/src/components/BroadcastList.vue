@@ -76,6 +76,11 @@ client.getBroadcasts(props.clanId, props.limit).then((broadcastsResult) => {
         </div>
       </div>
       <div class="mt-2">
+        <div v-if="broadcasts?.length === 0">
+          <div class="p-2 shadow-xl bg-base-100">
+            <p>Your clan has not gotten any broadcasts. Go play the game!</p>
+          </div>
+        </div>
         <div v-for="broadcast in broadcasts"
              :key="broadcast.id"
              class="p-5 shadow-xl bg-base-100">
