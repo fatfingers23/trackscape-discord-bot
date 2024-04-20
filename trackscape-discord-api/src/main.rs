@@ -3,7 +3,6 @@ extern crate dotenv;
 mod cache;
 mod controllers;
 mod handler;
-mod services;
 mod websocket_server;
 
 use crate::cache::Cache;

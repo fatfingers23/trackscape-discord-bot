@@ -1,3 +1,4 @@
+use crate::database::clan_mate_collection_log_totals::COLLECTION_LOG_COLLECTION_NAME;
 use crate::database::ClanMatesDb;
 use anyhow::Error;
 use async_trait::async_trait;
@@ -196,9 +197,43 @@ impl ClanMates for ClanMatesDb {
 
     async fn remove_clan_mate(&self, guild_id: u64, player_name: String) -> Result<(), Error> {
         //TODO add a bit to clean up other collections too
+
         let collection = self
             .db
             .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
+
+        let possible_player = self.find_by_current_name(player_name.clone()).await?;
+        if possible_player.is_none() {
+            return Err(anyhow::anyhow!(format!(
+                "Failed to find clan mate: {}",
+                player_name
+            )));
+        }
+        let player = possible_player.unwrap();
+
+        //Removes other data from db may move else where
+        let collection_log_collection = self
+            .db
+            .collection::<ClanMateModel>(COLLECTION_LOG_COLLECTION_NAME);
+
+        let filter = doc! {
+            "guild_id": bson::to_bson(&guild_id).unwrap(),
+            "player_id": player.id.clone(),
+        };
+        let collection_log_result = collection_log_collection.delete_many(filter, None).await;
+        if collection_log_result.is_err() {
+            println!(
+                "Failed to remove collection log totals for clan mate: {}",
+                player_name
+            );
+            println!("Error: {:?}", collection_log_result.err());
+            return Err(anyhow::anyhow!(format!(
+                "Failed to remove collection log totals for clan mate: {}",
+                player_name
+            )));
+        }
+        //End of removing from other collections
+
         let filter = doc! {
                 "guild_id":bson::to_bson(&guild_id).unwrap(),
                 "player_name": bson::to_bson(&player_name.replace(" ", "\u{a0}")).unwrap()

@@ -46,6 +46,7 @@ const columns = [
             <span v-if="item[column.key] !== null"
                   class="flex text-sm md:text-base">
               <img
+                v-if="item[column.key] !== 'Not Ranked'"
                 class="w-6 h-6 rounded-full"
                 :alt="`${item[column.key]} icon`"
                 :src="`https://oldschool.runescape.wiki/images/Clan_icon_-_${item[column.key] == 'Deputy Owner'  ? 'Deputy_owner' : item[column.key].replace(' ', '_')}.png`" />
