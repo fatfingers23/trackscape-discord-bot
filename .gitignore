@@ -8,3 +8,4 @@ Secrets.dev.toml
 .shuttle-storage
 #trackscape-discord-api/ui
 cargo-shuttle
+trackscape-discord-ui/bun.lockb

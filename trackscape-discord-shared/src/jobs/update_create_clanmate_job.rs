@@ -56,8 +56,7 @@ pub async fn update_create_clanmate(
             }
         }
         false => {
-            //TODO need to do a name change check here instead of find or create
-            //Need to find the person if not found then do a name check
+            //Checks to see if they had a name change
             let possible_saved_player = mongodb
                 .clan_mates
                 .find_by_current_name(player_name.clone())

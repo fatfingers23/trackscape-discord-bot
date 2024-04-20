@@ -5191,6 +5191,7 @@ dependencies = [
 [[package]]
 name = "wom_rs"
 version = "0.1.0"
+source = "git+https://github.com/fatfingers23/wom_rs.git#56ba91e45007ae960a93fe4b12e6aed9de4636ca"
 dependencies = [
  "anyhow",
  "chrono",

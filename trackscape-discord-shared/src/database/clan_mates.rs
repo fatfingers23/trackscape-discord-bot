@@ -216,7 +216,7 @@ impl ClanMates for ClanMatesDb {
         old_name: String,
         new_name: String,
     ) -> Result<(), Error> {
-        let mut clan_mate = self.find_by_current_name(old_name.clone()).await?;
+        let clan_mate = self.find_by_current_name(old_name.clone()).await?;
         if clan_mate.is_none() {
             return Err(anyhow::anyhow!("Failed to find clan mate"));
         }

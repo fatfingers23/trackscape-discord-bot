@@ -1,4 +1,3 @@
-use crate::database::clan_mates::name_compare;
 use log::info;
 use std::env;
 use std::future::Future;

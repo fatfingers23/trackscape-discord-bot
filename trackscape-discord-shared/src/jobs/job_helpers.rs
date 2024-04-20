@@ -2,7 +2,6 @@ use crate::database::{BotMongoDb, MongoDb};
 
 use redis::{Connection, RedisResult};
 use std::env;
-use wom_rs::WomClient;
 
 pub async fn get_mongodb() -> BotMongoDb {
     let mongodb_url = env::var("MONGO_DB_URL").expect("MONGO_DB_URL not set!");

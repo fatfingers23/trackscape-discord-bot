@@ -7,7 +7,7 @@ use log::{error, info};
 use wom_rs::models::name::NameChangeStatus;
 use wom_rs::Pagination;
 
-// #[celery::task]
+#[celery::task]
 pub async fn wom_guild_sync() -> TaskResult<()> {
     //TODO need to look into the edge case of a name change may not be submitted yet to WOM,
     //So since it does not see that it makes a new clanmate. Probably just need to check

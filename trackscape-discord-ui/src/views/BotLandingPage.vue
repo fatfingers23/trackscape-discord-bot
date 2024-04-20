@@ -18,12 +18,13 @@ client.getBotInfo().then((info) => {
 
 <template>
 
-  <div class="container mx-auto p-10 min-h-screen flex flex-col justify-center">
+  <div class="flex flex-col justify-center">
     <!-- Header Section -->
     <div class="text-center my-16 ">
       <img
         class="object-cover object-center w-24 h-24 mx-auto mb-4 rounded-full"
         src="@/assets/img/Trackscape_Logo_icon.png"
+        alt="Trackscape logo"
       >
       <h1 class="text-4xl font-bold mb-3">
         TrackScape
@@ -35,25 +36,30 @@ client.getBotInfo().then((info) => {
         TrackScape is a Discord bot that allows you to connect in ways never before possible with Discord and your
         OSRS clan.
       </p>
+
       <a
         href="https://discord.com/api/oauth2/authorize?client_id=864626697327869952&permissions=2147568704&scope=bot"
         target="_blank"
-        class="btn btn-primary btn-outline"
+        class="btn btn-primary btn-outline mr-2"
       >Invite to Discord <img
         class="w-7 h-8 ml-2"
         src="@/assets/img/icon_clyde_blurple_RGB.svg"
         alt="Discord Logo"
       > </a>
-      <div class="mt-4 max-w-50">
-        <div class="stats ">
+
+      <router-link
+        to="/clans"
+        class="btn btn-primary btn-outline ml-2"
+      >View Clans
+        <img
+
+          src="https://oldschool.runescape.wiki/images/Your_Clan_icon.png"
+          alt="In game cc icon"
+        >
+      </router-link>
+      <div class="mt-4 ">
+        <div class="stats">
           <div class="stat">
-            <div class="stat-figure text-secondary">
-              <img
-                class="w-7 h-8 ml-2"
-                src="@/assets/img/icon_clyde_blurple_RGB.svg"
-                alt="Discord Logo"
-              >
-            </div>
             <div class="stat-title">
               Servers Joined
             </div>
@@ -63,12 +69,6 @@ client.getBotInfo().then((info) => {
           </div>
 
           <div class="stat">
-            <div class="stat-figure text-secondary">
-              <img
-                src="https://oldschool.runescape.wiki/images/Your_Clan_icon.png"
-                alt="In game cc icon"
-              >
-            </div>
             <div class="stat-title">
               Scapers Chatting
             </div>
@@ -80,7 +80,7 @@ client.getBotInfo().then((info) => {
       </div>
     </div>
 
-    <div class="p-x3">
+    <div class="">
       <!-- Features Section -->
       <h2 class="text-3xl font-bold mb-8 text-center">
         Features

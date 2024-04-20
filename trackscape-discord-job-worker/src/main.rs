@@ -13,8 +13,8 @@ async fn main() -> Result<()> {
             trackscape_discord_shared::jobs::add_job::run,
             trackscape_discord_shared::jobs::update_create_clanmate_job::update_create_clanmate,
             trackscape_discord_shared::jobs::remove_clanmate_job::remove_clanmate,
-            // trackscape_discord_shared::jobs::name_change_job::name_change,
-            // trackscape_discord_shared::jobs::wom_guild_sync_job::wom_guild_sync,
+            trackscape_discord_shared::jobs::name_change_job::name_change,
+            trackscape_discord_shared::jobs::wom_guild_sync_job::wom_guild_sync,
         ],
         // This just shows how we can route certain tasks to certain queues based
         // on glob matching.

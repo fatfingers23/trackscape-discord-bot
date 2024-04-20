@@ -3,12 +3,8 @@ use crate::jobs::job_helpers::get_mongodb;
 use crate::wom::{get_latest_name_change, get_wom_client, ApiLimiter};
 use celery::prelude::*;
 use log::info;
-use wom_rs;
-use wom_rs::models::name::NameChangeStatus;
 
-const RATE_LIMIT: i32 = 100;
-
-// #[celery::task]
+#[celery::task]
 pub async fn name_change() -> TaskResult<()> {
     info!("Running name change job");
     let wom_client = get_wom_client();
@@ -58,7 +54,7 @@ pub async fn name_change() -> TaskResult<()> {
                     }
                 }
 
-                Err(err) => {
+                Err(_) => {
                     info!("Failed to get name changes for player: {}", player_name);
                     continue;
                 }

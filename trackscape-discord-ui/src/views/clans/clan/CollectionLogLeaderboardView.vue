@@ -88,7 +88,7 @@ const columns = [
 
 <style scoped>
 .slide-fade-enter-active {
-  transition: all 0.5s ease-in;
+  transition: all 0.1s ease-in;
 }
 
 .slide-fade-leave-active {
