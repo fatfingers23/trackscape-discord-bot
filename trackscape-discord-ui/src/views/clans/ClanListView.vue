@@ -3,6 +3,7 @@ import {computed, ref} from "vue";
 import TrackscapeApiClient from "@/services/TrackscapeApiClient";
 import type {Clan} from "@/services/TrackscapeApiTypes";
 import PageTitle from "@/components/PageTitle.vue";
+import { useHead } from '@unhead/vue'
 
 let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 let clans = ref<Clan[]>([]);
@@ -12,7 +13,9 @@ client.getClans().then((apiClans: Clan[]) => {
   clans.value = apiClans;
 
 });
-
+useHead({
+  title: `Clans - TrackScape`,
+})
 let displayedClans = computed(() => {
   return clans.value.filter((clan) => {
     return clan.name.toLowerCase().includes(search.value.toLowerCase());

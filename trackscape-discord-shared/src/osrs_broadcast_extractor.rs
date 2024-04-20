@@ -228,6 +228,13 @@ pub mod osrs_broadcast_extractor {
         pub transaction_type: CofferTransaction,
     }
 
+    pub struct PersonalBestBroadcast {
+        pub player: String,
+        pub activity: String,
+        pub variant: Option<String>,
+        pub time_in_seconds: i64,
+    }
+
     #[derive(PartialEq, Deserialize, Serialize, Debug, Clone)]
     pub enum BroadcastType {
         ItemDrop,
@@ -245,6 +252,7 @@ pub mod osrs_broadcast_extractor {
         ExpelledFromClan,
         CofferDonation,
         CofferWithdrawal,
+        BossPB,
         Unknown,
     }
 
@@ -267,6 +275,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::ExpelledFromClan => "Expelled From Clan".to_string(),
                 BroadcastType::CofferDonation => "Coffer Donation".to_string(),
                 BroadcastType::CofferWithdrawal => "Coffer Withdrawal".to_string(),
+                BroadcastType::BossPB => "Boss PB".to_string(),
             }
         }
 
@@ -283,6 +292,7 @@ pub mod osrs_broadcast_extractor {
                 "XP Milestone" => BroadcastType::XPMilestone,
                 "Level Milestone" => BroadcastType::LevelMilestone,
                 "Collection Log" => BroadcastType::CollectionLog,
+                "Boss PB" => BroadcastType::BossPB,
                 _ => BroadcastType::Unknown,
             }
         }
@@ -305,6 +315,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::ExpelledFromClan,
                 BroadcastType::CofferDonation,
                 BroadcastType::CofferWithdrawal,
+                BroadcastType::BossPB,
             ]
         }
 
@@ -610,6 +621,27 @@ pub mod osrs_broadcast_extractor {
         None
     }
 
+    pub fn personal_best_broadcast_extractor(message: String) -> Option<PersonalBestBroadcast> {
+        let re = regex::Regex::new(
+            r#"^(?P<player>[\w\s]+) has achieved a new (?P<activity>[\w\s]+) personal best: (?<time>.*?)"#,
+        )
+        .unwrap();
+
+        if let Some(captures) = re.captures(message.as_str()) {
+            let player = captures.name("player").unwrap().as_str();
+            let activity = captures.name("activity").unwrap().as_str();
+            let time = captures.name("time").unwrap().as_str();
+
+            return Some(PersonalBestBroadcast {
+                player: player.to_string(),
+                activity: activity.to_string(),
+                variant: None,
+                time_in_seconds: 0,
+            });
+        }
+        None
+    }
+
     pub fn get_broadcast_type(message_content: String) -> BroadcastType {
         if message_content.contains("received a drop:") {
             return BroadcastType::ItemDrop;
@@ -708,8 +740,8 @@ mod tests {
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
         get_wiki_clan_rank_image_url, CofferTransaction, CofferTransactionBroadcast,
         CollectionLogBroadcast, DiaryCompletedBroadcast, DiaryTier, InviteBroadcast,
-        LevelMilestoneBroadcast, PetDropBroadcast, PkBroadcast, QuestCompletedBroadcast,
-        XPMilestoneBroadcast,
+        LevelMilestoneBroadcast, PersonalBestBroadcast, PetDropBroadcast, PkBroadcast,
+        QuestCompletedBroadcast, XPMilestoneBroadcast,
     };
     use tracing::info;
 
@@ -1296,6 +1328,28 @@ mod tests {
                 test_coffer_withdrawal.broadcast.player
             );
             assert_eq!(coffer_withdrawal.gp, test_coffer_withdrawal.broadcast.gp);
+        }
+    }
+
+    #[test]
+    fn test_personal_best_broadcast_extractor() {
+        let test_personal_best = get_pbs_broadcast_messages();
+        for test_personal_best in test_personal_best {
+            let possible_personal_best_extract =
+                osrs_broadcast_extractor::personal_best_broadcast_extractor(
+                    test_personal_best.message.clone(),
+                );
+            let personal_best = possible_personal_best_extract.unwrap();
+            assert_eq!(personal_best.player, test_personal_best.broadcast.player);
+            assert_eq!(
+                personal_best.activity,
+                test_personal_best.broadcast.activity
+            );
+            assert_eq!(personal_best.variant, test_personal_best.broadcast.variant);
+            assert_eq!(
+                personal_best.time_in_seconds,
+                test_personal_best.broadcast.time_in_seconds
+            );
         }
     }
 
@@ -2013,5 +2067,19 @@ mod tests {
             },
         });
         test_clan_coffer_broadcast_messages
+    }
+
+    fn get_pbs_broadcast_messages() -> Vec<TestBroadcast<PersonalBestBroadcast>> {
+        let mut messages: Vec<TestBroadcast<PersonalBestBroadcast>> = Vec::new();
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has achieved a new Vorkath personal best: 2:28".to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 148,
+                activity: "Vorkath".to_string(),
+                variant: None,
+            },
+        });
+        messages
     }
 }
