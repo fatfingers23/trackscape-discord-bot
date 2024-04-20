@@ -1,6 +1,7 @@
 pub mod expel_clanmate_command;
 pub mod get_verification_code;
 pub mod info;
+pub(crate) mod manually_run_wom_sync_command;
 pub mod name_change_command;
 pub mod reset_broadcasts_thresholds;
 pub mod set_broadcast_channel;
@@ -11,4 +12,4 @@ pub mod set_quest_min_command;
 pub mod set_threshold_command;
 pub mod set_wom_id_command;
 pub mod toggle_broadcasts_command;
-mod trackscape_command_trait;
+pub mod trackscape_command_trait;

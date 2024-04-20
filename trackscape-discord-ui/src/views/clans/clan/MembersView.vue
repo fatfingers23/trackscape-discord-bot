@@ -3,7 +3,6 @@
 import DataTable from "@/components/DataTable.vue";
 import type {ClanDetail} from "@/services/TrackscapeApiTypes";
 import type {PropType} from "vue";
-import {it} from "vitest";
 
 const props = defineProps({
   clanDetail: {

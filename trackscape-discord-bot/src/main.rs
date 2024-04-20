@@ -290,6 +290,14 @@ impl EventHandler for Bot {
                     )
                     .await
                 }
+                "sync" => {
+                    commands::manually_run_wom_sync_command::run(
+                        &ctx,
+                        &self.mongo_db,
+                        command.guild_id.unwrap().get(),
+                    )
+                    .await
+                }
                 _ => {
                     info!("not implemented :(");
                     None
@@ -329,6 +337,7 @@ fn get_commands() -> Vec<CreateCommand> {
     commands.push(commands::set_wom_id_command::register());
     commands.push(commands::expel_clanmate_command::register());
     commands.push(commands::name_change_command::register());
+    commands.push(commands::manually_run_wom_sync_command::register());
     //leagues didnt have any braodcasts this time around and over now
     // commands.push(commands::set_leagues_broadcast_channel::register());
     commands
@@ -358,7 +367,6 @@ async fn serenity() -> shuttle_serenity::ShuttleSerenity {
     };
 
     let db = BotMongoDb::new_db_instance(mongodb_url).await;
-
     // Set gateway intents, which decides what events the bot will be notified about
     let intents =
         GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT | GatewayIntents::GUILDS;

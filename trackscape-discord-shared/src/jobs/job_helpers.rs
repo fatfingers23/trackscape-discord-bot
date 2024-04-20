@@ -1,5 +1,4 @@
 use crate::database::{BotMongoDb, MongoDb};
-
 use redis::{Connection, RedisResult};
 use std::env;
 
