@@ -1,13 +1,10 @@
-use log::error;
-use num_format::{Locale, ToFormattedString};
-use std::sync::Arc;
-use trackscape_discord_shared::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotals;
-use trackscape_discord_shared::database::clan_mates::ClanMates;
-use trackscape_discord_shared::database::drop_logs_db::DropLogs;
-use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
-use trackscape_discord_shared::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
-use trackscape_discord_shared::jobs::JobQueue;
-use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
+use crate::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotals;
+use crate::database::clan_mates::ClanMates;
+use crate::database::drop_logs_db::DropLogs;
+use crate::database::guilds_db::RegisteredGuildModel;
+use crate::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
+use crate::jobs::{remove_clanmate_job, JobQueue};
+use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     coffer_donation_broadcast_extractor, coffer_withdrawal_broadcast_extractor,
     collection_log_broadcast_extractor, diary_completed_broadcast_extractor,
     drop_broadcast_extractor, expelled_from_clan_broadcast_extractor, get_broadcast_type,
@@ -16,9 +13,13 @@ use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extracto
     quest_completed_broadcast_extractor, raid_broadcast_extractor, xpmilestone_broadcast_extractor,
     BroadcastType, ClanMessage,
 };
-use trackscape_discord_shared::wiki_api::wiki_api::WikiQuest;
+use crate::wiki_api::wiki_api::WikiQuest;
+use log::error;
+use num_format::{Locale, ToFormattedString};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BroadcastMessageToDiscord {
     pub player_it_happened_to: String,
     pub type_of_broadcast: BroadcastType,
@@ -263,7 +264,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                         None
                     }
                     Some(clan_mate_who_got_kicked) => {
-                        let job = trackscape_discord_shared::jobs::remove_clanmate_job::remove_clanmate::new(
+                        let job = remove_clanmate_job::remove_clanmate::new(
                             clan_mate_who_got_kicked.clone(),
                             self.registered_guild.guild_id,
                         );
@@ -309,7 +310,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                         None
                     }
                     Some(clan_mate_who_left) => {
-                        let job = trackscape_discord_shared::jobs::remove_clanmate_job::remove_clanmate::new(
+                        let job = remove_clanmate_job::remove_clanmate::new(
                             clan_mate_who_left.clone(),
                             self.registered_guild.guild_id,
                         );
@@ -823,19 +824,17 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::database::clan_mate_collection_log_totals::MockClanMateCollectionLogTotals;
+    use crate::database::clan_mates::MockClanMates;
+    use crate::database::drop_logs_db::MockDropLogs;
+    use crate::ge_api::ge_api::GetItem;
+    use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{DiaryTier, QuestDifficulty};
     use async_trait::async_trait;
     use celery::error::CeleryError;
     use celery::prelude::Task;
     use celery::task::{AsyncResult, Signature};
     use log::info;
     use mockall::mock;
-    use trackscape_discord_shared::database::clan_mate_collection_log_totals::MockClanMateCollectionLogTotals;
-    use trackscape_discord_shared::database::clan_mates::MockClanMates;
-    use trackscape_discord_shared::database::drop_logs_db::MockDropLogs;
-    use trackscape_discord_shared::ge_api::ge_api::GetItem;
-    use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-        DiaryTier, QuestDifficulty,
-    };
 
     mock! {
         pub JobQueue {

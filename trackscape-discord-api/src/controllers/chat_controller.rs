@@ -1,5 +1,4 @@
 use crate::cache::Cache;
-use crate::services::osrs_broadcast_handler::OSRSBroadcastHandler;
 use crate::websocket_server::DiscordToClanChatMessage;
 use crate::{handler, ChatServerHandle};
 use actix_web::web::Data;
@@ -19,7 +18,9 @@ use trackscape_discord_shared::jobs::CeleryJobQueue;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     get_wiki_clan_rank_image_url, ClanMessage,
 };
+use trackscape_discord_shared::osrs_broadcast_handler::OSRSBroadcastHandler;
 use trackscape_discord_shared::wiki_api::wiki_api::WikiQuest;
+use web::Json;
 
 #[derive(Debug)]
 struct MyError {
@@ -30,7 +31,7 @@ struct MyError {
 async fn new_discord_message(
     req: HttpRequest,
     chat_server: web::Data<ChatServerHandle>,
-    new_chat: web::Json<DiscordToClanChatMessage>,
+    new_chat: Json<DiscordToClanChatMessage>,
     mongodb: web::Data<BotMongoDb>,
 ) -> actix_web::Result<String> {
     let possible_verification_code = req.headers().get("verification-code");
@@ -77,11 +78,11 @@ async fn new_discord_message(
 #[post("/new-clan-chat")]
 async fn new_clan_chats(
     req: HttpRequest,
-    discord_http_client: web::Data<Http>,
-    cache: web::Data<Cache>,
-    new_chat: web::Json<Vec<ClanMessage>>,
-    mongodb: web::Data<BotMongoDb>,
-    persist: web::Data<PersistInstance>,
+    discord_http_client: Data<Http>,
+    cache: Data<Cache>,
+    new_chat: Json<Vec<ClanMessage>>,
+    mongodb: Data<BotMongoDb>,
+    persist: Data<PersistInstance>,
     celery: Data<Arc<Celery>>,
 ) -> actix_web::Result<String> {
     let possible_verification_code = req.headers().get("verification-code");
@@ -227,7 +228,10 @@ async fn new_clan_chats(
             Some(broadcast) => {
                 info!("Broadcast: {:?}", broadcast);
                 info!("{}\n", chat.message.clone());
-
+                let _ = mongodb
+                    .broadcasts
+                    .create_broadcast(registered_guild.guild_id, broadcast.clone())
+                    .await;
                 let mut broadcast_embed = CreateEmbed::new()
                     .title(broadcast.title.clone())
                     .description(broadcast.message.clone())

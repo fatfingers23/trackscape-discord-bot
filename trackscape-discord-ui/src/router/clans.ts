@@ -14,13 +14,18 @@ export default [
             {
                 path: "",
                 name: "members",
-                component: () => import('@/views/clans/clan/MembersView.vue'),
+                component: () => import('@/views/clans/clan/subviews/MembersView.vue'),
 
             },
             {
                 path: "collectionlog",
                 name: "collection-log",
-                component: () => import('@/views/clans/clan/CollectionLogLeaderboardView.vue'),
+                component: () => import('@/views/clans/clan/subviews/CollectionLogLeaderboardView.vue'),
+            },
+            {
+                path: "broadcasts",
+                name: "broadcasts",
+                component: () => import('@/views/clans/clan/subviews/RecentBroadcastsView.vue'),
             }
         ]
 

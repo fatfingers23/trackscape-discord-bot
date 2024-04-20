@@ -1,6 +1,7 @@
 use mongodb::bson::doc;
 use mongodb::options::ClientOptions;
 use mongodb::Database;
+pub mod broadcasts;
 pub mod clan_mate_collection_log_totals;
 pub mod clan_mates;
 pub mod drop_logs_db;
@@ -24,6 +25,7 @@ pub struct BotMongoDb {
     pub drop_logs: DropLogsDb,
     pub clan_mates: ClanMatesDb,
     pub clan_mate_collection_log_totals: ClanMateCollectionLogTotalsDb,
+    pub broadcasts: BroadcastsDb,
 }
 
 #[derive(Clone)]
@@ -46,6 +48,11 @@ pub struct ClanMateCollectionLogTotalsDb {
     db: Database,
 }
 
+#[derive(Clone)]
+pub struct BroadcastsDb {
+    db: Database,
+}
+
 #[async_trait]
 impl MongoDb for BotMongoDb {
     async fn new_db_instance(db_url: String) -> Self {
@@ -60,7 +67,10 @@ impl MongoDb for BotMongoDb {
             guilds: GuildsDb::new(db.clone()),
             drop_logs: DropLogsDb::new_instance(db.clone()),
             clan_mates: ClanMatesDb::new_instance(db.clone()),
-            clan_mate_collection_log_totals: ClanMateCollectionLogTotalsDb::new_instance(db),
+            clan_mate_collection_log_totals: ClanMateCollectionLogTotalsDb::new_instance(
+                db.clone(),
+            ),
+            broadcasts: BroadcastsDb::new_instance(db),
         }
     }
 }
