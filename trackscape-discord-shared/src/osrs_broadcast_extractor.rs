@@ -232,7 +232,7 @@ pub mod osrs_broadcast_extractor {
         pub player: String,
         pub activity: String,
         pub variant: Option<String>,
-        pub time_in_seconds: i64,
+        pub time_in_seconds: f64,
     }
 
     #[derive(PartialEq, Deserialize, Serialize, Debug, Clone)]
@@ -622,8 +622,9 @@ pub mod osrs_broadcast_extractor {
     }
 
     pub fn personal_best_broadcast_extractor(message: String) -> Option<PersonalBestBroadcast> {
+        // RuneScape Player has achieved a new Vorkath personal best: 2:28
         let re = regex::Regex::new(
-            r#"^(?P<player>[\w\s]+) has achieved a new (?P<activity>[\w\s]+) personal best: (?<time>.*?)"#,
+            r#"^(?P<player>[\w\s]+) has achieved a new (?P<activity>[\w\s]+) personal best: (?<time>[\d:]+)"#,
         )
         .unwrap();
 
@@ -636,10 +637,33 @@ pub mod osrs_broadcast_extractor {
                 player: player.to_string(),
                 activity: activity.to_string(),
                 variant: None,
-                time_in_seconds: 0,
+                time_in_seconds: osrs_time_parser(time),
             });
         }
         None
+    }
+
+    pub fn osrs_time_parser(time: &str) -> f64 {
+        let split_sub_second: Vec<&str> = time.split(".").collect();
+        let sub_second_fraction = format!(".{:}", split_sub_second.get(1).unwrap_or(&"0"))
+            .parse::<f64>()
+            .unwrap_or(0.0);
+
+        let split_time: Vec<&str> = split_sub_second[0].split(":").collect();
+
+        if split_time.len() == 2 {
+            let minutes_seconds = split_time[0].parse::<f64>().unwrap_or(0.0) * 60.0;
+            let seconds = split_time[1].parse::<f64>().unwrap_or(0.0);
+            return minutes_seconds + seconds + sub_second_fraction;
+        }
+        if split_time.len() == 3 {
+            let hours_seconds = split_time[0].parse::<f64>().unwrap_or(0.0) * 3600.0;
+            let minutes_seconds = split_time[1].parse::<f64>().unwrap_or(0.0) * 60.0;
+            let seconds = split_time[2].parse::<f64>().unwrap_or(0.0);
+            return hours_seconds + minutes_seconds + seconds + sub_second_fraction;
+        }
+
+        0.0
     }
 
     pub fn get_broadcast_type(message_content: String) -> BroadcastType {
@@ -743,6 +767,7 @@ mod tests {
         LevelMilestoneBroadcast, PersonalBestBroadcast, PetDropBroadcast, PkBroadcast,
         QuestCompletedBroadcast, XPMilestoneBroadcast,
     };
+    use rstest::rstest;
     use tracing::info;
 
     #[test]
@@ -1351,6 +1376,19 @@ mod tests {
                 test_personal_best.broadcast.time_in_seconds
             );
         }
+    }
+
+    #[rstest]
+    #[case("0:56.40", 56.40)]
+    #[case("1:25", 85.0)]
+    #[case("1:19.80", 79.8)]
+    #[case("1:15.00", 75.00)]
+    #[case("21:55.80", 1_315.80)]
+    #[case("1:30:00", 5_400.00)]
+    #[case("1:30:00.45", 5_400.45)]
+    fn test_osrs_time_parser(#[case] time: &str, #[case] expected: f64) {
+        let actual = osrs_broadcast_extractor::osrs_time_parser(time);
+        assert_eq!(actual, expected);
     }
 
     //Test data setup
@@ -2075,7 +2113,7 @@ mod tests {
             message: "RuneScape Player has achieved a new Vorkath personal best: 2:28".to_string(),
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
-                time_in_seconds: 148,
+                time_in_seconds: 148.00,
                 activity: "Vorkath".to_string(),
                 variant: None,
             },

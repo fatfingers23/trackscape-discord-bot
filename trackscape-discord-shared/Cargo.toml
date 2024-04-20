@@ -28,3 +28,6 @@ celery = "0.5.5"
 redis = { version = "0.23.3", features = ["json"] }
 wom_rs = { git = "https://github.com/fatfingers23/wom_rs.git" }
 chrono = "0.4.33"
+
+[dev-dependencies]
+rstest = "0.19.0"

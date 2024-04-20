@@ -846,7 +846,7 @@ mod tests {
     impl JobQueue for MockJobQueue {
         async fn send_task<T: Task>(
             &self,
-            task_sig: Signature<T>,
+            _task_sig: Signature<T>,
         ) -> Result<AsyncResult, CeleryError> {
             Ok(AsyncResult {
                 task_id: "".to_string(),
