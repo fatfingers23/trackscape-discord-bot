@@ -7,3 +7,4 @@ pub mod helpers;
 pub mod jobs;
 pub mod osrs_broadcast_extractor;
 pub mod wiki_api;
+pub mod wom;

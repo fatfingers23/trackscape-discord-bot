@@ -10,6 +10,8 @@ mod job_helpers;
 pub mod name_change_job;
 pub mod remove_clanmate_job;
 pub mod update_create_clanmate_job;
+pub mod wom_guild_sync_job;
+pub mod wom_guild_sync_logic;
 
 #[async_trait]
 pub trait JobQueue {
@@ -18,6 +20,21 @@ pub trait JobQueue {
 
 pub struct CeleryJobQueue {
     pub celery: Arc<Celery>,
+}
+
+pub async fn get_celery_caller() -> Arc<Celery> {
+    celery::app!(
+        broker = RedisBroker { std::env::var("REDIS_ADDR").unwrap_or_else(|_| "redis://127.0.0.1:6379/".into()) },
+        tasks = [
+        ],
+        // This just shows how we can route certain tasks to certain queues based
+        // on glob matching.
+        task_routes = [
+            "*" => "celery",
+        ],
+        prefetch_count = 2,
+        heartbeat = Some(10),
+    ).await.expect("Error creating celery job client")
 }
 
 #[async_trait]

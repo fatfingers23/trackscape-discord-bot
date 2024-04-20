@@ -30,6 +30,7 @@ use crate::controllers::clan_controller::clan_controller;
 use crate::controllers::drop_log_controller::drop_log_controller;
 use actix_files::{Files, NamedFile};
 use log::{error, info};
+use trackscape_discord_shared::jobs::get_celery_caller;
 use trackscape_discord_shared::wiki_api::wiki_api::{get_quests_and_difficulties, WikiQuest};
 
 /// Connection ID.
@@ -104,22 +105,7 @@ async fn actix_web(
     let (chat_server, server_tx) = ChatServer::new(connected_websockets_counter.clone());
 
     let _ = spawn(chat_server.run());
-
-    let celery = celery::app!(
-        broker = RedisBroker { std::env::var("REDIS_ADDR").unwrap_or_else(|_| "redis://127.0.0.1:6379/".into()) },
-        // broker = AMQPBroker { std::env::var("AMQP_ADDR").unwrap_or_else(|_| "amqp://127.0.0.1:5672".into()) },
-        tasks = [
-
-        ],
-        // This just shows how we can route certain tasks to certain queues based
-        // on glob matching.
-        task_routes = [
-            "*" => "celery",
-        ],
-        prefetch_count = 2,
-        heartbeat = Some(10),
-    ).await.expect("Error creating celery job client");
-
+    let celery = get_celery_caller().await;
     let config = move |cfg: &mut ServiceConfig| {
         cfg.service(
             web::scope("/api")

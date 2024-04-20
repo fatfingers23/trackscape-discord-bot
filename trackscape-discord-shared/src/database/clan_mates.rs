@@ -126,6 +126,21 @@ impl ClanMates for ClanMatesDb {
         let filter = doc! {
             "player_name": bson::to_bson(&player_name.replace(" ", "\u{a0}")).unwrap(),
         };
+        //TODO possible lower case look up
+        // let agg = vec![doc! {
+        //     "$match": doc!{
+        //         "$expr": doc!{
+        //             "$eq": doc!{
+        //                 "$toLower": doc! {"player_name": bson::to_bson(&player_name.to_lowercase().replace(" ", "\u{a0}")).unwrap()}
+        //             }
+        //         }
+        //     }
+        // }];
+        // let mut multi_results = collection.aggregate(agg, None).await?;
+        // while let Some(result) = multi_results.try_next().await? {
+        //     let doc = bson::from_document(result)?;
+        //     // println!("* {}", doc);
+        // }
         let result = collection.find_one(filter, None).await?;
         Ok(result)
     }
@@ -180,6 +195,7 @@ impl ClanMates for ClanMatesDb {
     }
 
     async fn remove_clan_mate(&self, guild_id: u64, player_name: String) -> Result<(), Error> {
+        //TODO add a bit to clean up other collections too
         let collection = self
             .db
             .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
@@ -200,7 +216,7 @@ impl ClanMates for ClanMatesDb {
         old_name: String,
         new_name: String,
     ) -> Result<(), Error> {
-        let mut clan_mate = self.find_by_current_name(old_name.clone()).await?;
+        let clan_mate = self.find_by_current_name(old_name.clone()).await?;
         if clan_mate.is_none() {
             return Err(anyhow::anyhow!("Failed to find clan mate"));
         }
@@ -215,4 +231,12 @@ impl ClanMates for ClanMatesDb {
         self.update_clan_mate(clan_mate).await?;
         Ok(())
     }
+}
+
+pub fn name_compare(name1: &str, name2: &str) -> bool {
+    name_normalize(name1) == name_normalize(name2)
+}
+
+pub fn name_normalize(name: &str) -> String {
+    name.replace(" ", "\u{a0}").to_lowercase()
 }
