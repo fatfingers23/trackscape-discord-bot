@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import DataTable from "@/components/DataTable.vue";
+import DataTable from "@/components/General/DataTable.vue";
 import type {ClanDetail} from "@/services/TrackscapeApiTypes";
 import type {PropType} from "vue";
 

@@ -1,7 +1,9 @@
 use crate::database::BroadcastsDb;
 use crate::osrs_broadcast_handler::BroadcastMessageToDiscord;
+use bson::DateTime;
+use futures::TryStreamExt;
 use mockall::predicate::*;
-use mongodb::bson::{doc, DateTime};
+use mongodb::bson::doc;
 use mongodb::{bson, Database};
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +13,11 @@ pub struct BroadcastModel {
     pub id: bson::oid::ObjectId,
     pub guild_id: u64,
     pub broadcast: BroadcastMessageToDiscord,
-    pub created_at: Option<DateTime>,
+    #[serde(serialize_with = "bson::serde_helpers::serialize_bson_datetime_as_rfc3339_string")]
+    #[serde(
+        deserialize_with = "bson::serde_helpers::deserialize_bson_datetime_from_rfc3339_string"
+    )]
+    pub created_at: DateTime,
 }
 
 impl BroadcastsDb {
@@ -30,10 +36,26 @@ impl BroadcastsDb {
             id: bson::oid::ObjectId::new(),
             guild_id,
             broadcast,
-            created_at: Some(DateTime::now()),
+            created_at: DateTime::now(),
         };
         collection.insert_one(model, None).await?;
         Ok(())
+    }
+
+    pub async fn get_latest_broadcasts(
+        &self,
+        guild_id: u64,
+        limit: i64,
+    ) -> Result<Vec<BroadcastModel>, anyhow::Error> {
+        let collection = self.db.collection(Self::COLLECTION_NAME);
+        let filter = doc! { "guild_id": bson::to_bson(&guild_id).unwrap() };
+        let options = mongodb::options::FindOptions::builder()
+            .sort(doc! { "created_at": -1 })
+            .limit(limit)
+            .build();
+        let cursor = collection.find(filter, options).await?;
+        let broadcasts: Vec<BroadcastModel> = cursor.try_collect().await?;
+        Ok(broadcasts)
     }
 }
 

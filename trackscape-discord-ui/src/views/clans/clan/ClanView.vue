@@ -4,8 +4,9 @@ import {useRoute} from "vue-router";
 import PageTitle from "@/components/PageTitle.vue";
 import TrackscapeApiClient from "@/services/TrackscapeApiClient";
 import {ref} from "vue";
-import type {ClanDetail} from "@/services/TrackscapeApiTypes";
+import type {  ClanDetail } from '@/services/TrackscapeApiTypes'
 import DiscordWidget from "@/components/DiscordWidget.vue";
+import BroadcastList from '@/components/BroadcastList.vue'
 
 let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 
@@ -28,10 +29,16 @@ client.getClanDetail(clanId).then((clan) => {
   clanDetail.value = clan;
 });
 
+
 const tabMenus = [
   {
     name: 'Members',
     routeName: 'members',
+    active: true
+  },
+  {
+    name: 'Recent Broadcasts',
+    routeName: 'broadcasts',
     active: true
   },
   {
@@ -96,6 +103,9 @@ const tabMenus = [
       <component :is="Component"
                  :clanDetail="clanDetail" />
     </router-view>
+    <BroadcastList v-if="route.name !== 'broadcasts'"
+                   class="pt-2"
+                   :clan-id="clanId" />
   </div>
 
 

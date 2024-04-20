@@ -4,8 +4,8 @@ import type {ClanDetail, ClanMateCollectionLogTotalsView} from "@/services/Track
 import type {PropType} from "vue";
 import {useRoute} from "vue-router";
 import {ref} from "vue";
-import DataTable from "@/components/DataTable.vue";
-import SkeletonTable from "@/components/SkeletonTable.vue";
+import DataTable from "@/components/General/DataTable.vue";
+import SkeletonTable from "@/components/General/SkeletonTable.vue";
 
 const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 
@@ -92,7 +92,7 @@ const columns = [
 }
 
 .slide-fade-leave-active {
-  transition: all 0.1s cubic-bezier(1, 0.5, 0.8, 1);
+  transition: all 0.3s cubic-bezier(1, 0.5, 0.8, 1);
 }
 
 .slide-fade-enter-from,
