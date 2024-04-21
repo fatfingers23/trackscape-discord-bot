@@ -9,9 +9,9 @@ use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     collection_log_broadcast_extractor, diary_completed_broadcast_extractor,
     drop_broadcast_extractor, expelled_from_clan_broadcast_extractor, get_broadcast_type,
     invite_broadcast_extractor, left_the_clan_broadcast_extractor,
-    levelmilestone_broadcast_extractor, pet_broadcast_extractor, pk_broadcast_extractor,
-    quest_completed_broadcast_extractor, raid_broadcast_extractor, xpmilestone_broadcast_extractor,
-    BroadcastType, ClanMessage,
+    levelmilestone_broadcast_extractor, personal_best_broadcast_extractor, pet_broadcast_extractor,
+    pk_broadcast_extractor, quest_completed_broadcast_extractor, raid_broadcast_extractor,
+    xpmilestone_broadcast_extractor, BroadcastType, ClanMessage,
 };
 use crate::wiki_api::wiki_api::WikiQuest;
 use log::error;
@@ -506,6 +506,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     }
                 }
             }
+            BroadcastType::PersonalBest => self.personal_best_handler(),
             _ => None,
         }
     }
@@ -747,23 +748,6 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
         }
     }
 
-    fn check_if_allowed_broad_cast(&self, broadcast_type: BroadcastType) -> bool {
-        let is_disallowed = self
-            .registered_guild
-            .disallowed_broadcast_types
-            .iter()
-            .find(|&x| {
-                if broadcast_type.to_string() == x.to_string() {
-                    return true;
-                }
-                false
-            });
-        if is_disallowed.is_some() {
-            return true;
-        }
-        false
-    }
-
     async fn collection_log_handler(&self) -> Option<BroadcastMessageToDiscord> {
         let possible_collection_log =
             collection_log_broadcast_extractor(self.clan_message.message.clone());
@@ -819,6 +803,78 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
             }
         }
     }
+
+    fn personal_best_handler(&self) -> Option<BroadcastMessageToDiscord> {
+        let personal_best = personal_best_broadcast_extractor(self.clan_message.message.clone());
+        match personal_best {
+            None => {
+                error!(
+                    "Failed to extract Personal Best info from message: {}",
+                    self.clan_message.message.clone()
+                );
+                None
+            }
+            Some(exported_data) => {
+                let is_disallowed = self
+                    .registered_guild
+                    .disallowed_broadcast_types
+                    .iter()
+                    .find(|&x| {
+                        if let BroadcastType::PersonalBest = x {
+                            return true;
+                        }
+                        false
+                    });
+                if is_disallowed.is_some() {
+                    return None;
+                }
+
+                Some(BroadcastMessageToDiscord {
+                    type_of_broadcast: BroadcastType::Diary,
+                    player_it_happened_to: exported_data.player,
+                    message: self.clan_message.message.clone(),
+                    icon_url: Some(
+                        self.best_guest_pb_icon(exported_data.activity.clone())
+                            .to_string(),
+                    ),
+                    title: ":stopwatch: New Personal Best!".to_string(),
+                    item_quantity: None,
+                })
+            }
+        }
+    }
+
+    fn best_guest_pb_icon(&self, activity: String) -> String {
+        match activity.as_str().to_lowercase() {
+            x if x.contains("theatre of blood") => {
+                "https://oldschool.runescape.wiki/images/Theatre_of_Blood_logo.png".to_string()
+            }
+            x if x.contains("chambers of xeric") => {
+                "https://oldschool.runescape.wiki/images/Chambers_of_Xeric_logo.png".to_string()
+            }
+            x if x.contains("tombs of amascut") => {
+                "https://oldschool.runescape.wiki/images/Tombs_of_Amascut.png".to_string()
+            }
+            _ => format!("https://oldschool.runescape.wiki/images/{}.png", activity).to_string(),
+        }
+    }
+
+    fn check_if_allowed_broad_cast(&self, broadcast_type: BroadcastType) -> bool {
+        let is_disallowed = self
+            .registered_guild
+            .disallowed_broadcast_types
+            .iter()
+            .find(|&x| {
+                if broadcast_type.to_string() == x.to_string() {
+                    return true;
+                }
+                false
+            });
+        if is_disallowed.is_some() {
+            return true;
+        }
+        false
+    }
 }
 
 #[cfg(test)]
@@ -846,7 +902,7 @@ mod tests {
     impl JobQueue for MockJobQueue {
         async fn send_task<T: Task>(
             &self,
-            task_sig: Signature<T>,
+            _task_sig: Signature<T>,
         ) -> Result<AsyncResult, CeleryError> {
             Ok(AsyncResult {
                 task_id: "".to_string(),

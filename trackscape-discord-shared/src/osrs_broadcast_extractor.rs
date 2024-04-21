@@ -228,6 +228,13 @@ pub mod osrs_broadcast_extractor {
         pub transaction_type: CofferTransaction,
     }
 
+    pub struct PersonalBestBroadcast {
+        pub player: String,
+        pub activity: String,
+        pub team_size: Option<String>,
+        pub time_in_seconds: f64,
+    }
+
     #[derive(PartialEq, Deserialize, Serialize, Debug, Clone)]
     pub enum BroadcastType {
         ItemDrop,
@@ -245,6 +252,7 @@ pub mod osrs_broadcast_extractor {
         ExpelledFromClan,
         CofferDonation,
         CofferWithdrawal,
+        PersonalBest,
         Unknown,
     }
 
@@ -267,6 +275,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::ExpelledFromClan => "Expelled From Clan".to_string(),
                 BroadcastType::CofferDonation => "Coffer Donation".to_string(),
                 BroadcastType::CofferWithdrawal => "Coffer Withdrawal".to_string(),
+                BroadcastType::PersonalBest => "Personal Best".to_string(),
             }
         }
 
@@ -283,6 +292,7 @@ pub mod osrs_broadcast_extractor {
                 "XP Milestone" => BroadcastType::XPMilestone,
                 "Level Milestone" => BroadcastType::LevelMilestone,
                 "Collection Log" => BroadcastType::CollectionLog,
+                "Personal Best" => BroadcastType::PersonalBest,
                 _ => BroadcastType::Unknown,
             }
         }
@@ -305,6 +315,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::ExpelledFromClan,
                 BroadcastType::CofferDonation,
                 BroadcastType::CofferWithdrawal,
+                BroadcastType::PersonalBest,
             ]
         }
 
@@ -610,6 +621,82 @@ pub mod osrs_broadcast_extractor {
         None
     }
 
+    pub fn personal_best_broadcast_extractor(message: String) -> Option<PersonalBestBroadcast> {
+        // RuneScape Player has achieved a new Vorkath personal best: 2:28
+        let reg_activity_regex = regex::Regex::new(
+            r#"^(?P<player>[\w\s]+) has achieved a new (?P<activity>[\w\s\-'\.]+) personal best: (?<time>[\d:]+)"#,
+        )
+        .unwrap();
+
+        if let Some(captures) = reg_activity_regex.captures(message.as_str()) {
+            let player = captures.name("player").unwrap().as_str();
+            let activity = captures.name("activity").unwrap().as_str();
+            let time = captures.name("time").unwrap().as_str();
+
+            return Some(PersonalBestBroadcast {
+                player: player.to_string(),
+                activity: activity.to_string(),
+                team_size: None,
+                time_in_seconds: osrs_time_parser(time),
+            });
+        }
+
+        let raid_regex = regex::Regex::new(
+            r#"^(?P<player>[\w\s]+) has achieved a new (?P<raid>[\w\s]+(?:\: [\w\s]+)?) \((?P<team_size>[Tt]eam [Ss]ize: [\w\s]+)\)(?:(?P<variant>[\w\s]+)?) personal best: (?<time>[\d:]+(?:\.\d{2})?)"#,
+        ).unwrap();
+
+        if let Some(captures) = raid_regex.captures(message.as_str()) {
+            let player = captures.name("player").unwrap().as_str();
+            let raid = captures.name("raid").unwrap().as_str();
+            let team_size = captures.name("team_size");
+            let time = captures.name("time").unwrap().as_str();
+            let variant = captures.name("variant").map_or("", |m| m.as_str());
+
+            let full_raid: String;
+            if variant.is_empty() {
+                full_raid = raid.to_string();
+            } else {
+                full_raid = format!("{} {}", raid, variant.trim());
+            }
+
+            return Some(PersonalBestBroadcast {
+                player: player.to_string(),
+                activity: full_raid,
+                team_size: match team_size {
+                    None => None,
+                    Some(team_size) => Some(team_size.as_str().replace(" players", "").to_string()),
+                },
+                time_in_seconds: osrs_time_parser(time),
+            });
+        }
+
+        None
+    }
+
+    /// Parses a time string in the format of `HH:MM:SS` or `MM:SS` and returns the time in seconds
+    pub fn osrs_time_parser(time: &str) -> f64 {
+        let split_sub_second: Vec<&str> = time.split(".").collect();
+        let sub_second_fraction = format!(".{:}", split_sub_second.get(1).unwrap_or(&"0"))
+            .parse::<f64>()
+            .unwrap_or(0.0);
+
+        let split_time: Vec<&str> = split_sub_second[0].split(":").collect();
+
+        if split_time.len() == 2 {
+            let minutes_seconds = split_time[0].parse::<f64>().unwrap_or(0.0) * 60.0;
+            let seconds = split_time[1].parse::<f64>().unwrap_or(0.0);
+            return minutes_seconds + seconds + sub_second_fraction;
+        }
+        if split_time.len() == 3 {
+            let hours_seconds = split_time[0].parse::<f64>().unwrap_or(0.0) * 3600.0;
+            let minutes_seconds = split_time[1].parse::<f64>().unwrap_or(0.0) * 60.0;
+            let seconds = split_time[2].parse::<f64>().unwrap_or(0.0);
+            return hours_seconds + minutes_seconds + seconds + sub_second_fraction;
+        }
+
+        0.0
+    }
+
     pub fn get_broadcast_type(message_content: String) -> BroadcastType {
         if message_content.contains("received a drop:") {
             return BroadcastType::ItemDrop;
@@ -655,6 +742,11 @@ pub mod osrs_broadcast_extractor {
         }
         if message_content.contains("withdrawn") && message_content.contains("from the coffer.") {
             return BroadcastType::CofferWithdrawal;
+        }
+        if message_content.contains("has achieved a new")
+            && message_content.contains("personal best:")
+        {
+            return BroadcastType::PersonalBest;
         }
         return BroadcastType::Unknown;
     }
@@ -708,9 +800,10 @@ mod tests {
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
         get_wiki_clan_rank_image_url, CofferTransaction, CofferTransactionBroadcast,
         CollectionLogBroadcast, DiaryCompletedBroadcast, DiaryTier, InviteBroadcast,
-        LevelMilestoneBroadcast, PetDropBroadcast, PkBroadcast, QuestCompletedBroadcast,
-        XPMilestoneBroadcast,
+        LevelMilestoneBroadcast, PersonalBestBroadcast, PetDropBroadcast, PkBroadcast,
+        QuestCompletedBroadcast, XPMilestoneBroadcast,
     };
+    use rstest::rstest;
     use tracing::info;
 
     #[test]
@@ -1297,6 +1390,54 @@ mod tests {
             );
             assert_eq!(coffer_withdrawal.gp, test_coffer_withdrawal.broadcast.gp);
         }
+    }
+
+    #[test]
+    fn test_personal_best_broadcast_extractor() {
+        let test_personal_best = get_pbs_broadcast_messages();
+        for test_personal_best in test_personal_best {
+            let possible_personal_best_extract =
+                osrs_broadcast_extractor::personal_best_broadcast_extractor(
+                    test_personal_best.message.clone(),
+                );
+            let personal_best = possible_personal_best_extract;
+            match personal_best {
+                None => {
+                    println!("❌: {:?}", test_personal_best.message.clone());
+                    assert!(false);
+                }
+                Some(personal_best) => {
+                    assert_eq!(personal_best.player, test_personal_best.broadcast.player);
+                    assert_eq!(
+                        personal_best.activity,
+                        test_personal_best.broadcast.activity
+                    );
+                    assert_eq!(
+                        personal_best.team_size,
+                        test_personal_best.broadcast.team_size
+                    );
+                    assert_eq!(
+                        personal_best.time_in_seconds,
+                        test_personal_best.broadcast.time_in_seconds
+                    );
+                    println!("✅: {:?}", test_personal_best.message.clone());
+                }
+            }
+        }
+    }
+
+    #[rstest]
+    #[case("0:56.40", 56.40)]
+    #[case("1:25", 85.0)]
+    #[case("1:19.80", 79.8)]
+    #[case("1:15.00", 75.00)]
+    #[case("21:55.80", 1_315.80)]
+    #[case("1:30:00", 5_400.00)]
+    #[case("1:30:00.45", 5_400.45)]
+    #[case("36:37.80", 2_197.80)]
+    fn test_osrs_time_parser(#[case] time: &str, #[case] expected: f64) {
+        let actual = osrs_broadcast_extractor::osrs_time_parser(time);
+        assert_eq!(actual, expected);
     }
 
     //Test data setup
@@ -2013,5 +2154,124 @@ mod tests {
             },
         });
         test_clan_coffer_broadcast_messages
+    }
+
+    fn get_pbs_broadcast_messages() -> Vec<TestBroadcast<PersonalBestBroadcast>> {
+        let mut messages: Vec<TestBroadcast<PersonalBestBroadcast>> = Vec::new();
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has achieved a new Vorkath personal best: 2:28".to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 148.00,
+                activity: "Vorkath".to_string(),
+                team_size: None,
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has achieved a new Tempoross personal best: 6:05"
+                .to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 365.00,
+                activity: "Tempoross".to_string(),
+                team_size: None,
+            },
+        });
+
+        //Raids
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has achieved a new Chambers of Xeric (Team Size: Solo) personal best: 1:09:52".to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 4_192.00,
+                activity: "Chambers of Xeric".to_string(),
+                team_size: Some("Team Size: Solo".to_string()),
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has achieved a new Chambers of Xeric Challenge Mode (Team Size: 2 players) personal best: 46:38.40".to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 2_798.40,
+                activity: "Chambers of Xeric Challenge Mode".to_string(),
+                team_size: Some("Team Size: 2".to_string()),
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has achieved a new Tombs of Amascut (team size: 5) Expert mode Overall personal best: 36:37.80".to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 2_197.80,
+                activity: "Tombs of Amascut Expert mode Overall".to_string(),
+                team_size: Some("team size: 5".to_string()),
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has achieved a new Tombs of Amascut (team size: 2) Entry mode Overall personal best: 40:35".to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 2_435.00,
+                activity: "Tombs of Amascut Entry mode Overall".to_string(),
+                team_size: Some("team size: 2".to_string()),
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has achieved a new Tombs of Amascut (team size: 1) Normal mode Overall personal best: 30:20".to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 1_820.00,
+                activity: "Tombs of Amascut Normal mode Overall".to_string(),
+                team_size: Some("team size: 1".to_string()),
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has achieved a new Theatre of Blood (Team Size: 5) personal best: 17:21".to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 1_041.00,
+                activity: "Theatre of Blood".to_string(),
+                team_size: Some("Team Size: 5".to_string()),
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has achieved a new Theatre of Blood: Hard mode (Team Size: 3) personal best: 22:42.60".to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 1_362.60,
+                activity: "Theatre of Blood: Hard mode".to_string(),
+                team_size: Some("Team Size: 3".to_string()),
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has achieved a new Theatre of Blood: Entry mode (Team Size: 3) personal best: 20:28".to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 1_228.00,
+                activity: "Theatre of Blood: Entry mode".to_string(),
+                team_size: Some("Team Size: 3".to_string()),
+            },
+        });
+
+        //Jads
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has achieved a new TzHaar-Ket-Rak's First Challenge personal best: 1:38".to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 98.00,
+                activity: "TzHaar-Ket-Rak's First Challenge".to_string(),
+                team_size: None,
+            },
+        });
+
+        messages
     }
 }
