@@ -228,10 +228,11 @@ pub mod osrs_broadcast_extractor {
         pub transaction_type: CofferTransaction,
     }
 
+    #[derive(Clone, Debug, Serialize, Deserialize)]
     pub struct PersonalBestBroadcast {
         pub player: String,
         pub activity: String,
-        pub team_size: Option<String>,
+        pub variant: Option<String>,
         pub time_in_seconds: f64,
     }
 
@@ -635,23 +636,24 @@ pub mod osrs_broadcast_extractor {
 
             return Some(PersonalBestBroadcast {
                 player: player.to_string(),
-                activity: activity.to_string(),
-                team_size: None,
+                activity: activity.to_string(),            
                 time_in_seconds: osrs_time_parser(time),
+                //Will prob need to look at hallow sepulchre and other activities that have variants here
+                variant: None,
             });
         }
 
         let raid_regex = regex::Regex::new(
-            r#"^(?P<player>[\w\s]+) has achieved a new (?P<raid>[\w\s]+(?:\: [\w\s]+)?) \((?P<team_size>[Tt]eam [Ss]ize: [\w\s]+)\)(?:(?P<variant>[\w\s]+)?) personal best: (?<time>[\d:]+(?:\.\d{2})?)"#,
+            r#"^(?P<player>[\w\s]+) has achieved a new (?P<raid>[\w\s]+(?:\: [\w\s]+)?) \([Tt]eam [Ss]ize: (?P<team_size>[\w\s]+)\)(?:(?P<variant>[\w\s]+)?) personal best: (?<time>[\d:]+(?:\.\d{2})?)"#,
         ).unwrap();
 
         if let Some(captures) = raid_regex.captures(message.as_str()) {
             let player = captures.name("player").unwrap().as_str();
-            let raid = captures.name("raid").unwrap().as_str();
-            let team_size = captures.name("team_size");
+            let raid = captures.name("raid").unwrap().as_str();            
             let time = captures.name("time").unwrap().as_str();
+            let team_size = captures.name("team_size").map_or("", |m| m.as_str());
             let variant = captures.name("variant").map_or("", |m| m.as_str());
-
+            
             let full_raid: String;
             if variant.is_empty() {
                 full_raid = raid.to_string();
@@ -659,14 +661,18 @@ pub mod osrs_broadcast_extractor {
                 full_raid = format!("{} {}", raid, variant.trim());
             }
 
+            let raid_name = match raid {
+                x if x.contains("Xeric") => "Chambers of Xeric",
+                x if x.contains("Blood") => "Theatre of Blood",
+                x if x.contains("Tombs") => "Tombs of Amascut",
+                _ => raid,
+            };
+
             return Some(PersonalBestBroadcast {
                 player: player.to_string(),
-                activity: full_raid,
-                team_size: match team_size {
-                    None => None,
-                    Some(team_size) => Some(team_size.as_str().replace(" players", "").to_string()),
-                },
+                activity: raid_name.to_string(),
                 time_in_seconds: osrs_time_parser(time),
+                variant: raid_name_standardize(full_raid, team_size)
             });
         }
 
@@ -695,6 +701,52 @@ pub mod osrs_broadcast_extractor {
         }
 
         0.0
+    }
+
+    
+    /// Takes the OSRS in game broadcast and makes it a bit more standard between raids for easier parsing with RL
+    fn raid_name_standardize(raid_from_chat: String, team_size: &str) -> Option<String> {
+  
+
+        if raid_from_chat.contains("Chambers of Xeric Challenge Mode") {    
+            return Some(format!("Chambers of Xeric Challenge Mode {}", team_size));
+        }
+
+        if raid_from_chat.contains("Chambers of Xeric") {    
+            return Some(format!("Chambers of Xeric {}", team_size));
+        }
+
+        let team_size_with_players = if team_size == "1" {
+            "Solo".to_string()
+        }else{
+            format!("{} players", team_size)
+        };
+
+        if raid_from_chat.contains("Theatre of Blood") && raid_from_chat.contains("Hard mode") {
+            return Some(format!("Theatre of Blood Hard Mode {}", team_size_with_players));
+        }         
+
+        if raid_from_chat.contains("Theatre of Blood") && raid_from_chat.contains("Entry mode") {
+            return Some("Theatre of Blood Entry Mode".to_string());
+        }
+
+        if raid_from_chat.contains("Theatre of Blood") {
+            return Some(format!("Theatre of Blood {}", team_size_with_players));
+        }
+
+        if raid_from_chat.contains("Tombs of Amascut") && raid_from_chat.contains("Entry mode"){
+            return Some(format!("Tombs of Amascut Entry Mode {}", team_size_with_players));
+        }
+
+        if raid_from_chat.contains("Tombs of Amascut") && raid_from_chat.contains("Expert mode") {
+            return Some(format!("Tombs of Amascut Expert Mode {}", team_size_with_players));
+        }
+
+        if raid_from_chat.contains("Tombs of Amascut") {
+            return Some(format!("Tombs of Amascut {}", team_size_with_players));
+        }
+
+        None
     }
 
     pub fn get_broadcast_type(message_content: String) -> BroadcastType {
@@ -1413,13 +1465,10 @@ mod tests {
                         test_personal_best.broadcast.activity
                     );
                     assert_eq!(
-                        personal_best.team_size,
-                        test_personal_best.broadcast.team_size
-                    );
-                    assert_eq!(
                         personal_best.time_in_seconds,
                         test_personal_best.broadcast.time_in_seconds
                     );
+                    assert_eq!(personal_best.variant, test_personal_best.broadcast.variant);
                     println!("✅: {:?}", test_personal_best.message.clone());
                 }
             }
@@ -2164,8 +2213,8 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 148.00,
-                activity: "Vorkath".to_string(),
-                team_size: None,
+                activity: "Vorkath".to_string(),                
+                variant: None,
             },
         });
 
@@ -2175,8 +2224,8 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 365.00,
-                activity: "Tempoross".to_string(),
-                team_size: None,
+                activity: "Tempoross".to_string(),                
+                variant: None,
             },
         });
 
@@ -2186,8 +2235,8 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 4_192.00,
-                activity: "Chambers of Xeric".to_string(),
-                team_size: Some("Team Size: Solo".to_string()),
+                activity: "Chambers of Xeric".to_string(),                
+                variant: Some("Chambers of Xeric Solo".to_string()),
             },
         });
 
@@ -2196,8 +2245,8 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 2_798.40,
-                activity: "Chambers of Xeric Challenge Mode".to_string(),
-                team_size: Some("Team Size: 2".to_string()),
+                activity: "Chambers of Xeric".to_string(),                
+                variant: Some("Chambers of Xeric Challenge Mode 2 players".to_string()),
             },
         });
 
@@ -2206,8 +2255,8 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 2_197.80,
-                activity: "Tombs of Amascut Expert mode Overall".to_string(),
-                team_size: Some("team size: 5".to_string()),
+                activity: "Tombs of Amascut".to_string(),                
+                variant: Some("Tombs of Amascut Expert Mode 5 players".to_string()),
             },
         });
 
@@ -2216,9 +2265,10 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 2_435.00,
-                activity: "Tombs of Amascut Entry mode Overall".to_string(),
-                team_size: Some("team size: 2".to_string()),
+                activity: "Tombs of Amascut".to_string(),                
+                variant: Some("Tombs of Amascut Entry Mode 2 players".to_string()),
             },
+            
         });
 
         messages.push(TestBroadcast {
@@ -2226,8 +2276,8 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 1_820.00,
-                activity: "Tombs of Amascut Normal mode Overall".to_string(),
-                team_size: Some("team size: 1".to_string()),
+                activity: "Tombs of Amascut".to_string(),                
+                variant: Some("Tombs of Amascut Solo".to_string())
             },
         });
 
@@ -2237,7 +2287,7 @@ mod tests {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 1_041.00,
                 activity: "Theatre of Blood".to_string(),
-                team_size: Some("Team Size: 5".to_string()),
+                variant: Some("Theatre of Blood 5 players".to_string())
             },
         });
 
@@ -2246,8 +2296,8 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 1_362.60,
-                activity: "Theatre of Blood: Hard mode".to_string(),
-                team_size: Some("Team Size: 3".to_string()),
+                activity: "Theatre of Blood".to_string(),
+                variant: Some("Theatre of Blood Hard Mode 3 players".to_string())
             },
         });
 
@@ -2256,8 +2306,8 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 1_228.00,
-                activity: "Theatre of Blood: Entry mode".to_string(),
-                team_size: Some("Team Size: 3".to_string()),
+                activity: "Theatre of Blood".to_string(),
+                variant: Some("Theatre of Blood Entry Mode".to_string())
             },
         });
 
@@ -2268,7 +2318,7 @@ mod tests {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 98.00,
                 activity: "TzHaar-Ket-Rak's First Challenge".to_string(),
-                team_size: None,
+                variant: None
             },
         });
 

@@ -3,6 +3,7 @@ use crate::database::clan_mates::ClanMates;
 use crate::database::drop_logs_db::DropLogs;
 use crate::database::guilds_db::RegisteredGuildModel;
 use crate::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
+use crate::jobs::new_pb_job::record_new_pb;
 use crate::jobs::{remove_clanmate_job, JobQueue};
 use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     coffer_donation_broadcast_extractor, coffer_withdrawal_broadcast_extractor,
@@ -506,7 +507,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     }
                 }
             }
-            BroadcastType::PersonalBest => self.personal_best_handler(),
+            BroadcastType::PersonalBest => self.personal_best_handler().await,
             _ => None,
         }
     }
@@ -804,7 +805,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
         }
     }
 
-    fn personal_best_handler(&self) -> Option<BroadcastMessageToDiscord> {
+    async fn personal_best_handler(&self) -> Option<BroadcastMessageToDiscord> {
         let personal_best = personal_best_broadcast_extractor(self.clan_message.message.clone());
         match personal_best {
             None => {
@@ -829,14 +830,14 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     return None;
                 }
 
+                let job = record_new_pb::new(exported_data.clone(), self.registered_guild.guild_id);
+                let _ = self.job_queue.send_task(job).await;
+
                 Some(BroadcastMessageToDiscord {
-                    type_of_broadcast: BroadcastType::Diary,
+                    type_of_broadcast: BroadcastType::PersonalBest,
                     player_it_happened_to: exported_data.player,
                     message: self.clan_message.message.clone(),
-                    icon_url: Some(
-                        self.best_guest_pb_icon(exported_data.activity.clone())
-                            .to_string(),
-                    ),
+                    icon_url: Some(self.best_guest_pb_icon(exported_data.activity).to_string()),
                     title: ":stopwatch: New Personal Best!".to_string(),
                     item_quantity: None,
                 })
