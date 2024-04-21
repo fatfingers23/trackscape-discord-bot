@@ -36,6 +36,7 @@ client.getClanDetail(clanId).then((clan) => {
 
 
 
+//Condense collection logs to leaderboards when i add pb
 const tabMenus = [
   {
     name: 'Members',
