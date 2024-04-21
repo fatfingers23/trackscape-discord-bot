@@ -1,4 +1,4 @@
-use crate::database::clan_mate_collection_log_totals::COLLECTION_LOG_COLLECTION_NAME;
+use crate::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotalModel;
 use crate::database::ClanMatesDb;
 use anyhow::Error;
 use async_trait::async_trait;
@@ -214,7 +214,7 @@ impl ClanMates for ClanMatesDb {
         //Removes other data from db may move else where
         let collection_log_collection = self
             .db
-            .collection::<ClanMateModel>(COLLECTION_LOG_COLLECTION_NAME);
+            .collection::<ClanMateCollectionLogTotalModel>(ClanMateCollectionLogTotalModel::COLLECTION_NAME);
 
         let filter = doc! {
             "guild_id": bson::to_bson(&guild_id).unwrap(),

@@ -15,9 +15,9 @@ pub struct ClanMateCollectionLogTotalModel {
     pub total: i64,
     pub created_at: DateTime,
 }
-pub const COLLECTION_LOG_COLLECTION_NAME: &'static str = "clan_mate_collection_log_totals";
 
 impl ClanMateCollectionLogTotalModel {
+    pub const COLLECTION_NAME: &'static str = "clan_mate_collection_log_totals";
     pub fn new(guild_id: u64, player_id: bson::oid::ObjectId, total: i64) -> Self {
         Self {
             guild_id,
@@ -64,9 +64,9 @@ impl ClanMateCollectionLogTotals for ClanMateCollectionLogTotalsDb {
         player_id: bson::oid::ObjectId,
         total: i64,
     ) -> Result<(), Error> {
-        let collection = self
-            .db
-            .collection::<ClanMateCollectionLogTotalModel>(COLLECTION_LOG_COLLECTION_NAME);
+        let collection = self.db.collection::<ClanMateCollectionLogTotalModel>(
+            ClanMateCollectionLogTotalModel::COLLECTION_NAME,
+        );
 
         let filter = doc! {
             "guild_id": bson::to_bson(&guild_id).unwrap(),
@@ -100,9 +100,9 @@ impl ClanMateCollectionLogTotals for ClanMateCollectionLogTotalsDb {
         &self,
         guild_id: u64,
     ) -> Result<Vec<ClanMateCollectionLogTotalsView>, anyhow::Error> {
-        let collection = self
-            .db
-            .collection::<ClanMateCollectionLogTotalModel>(COLLECTION_LOG_COLLECTION_NAME);
+        let collection = self.db.collection::<ClanMateCollectionLogTotalModel>(
+            ClanMateCollectionLogTotalModel::COLLECTION_NAME,
+        );
 
         let filter = doc! {
             "guild_id": bson::to_bson(&guild_id).unwrap(),

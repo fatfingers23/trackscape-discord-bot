@@ -1,17 +1,19 @@
-use mongodb::bson::doc;
-use mongodb::options::ClientOptions;
-use mongodb::Database;
-pub mod broadcasts;
-pub mod clan_mate_collection_log_totals;
-pub mod clan_mates;
-pub mod drop_logs_db;
-pub mod guilds_db;
-
 use crate::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotals;
 use crate::database::clan_mates::ClanMates;
 use crate::database::drop_logs_db::DropLogs;
 use async_trait::async_trait;
 use mockall::automock;
+use mongodb::bson::doc;
+use mongodb::options::ClientOptions;
+use mongodb::Database;
+
+pub mod broadcasts;
+pub mod clan_mate_collection_log_totals;
+pub mod clan_mates;
+pub mod drop_logs_db;
+pub mod guilds_db;
+pub mod pb_activities_db;
+pub mod pb_records_db;
 
 #[automock]
 #[async_trait]
@@ -26,6 +28,8 @@ pub struct BotMongoDb {
     pub clan_mates: ClanMatesDb,
     pub clan_mate_collection_log_totals: ClanMateCollectionLogTotalsDb,
     pub broadcasts: BroadcastsDb,
+    pub pb_activities: PersonalBestActivitiesDb,
+    pub pb_records: PersonalBestRecordsDb,
 }
 
 #[derive(Clone)]
@@ -53,6 +57,16 @@ pub struct BroadcastsDb {
     db: Database,
 }
 
+#[derive(Clone)]
+pub struct PersonalBestActivitiesDb {
+    db: Database,
+}
+
+#[derive(Clone)]
+pub struct PersonalBestRecordsDb {
+    db: Database,
+}
+
 #[async_trait]
 impl MongoDb for BotMongoDb {
     async fn new_db_instance(db_url: String) -> Self {
@@ -70,7 +84,9 @@ impl MongoDb for BotMongoDb {
             clan_mate_collection_log_totals: ClanMateCollectionLogTotalsDb::new_instance(
                 db.clone(),
             ),
-            broadcasts: BroadcastsDb::new_instance(db),
+            broadcasts: BroadcastsDb::new_instance(db.clone()),
+            pb_activities: PersonalBestActivitiesDb::new_instance(db.clone()),
+            pb_records: PersonalBestRecordsDb::new_instance(db),
         }
     }
 }
