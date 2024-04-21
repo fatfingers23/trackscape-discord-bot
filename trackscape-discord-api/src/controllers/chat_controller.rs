@@ -188,6 +188,19 @@ async fn new_clan_chats(
             continue;
         }
 
+        //Handles RL chat commands
+        if chat.message.starts_with("!") {
+            let _ = celery
+                .send_task(
+                    trackscape_discord_shared::jobs::parse_rl_chat_command::parse_command::new(
+                        chat.message.clone(),
+                        chat.sender.clone(),
+                        registered_guild.guild_id,
+                    ),
+                )
+                .await;
+        }
+
         //TODO may remove this since the handler does some loging for the website now
         if registered_guild.broadcast_channel.is_none()
             && registered_guild.clan_chat_channel.is_none()
