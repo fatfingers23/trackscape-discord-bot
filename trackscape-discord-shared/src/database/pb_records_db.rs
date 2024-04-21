@@ -12,7 +12,8 @@ pub struct PersonalBestRecordsModel {
     pub id: bson::oid::ObjectId,
     pub clan_mate_id: bson::oid::ObjectId,
     pub activity_id: bson::oid::ObjectId,
-    pub time_in_seconds: i64,
+    pub guild_id: u64,
+    pub time_in_seconds: f64,
     pub created_at: DateTime,
     pub updated_at: DateTime,
 }
@@ -30,7 +31,8 @@ impl PersonalBestRecordsDb {
         &self,
         clan_mate_id: bson::oid::ObjectId,
         activity_id: bson::oid::ObjectId,
-        time_in_seconds: i64,
+        guild_id: u64,
+        time_in_seconds: f64,
     ) -> Result<(), mongodb::error::Error> {
         let collection = self
             .db
@@ -42,7 +44,7 @@ impl PersonalBestRecordsDb {
         };
         match collection.find_one(filter.clone(), None).await? {
             Some(recorded_record) => {
-                if time_in_seconds > recorded_record.time_in_seconds {
+                if time_in_seconds < recorded_record.time_in_seconds {
                     let update = doc! {
                         "$set": {
                             "time_in_seconds": time_in_seconds,
@@ -58,6 +60,7 @@ impl PersonalBestRecordsDb {
                     id: bson::oid::ObjectId::new(),
                     clan_mate_id: clan_mate_id.clone(),
                     activity_id: activity_id.clone(),
+                    guild_id,
                     time_in_seconds: time_in_seconds.clone(),
                     created_at: bson::DateTime::now(),
                     updated_at: bson::DateTime::now(),
