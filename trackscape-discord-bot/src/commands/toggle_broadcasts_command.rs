@@ -81,6 +81,10 @@ pub fn register() -> CreateCommand {
                 BroadcastType::Invite.to_string(),
                 BroadcastType::Invite.to_slug(),
             )
+            .add_string_choice(
+                BroadcastType::PersonalBest.to_string(),
+                BroadcastType::PersonalBest.to_slug(),
+            )
             .required(true),
         )
         .add_option(CreateCommandOption::new(

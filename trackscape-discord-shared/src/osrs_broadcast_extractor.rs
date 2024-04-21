@@ -252,7 +252,7 @@ pub mod osrs_broadcast_extractor {
         ExpelledFromClan,
         CofferDonation,
         CofferWithdrawal,
-        BossPB,
+        PersonalBest,
         Unknown,
     }
 
@@ -275,7 +275,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::ExpelledFromClan => "Expelled From Clan".to_string(),
                 BroadcastType::CofferDonation => "Coffer Donation".to_string(),
                 BroadcastType::CofferWithdrawal => "Coffer Withdrawal".to_string(),
-                BroadcastType::BossPB => "Boss PB".to_string(),
+                BroadcastType::PersonalBest => "Personal Best".to_string(),
             }
         }
 
@@ -292,7 +292,7 @@ pub mod osrs_broadcast_extractor {
                 "XP Milestone" => BroadcastType::XPMilestone,
                 "Level Milestone" => BroadcastType::LevelMilestone,
                 "Collection Log" => BroadcastType::CollectionLog,
-                "Boss PB" => BroadcastType::BossPB,
+                "Personal Best" => BroadcastType::PersonalBest,
                 _ => BroadcastType::Unknown,
             }
         }
@@ -315,7 +315,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::ExpelledFromClan,
                 BroadcastType::CofferDonation,
                 BroadcastType::CofferWithdrawal,
-                BroadcastType::BossPB,
+                BroadcastType::PersonalBest,
             ]
         }
 
@@ -742,6 +742,11 @@ pub mod osrs_broadcast_extractor {
         }
         if message_content.contains("withdrawn") && message_content.contains("from the coffer.") {
             return BroadcastType::CofferWithdrawal;
+        }
+        if message_content.contains("has achieved a new")
+            && message_content.contains("personal best:")
+        {
+            return BroadcastType::PersonalBest;
         }
         return BroadcastType::Unknown;
     }
