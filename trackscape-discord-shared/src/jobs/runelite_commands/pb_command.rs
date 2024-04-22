@@ -3,6 +3,7 @@ use crate::{database::clan_mates::ClanMates, jobs::job_helpers::get_mongodb};
 use super::get_runelite_api_url;
 use anyhow::{anyhow, Ok};
 use capitalize::Capitalize;
+use reqwest::StatusCode;
 use tokio::time::sleep;
 
 pub async fn get_pb(message: String, player: String, guild_id: u64) -> Result<(), anyhow::Error> {
@@ -17,8 +18,19 @@ pub async fn get_pb(message: String, player: String, guild_id: u64) -> Result<()
 
     let runelite_api_url = get_runelite_api_url().await?;
     let full_url = format!("{}/chat/pb?name={}&boss={}", runelite_api_url, player, boss);
-    let pb = reqwest::get(full_url).await?.text().await?;
-    println!("PB: {}", pb);
+    let pb_request: reqwest::Response = reqwest::get(full_url).await?;
+    if pb_request.status() != StatusCode::OK {
+        println!(
+            "Failed to get pb from runelite api: {}",
+            pb_request.status()
+        );
+        return Err(anyhow!(
+            "Failed to get pb from runelite api: {}",
+            pb_request.status()
+        ));
+    }
+    let pb_time = pb_request.text().await?.parse::<f64>()?;
+    println!("PB: {}", pb_time);
 
     let db = get_mongodb().await;
     let activity = db.pb_activities.create_or_get_activity(boss).await?;
@@ -28,12 +40,7 @@ pub async fn get_pb(message: String, player: String, guild_id: u64) -> Result<()
         .await;
     let _ = db
         .pb_records
-        .create_or_update_pb_record(
-            clan_mate.unwrap().id,
-            activity.id,
-            guild_id,
-            pb.parse::<f64>()?,
-        )
+        .create_or_update_pb_record(clan_mate.unwrap().id, activity.id, guild_id, pb_time)
         .await?;
 
     Ok(())

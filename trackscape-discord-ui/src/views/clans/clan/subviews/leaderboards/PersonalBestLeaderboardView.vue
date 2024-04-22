@@ -62,7 +62,7 @@ const osrsTimeDisplay = (timeInSeconds: number) => {
 
         <DataTable
           v-else
-          :title="`${store.$state.selectedActivityName} Leaderboard`"
+          
           :columns="columns"
           :data="store.getRecords"
           search-field="clan_mate.player_name"

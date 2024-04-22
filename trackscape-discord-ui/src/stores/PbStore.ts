@@ -37,6 +37,9 @@ export const usePbStore = defineStore('pb', {
     getSelectedActivity: (state) =>{
       return state.selectedActivity;
     },
+    getSelectedActivityName: (state) =>{
+      return state.selectedActivityName;
+    },
     getRecords: (state) =>{
       return state.records;
     }
