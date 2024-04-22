@@ -35,11 +35,11 @@
     "dim",
     "nord",
     "sunset"
-  ]
+  ];
 
   let savedTheme = localStorage.getItem("theme");
   console.log(savedTheme);
-  let selectedTheme =  ref(savedTheme ?? "default")
+  let selectedTheme =  ref(savedTheme ?? "default");
 
   const onSelect = ((theme: string) => {
     localStorage.setItem("theme", theme);

@@ -190,51 +190,56 @@ async fn broadcasts(
     }
 }
 
-// #[get("/{id}/personal-bests")]
-// async fn personal_bests(
-//     mongodb: Data<BotMongoDb>,
-//     path: web::Path<(String,)>,
-// ) -> Result<HttpResponse, Error> {
-//     let id = path.into_inner().0;
-//     let possible_parsed_id = bson::oid::ObjectId::from_str(id.as_str());
-//     let id = match possible_parsed_id {
-//         Ok(parsed_id) => parsed_id,
-//         Err(_) => {
-//             return Ok(HttpResponse::BadRequest().body("Invalid id format."));
-//         }
-//     };
+#[get("/{guild_id}/{activity_id}/personal-bests")]
+async fn personal_bests(
+    mongodb: Data<BotMongoDb>,
+    path: web::Path<(String, String)>,
+) -> Result<HttpResponse, Error> {
+    let get_variables = path.into_inner();
+    let guild_id = get_variables.0;
+    let possible_parsed_guild_id = bson::oid::ObjectId::from_str(guild_id.as_str());
+    let guild_id = match possible_parsed_guild_id {
+        Ok(parsed_id) => parsed_id,
+        Err(_) => {
+            return Ok(HttpResponse::BadRequest().body("Invalid id format."));
+        }
+    };
 
-//     let registered_guild_query = mongodb.guilds.get_by_id(id).await;
-//     match registered_guild_query {
-//         Ok(possible_registered_guild) => match possible_registered_guild {
-//             None => {
-//                 return Ok(HttpResponse::NotFound().body("Clan not found."));
-//             }
-//             Some(registered_guild) => {
-//                 //return clan details
-//                 let result = mongodb
-//                     .clan_mates
-//                     .get_personal_bests(registered_guild.guild_id)
-//                     .await;
-//                 match result {
-//                     Ok(personal_bests) => {
-//                         return Ok(HttpResponse::Ok().json(personal_bests));
-//                     }
-//                     Err(err) => {
-//                         error!("Failed to get clan by id: {}", err);
-//                         return Ok(
-//                             HttpResponse::BadRequest().body("There was an issue with the request")
-//                         );
-//                     }
-//                 }
-//             }
-//         },
-//         Err(err) => {
-//             error!("Failed to get clan by id: {}", err);
-//             return Ok(HttpResponse::BadRequest().body("There was an issue with the request"));
-//         }
-//     }
-// }
+    let activity_id = get_variables.1;
+    let possible_parsed_activity_id = bson::oid::ObjectId::from_str(activity_id.as_str());
+    let activity_id = match possible_parsed_activity_id {
+        Ok(parsed_id) => parsed_id,
+        Err(_) => {
+            return Ok(HttpResponse::BadRequest().body("Invalid id format."));
+        }
+    };
+
+    let registered_guild_query = mongodb.guilds.get_by_id(guild_id).await;
+    match registered_guild_query {
+        Ok(possible_registered_guild) => match possible_registered_guild {
+            None => {
+                return Ok(HttpResponse::NotFound().body("Clan not found."));
+            }
+            Some(registered_guild) => {
+                let result = mongodb
+                    .pb_records
+                    .get_pb_records_leaderboard(activity_id, registered_guild.guild_id)
+                    .await;
+                match result {
+                    Ok(records) => Ok(HttpResponse::Ok().json(records)),
+                    Err(err) => {
+                        error!("Failed to get personal bests: {}", err);
+                        Ok(HttpResponse::BadRequest().body("There was an issue with the request"))
+                    }
+                }
+            }
+        },
+        Err(err) => {
+            error!("Failed to get clan by id: {}", err);
+            return Ok(HttpResponse::BadRequest().body("There was an issue with the request"));
+        }
+    }
+}
 
 pub fn clan_controller() -> Scope {
     web::scope("/clans")
@@ -242,4 +247,5 @@ pub fn clan_controller() -> Scope {
         .service(detail)
         .service(collection_log)
         .service(broadcasts)
+        .service(personal_bests)
 }

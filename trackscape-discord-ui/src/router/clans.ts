@@ -1,4 +1,4 @@
-import type { RouteRecordRaw } from 'vue-router'
+import type { RouteRecordRaw } from 'vue-router';
 
 export default [
   {
@@ -46,4 +46,4 @@ export default [
   //     name: 'clan-detail',
   //     component: () => import('@/views/clans/clan/ClanView.vue')
   // }
-] as RouteRecordRaw[]
+] as RouteRecordRaw[];

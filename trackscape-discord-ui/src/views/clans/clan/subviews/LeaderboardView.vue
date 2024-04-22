@@ -6,7 +6,7 @@ import {useRoute} from "vue-router";
 import {ref} from "vue";
 import DataTable from "@/components/General/DataTable.vue";
 import SkeletonTable from "@/components/General/SkeletonTable.vue";
-import PersonalBestActivitySelect from '@/components/clan/PersonalBestActivitySelect.vue'
+import PersonalBestActivitySelect from '@/components/clan/PersonalBestActivitySelect.vue';
 
 
 
@@ -15,11 +15,11 @@ const props = defineProps({
     type: Object as PropType<ClanDetail>,
     required: true
   }
-})
+});
 
 
 let clanId = ref<string>();
-const route = useRoute()
+const route = useRoute();
 
 if (props.clanDetail) {
   clanId.value = props.clanDetail.id;
@@ -53,7 +53,8 @@ const leaderBoardMenus = [
                    role="tab"
       >{{ menu.name }}</router-link>
     </div>
-    <PersonalBestActivitySelect v-if="route.name === 'personal-best'"/>
+    <PersonalBestActivitySelect v-if="route.name === 'personal-best' && clanId"
+                                :clan-id="clanId"/>
   </div>
   <div class="container bg-base-200">
 

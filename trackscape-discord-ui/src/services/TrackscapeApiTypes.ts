@@ -56,6 +56,12 @@ type PbActivity = {
   created_at: string,
 }
 
+type PbRecord = {
+  rank: number,
+  time_in_seconds: number,
+  clan_mate: ClanMate|null,
+}
+
 export type {
   BotInfo,
   Clan,
@@ -64,5 +70,7 @@ export type {
   ClanMateCollectionLogTotalsView,
   Broadcast,
   BroadcastMessage,
-  PbActivity
-}
+  PbActivity,
+  PbRecord
+
+};

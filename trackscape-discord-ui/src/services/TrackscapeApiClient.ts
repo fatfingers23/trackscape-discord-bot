@@ -3,8 +3,8 @@ import type {
     Broadcast,
     Clan,
     ClanDetail,
-    ClanMateCollectionLogTotalsView, PbActivity
-} from '@/services/TrackscapeApiTypes'
+    ClanMateCollectionLogTotalsView, PbActivity, PbRecord
+} from '@/services/TrackscapeApiTypes';
 
 export default class TrackscapeApiClient {
 
@@ -41,6 +41,10 @@ export default class TrackscapeApiClient {
 
     public async getTrackScapePbActivities(): Promise<PbActivity[]> {
         return this.get<PbActivity[]>("/resources/activities");
+    }
+
+    public async getTrackScapePbRecords(clanId: string, activityId: string): Promise<PbRecord[]> {
+        return this.get<PbRecord[]>(`/clans/${clanId}/${activityId}/personal-bests`);
     }
 
 }

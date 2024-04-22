@@ -14,7 +14,7 @@ const props = defineProps({
     type: Object as PropType<ClanDetail>,
     required: true
   }
-})
+});
 
 const callEndpoint = (id: string) => client.getCollectionLogLeaderboard(id).then((leaderboard) => {
   let rank = 1;
@@ -22,7 +22,7 @@ const callEndpoint = (id: string) => client.getCollectionLogLeaderboard(id).then
     item.rank = rank;
     rank++;
   });
-  collectionLogLeaderboard.value = leaderboard
+  collectionLogLeaderboard.value = leaderboard;
 });
 
 

@@ -9,7 +9,7 @@ const props = defineProps({
     type: Object as PropType<ClanDetail>,
     required: true
   }
-})
+});
 
 const columns = [
   {

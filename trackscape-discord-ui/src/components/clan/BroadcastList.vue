@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import BroadcastItem from '@/components/clan/BroadcastItem.vue'
-import { ref } from 'vue'
-import type { Broadcast } from '@/services/TrackscapeApiTypes'
-import TrackscapeApiClient from '@/services/TrackscapeApiClient'
+import BroadcastItem from '@/components/clan/BroadcastItem.vue';
+import { ref } from 'vue';
+import type { Broadcast } from '@/services/TrackscapeApiTypes';
+import TrackscapeApiClient from '@/services/TrackscapeApiClient';
 
-let broadcasts = ref<Broadcast[]>()
-let loading = ref(true)
+let broadcasts = ref<Broadcast[]>();
+let loading = ref(true);
 let props = defineProps({
   clanId: {
     type: String,
@@ -21,19 +21,19 @@ let props = defineProps({
     required: false,
     default: true
   }
-})
+});
 
 
-let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL)
+let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 
 client.getBroadcasts(props.clanId, props.limit).then((broadcastsResult) => {
   broadcastsResult.forEach((broadcast) => {
-    broadcast.created_at = new Date(broadcast.created_at).toLocaleString()
-    broadcast.broadcast.title = broadcast.broadcast.title.replace(/:.*:/, '')
-  })
-  broadcasts.value = broadcastsResult
-  loading.value = false
-})
+    broadcast.created_at = new Date(broadcast.created_at).toLocaleString();
+    broadcast.broadcast.title = broadcast.broadcast.title.replace(/:.*:/, '');
+  });
+  broadcasts.value = broadcastsResult;
+  loading.value = false;
+});
 
 </script>
 

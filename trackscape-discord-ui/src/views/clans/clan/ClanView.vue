@@ -4,17 +4,17 @@ import {useRoute} from "vue-router";
 import PageTitle from "@/components/PageTitle.vue";
 import TrackscapeApiClient from "@/services/TrackscapeApiClient";
 import {ref} from "vue";
-import type {  ClanDetail } from '@/services/TrackscapeApiTypes'
+import type {  ClanDetail } from '@/services/TrackscapeApiTypes';
 import DiscordWidget from "@/components/clan/DiscordWidget.vue";
-import BroadcastList from '@/components/clan/BroadcastList.vue'
-import { useHead } from '@unhead/vue'
+import BroadcastList from '@/components/clan/BroadcastList.vue';
+import { useHead } from '@unhead/vue';
 
 let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 
-const route = useRoute()
+const route = useRoute();
 const clanId = route.params.clanId as string;
 
-let clanDetail = ref<ClanDetail>()
+let clanDetail = ref<ClanDetail>();
 
 client.getClanDetail(clanId).then((clan) => {
   //put clan list in alphabetical order
@@ -30,7 +30,7 @@ client.getClanDetail(clanId).then((clan) => {
   clanDetail.value = clan;
   useHead({
     title: `${clan.name} - TrackScape`,
-  })
+  });
 });
 
 
@@ -58,7 +58,7 @@ const tabMenus = [
       'collection-log',
     ]
   },
-]
+];
 
 </script>
 

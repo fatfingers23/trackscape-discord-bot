@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { SelectItem } from '@/components/General/GeneralTypes'
+import { computed } from 'vue';
+import type { SelectItem } from '@/components/General/GeneralTypes';
 
 
 const props = defineProps({
@@ -23,25 +23,25 @@ const props = defineProps({
       }
     ]
   }
-})
+});
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue']);
 
 const modelValue = computed({
   get () {
-    return props.modelValue
+    return props.modelValue;
   },
   set (value) {
-    emit('update:modelValue', value)
+    emit('update:modelValue', value);
   }
-})
+});
 
 const setModel = (item: SelectItem) => {
   if (item.value === 0) {
-    return
+    return;
   }
   modelValue.value = item;
-}
+};
 
 
 // https://reacthustle.com/blog/how-to-implement-a-react-autocomplete-input-using-daisyui

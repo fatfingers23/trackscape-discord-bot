@@ -31,7 +31,7 @@
       required: false,
       default: ""
     }
-  })
+  });
 
   let searchedTerm = ref<string>("");
 
@@ -41,10 +41,24 @@
       if (props.searchField === "") {
         return true;
       }
-      return item[props.searchField].toLowerCase().includes(searchedTerm.value.toLowerCase());
+      let value = '';
+      if(props.searchField.includes('.')){
+        value = getMultiLevelValue(item, props.searchField);
+      } else {
+        value = item[props.searchField];
+      }
+      return value.toLowerCase().includes(searchedTerm.value.toLowerCase());
     });
   });
 
+  const getMultiLevelValue = (obj: any, key: string) => {
+    const keys = key.split('.');
+    let value = obj;
+    for (let i = 0; i < keys.length; i++) {
+      value = value[keys[i]];
+    }
+    return value;
+  };
 
 </script>
 
@@ -78,6 +92,7 @@
         </tr>
 
         <tr v-for="(item, index) in filteredData"
+            class="hover"
             :key="index">
           <th v-for="(column, index) in props.columns"
               :key="index">

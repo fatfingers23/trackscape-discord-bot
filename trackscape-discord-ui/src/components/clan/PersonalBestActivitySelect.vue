@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import type { PbActivity } from '@/services/TrackscapeApiTypes'
-import TrackscapeApiClient from '@/services/TrackscapeApiClient'
-import { usePbStore } from '@/stores/PbStore'
+import { ref } from 'vue';
+import type { PbActivity } from '@/services/TrackscapeApiTypes';
+import TrackscapeApiClient from '@/services/TrackscapeApiClient';
+import { usePbStore } from '@/stores/PbStore';
 
 const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 const store = usePbStore();
 
 let activities = ref<PbActivity[]>();
+let props = defineProps({
+  clanId: {
+    type: String,
+    required: true
+  }
+});
 
-client.getTrackScapePbActivities().then((activitiesFromApi) => {
+
+client.getTrackScapePbActivities().then(async (activitiesFromApi) => {
   console.log(activitiesFromApi);
   // activities.value = activitiesFromApi.map((activity) => {
   //   return {
@@ -18,14 +25,22 @@ client.getTrackScapePbActivities().then((activitiesFromApi) => {
   //   }
   // }) as SelectItem[];
   activities.value = activitiesFromApi;
-  store.setSelectedActivity(activities.value[0]);
+  await store.setSelectedActivity(activities.value[0] ,props.clanId);
 });
+
+const pbCall = (clanId: string, activityId: string) =>{
+  client.getTrackScapePbRecords(clanId, activityId).then((res) => {
+    console.log(res);
+  });
+};
+
+
 </script>
 
 <template>
   <div class="md:pt-0 pt-2">
     <select v-model="store.$state.selectedActivity"
-
+            @change="store.fetchPbRecords"
             class="select w-full">
       <option disabled
               selected>Which leaderboard?</option>

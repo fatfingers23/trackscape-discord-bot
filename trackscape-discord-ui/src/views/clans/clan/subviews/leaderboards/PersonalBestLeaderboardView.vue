@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import TrackscapeApiClient from "@/services/TrackscapeApiClient";
-import type { ClanDetail, ClanMateCollectionLogTotalsView, PbActivity } from '@/services/TrackscapeApiTypes'
+import type { ClanDetail, ClanMateCollectionLogTotalsView, PbActivity } from '@/services/TrackscapeApiTypes';
 import type {PropType} from "vue";
 import {useRoute} from "vue-router";
 import {ref} from "vue";
 import DataTable from "@/components/General/DataTable.vue";
 import SkeletonTable from "@/components/General/SkeletonTable.vue";
-import { usePbStore } from '@/stores/PbStore'
+import { usePbStore } from '@/stores/PbStore';
 
 const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 const store = usePbStore();
@@ -16,7 +16,7 @@ const props = defineProps({
     type: Object as PropType<ClanDetail>,
     required: true
   }
-})
+});
 
 
 // const getPbs = (activityId: string) => client.getCollectionLogLeaderboard(id).then((leaderboard) => {
@@ -48,36 +48,39 @@ const columns = [
   },
   {
     name: 'Member',
-    key: 'player_name'
+    key: 'clan_mate.player_name'
   },
   {
     name: 'Personal Best',
-    key: 'total'
+    key: 'time_in_seconds'
   }
 ];
 </script>
 <template>
-  <div>{{store.getSelectedActivity}}</div>
   <div v-if="props.clanDetail !== undefined"
        class="p-5 shadow-xl bg-base-100 " >
     <div class="">
       <TransitionGroup name="slide-fade">
 
-        <SkeletonTable v-if="collectionLogLeaderboard === undefined"
+        <SkeletonTable v-if="store.records.length === 0"
                        :search-field="true"
                        :columns="3"/>
 
 
         <DataTable
-          v-if="collectionLogLeaderboard !== undefined"
+          v-else
+          :title="`${store.$state.selectedActivityName} Leaderboard`"
           :columns="columns"
-          :data="collectionLogLeaderboard"
-          search-field="player_name"
+          :data="store.getRecords"
+          search-field="clan_mate.player_name"
         >
           <template #row-item="{item, column}" >
             <div class="text-sma md:text-base">
-              <span v-if="column.key == 'total'">
+              <span v-if="column.key == 'time_in_seconds'">
                 {{item[column.key].toLocaleString()}}
+              </span>
+              <span v-else-if="column.key === 'clan_mate.player_name'">
+                {{item.clan_mate.player_name}}
               </span>
               <span v-else>
                 {{item[column.key]}}

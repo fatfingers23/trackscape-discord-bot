@@ -1,18 +1,43 @@
-import { defineStore } from 'pinia'
-import type { PbActivity } from '@/services/TrackscapeApiTypes'
+import { defineStore } from 'pinia';
+import type { PbActivity, PbRecord } from '@/services/TrackscapeApiTypes';
+import TrackscapeApiClient from '@/services/TrackscapeApiClient';
+const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 
 export const usePbStore = defineStore('pb', {
   state: () => {
-    return { selectedActivity: 'Select an Activity' }
+    return {
+      selectedActivity: 'Select an Activity',
+      selectedActivityName: '',
+      clanId: '',
+      records: [] as PbRecord[],
+    };
   },
   actions: {
-    setSelectedActivity(activity: PbActivity) {
-      this.selectedActivity = activity._id
+    async fetchPbRecords() {
+      return await client.getTrackScapePbRecords(this.clanId, this.selectedActivity).then((records: PbRecord[]) => {
+        let rank = 1;
+        records.forEach((record) => {
+          record.rank = rank;
+          rank++;
+
+        });
+        this.records = records;
+
+      });
+    },
+    async setSelectedActivity(activity: PbActivity, guildId: string) {
+      this.selectedActivity = activity._id;
+      this.selectedActivityName = activity.activity_name;
+      this.clanId = guildId;
+      await this.fetchPbRecords();
     },
   },
   getters:{
     getSelectedActivity: (state) =>{
-      return state.selectedActivity
+      return state.selectedActivity;
+    },
+    getRecords: (state) =>{
+      return state.records;
     }
   }
-})
+});
