@@ -129,12 +129,6 @@ impl ClanMateCollectionLogTotals for ClanMateCollectionLogTotalsDb {
                     doc! {
                         "$unwind": "$clan_mate"
                     },
-                    // doc! {
-                    //     "$project": {
-                    //         "player_name": "$clan_mate.player_name",
-                    //         "total": 1
-                    //     }
-                    // },
                     doc! {
                         "$sort": {
                             "total": -1
