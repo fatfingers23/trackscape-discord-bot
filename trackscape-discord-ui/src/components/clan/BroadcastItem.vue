@@ -18,7 +18,6 @@ const props = defineProps({
         <img v-if="props.broadcast.broadcast.icon_url !== null"
              class="w-10 h-10 rounded-full object-contain mr-1"
              :src="props.broadcast.broadcast.icon_url"
-             onerror="this.src = '/src/assets/img/Trackscape_Logo_icon.png'"
              alt=""
         />
 
