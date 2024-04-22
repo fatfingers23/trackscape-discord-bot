@@ -7,7 +7,7 @@ const props = defineProps({
     type: String,
     required: true
   }
-})
+});
 
 
 type DiscordWidgetResponse = {
@@ -26,11 +26,11 @@ fetch(`https://discord.com/api/guilds/${props.discord_id}/widget.json`)
       return;
     }
 
-    return response.json() as Promise<DiscordWidgetResponse>
+    return response.json() as Promise<DiscordWidgetResponse>;
   })
   .then((data) => {
-    discordWidget.value = data
-  })
+    discordWidget.value = data;
+  });
 
 </script>
 

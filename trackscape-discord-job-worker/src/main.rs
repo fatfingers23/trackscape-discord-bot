@@ -1,6 +1,11 @@
 use anyhow::Result;
 use dotenv::dotenv;
 use env_logger::Env;
+use trackscape_discord_shared::jobs::{
+    add_job, name_change_job::name_change, new_pb_job::record_new_pb,
+    parse_rl_chat_command::parse_command, remove_clanmate_job::remove_clanmate,
+    update_create_clanmate_job::update_create_clanmate, wom_guild_sync_job::wom_guild_sync,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -10,11 +15,13 @@ async fn main() -> Result<()> {
     let instant_job_app = celery::app!(
         broker = RedisBroker { std::env::var("REDIS_ADDR").unwrap_or_else(|_| "redis://127.0.0.1:6379/".into()) },
         tasks = [
-            trackscape_discord_shared::jobs::add_job::run,
-            trackscape_discord_shared::jobs::update_create_clanmate_job::update_create_clanmate,
-            trackscape_discord_shared::jobs::remove_clanmate_job::remove_clanmate,
-            trackscape_discord_shared::jobs::name_change_job::name_change,
-            trackscape_discord_shared::jobs::wom_guild_sync_job::wom_guild_sync,
+            add_job::run,
+            update_create_clanmate,
+            remove_clanmate,
+            name_change,
+            wom_guild_sync,
+            record_new_pb,
+            parse_command,
         ],
         // This just shows how we can route certain tasks to certain queues based
         // on glob matching.

@@ -126,7 +126,8 @@ async fn new_clan_chats(
             }
         }
         //Checks to make sure the message has not already been process since multiple people could be submitting them
-        let message_content_hash = hash_string(chat.message.clone());
+        let message_content_hash =
+            hash_string(format!("{}{}", chat.message.clone(), chat.sender.clone()));
         match cache.get_value(message_content_hash.clone()).await {
             Some(_) => continue,
             None => {
@@ -175,6 +176,19 @@ async fn new_clan_chats(
         }
         //Checks to see if it is a clan broadcast. Clan name and sender are the same if so
         if chat.sender != chat.clan_name {
+            //Handles RL chat commands
+            if chat.message.starts_with("!") {
+                let _ = celery
+                    .send_task(
+                        trackscape_discord_shared::jobs::parse_rl_chat_command::parse_command::new(
+                            chat.message.clone(),
+                            chat.sender.clone(),
+                            registered_guild.guild_id,
+                        ),
+                    )
+                    .await;
+            }
+
             //Starts a job to either add the clan mate if not added to guild, or check for rank change
             let _ = celery
                 .send_task(

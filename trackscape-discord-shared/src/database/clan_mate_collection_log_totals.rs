@@ -8,22 +8,26 @@ use mongodb::bson::{doc, DateTime};
 use mongodb::{bson, Database};
 use serde::{Deserialize, Serialize};
 
+use super::clan_mates::ClanMateModel;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ClanMateCollectionLogTotalModel {
     pub guild_id: u64,
     pub player_id: bson::oid::ObjectId,
     pub total: i64,
     pub created_at: DateTime,
+    pub clan_mate: Option<ClanMateModel>,
 }
-pub const COLLECTION_LOG_COLLECTION_NAME: &'static str = "clan_mate_collection_log_totals";
 
 impl ClanMateCollectionLogTotalModel {
+    pub const COLLECTION_NAME: &'static str = "clan_mate_collection_log_totals";
     pub fn new(guild_id: u64, player_id: bson::oid::ObjectId, total: i64) -> Self {
         Self {
             guild_id,
             player_id,
             total,
             created_at: DateTime::now(),
+            clan_mate: None,
         }
     }
 }
@@ -49,7 +53,7 @@ pub trait ClanMateCollectionLogTotals {
     async fn get_guild_totals(
         &self,
         guild_id: u64,
-    ) -> Result<Vec<ClanMateCollectionLogTotalsView>, anyhow::Error>;
+    ) -> Result<Vec<ClanMateCollectionLogTotalModel>, anyhow::Error>;
 }
 
 #[async_trait]
@@ -64,9 +68,9 @@ impl ClanMateCollectionLogTotals for ClanMateCollectionLogTotalsDb {
         player_id: bson::oid::ObjectId,
         total: i64,
     ) -> Result<(), Error> {
-        let collection = self
-            .db
-            .collection::<ClanMateCollectionLogTotalModel>(COLLECTION_LOG_COLLECTION_NAME);
+        let collection = self.db.collection::<ClanMateCollectionLogTotalModel>(
+            ClanMateCollectionLogTotalModel::COLLECTION_NAME,
+        );
 
         let filter = doc! {
             "guild_id": bson::to_bson(&guild_id).unwrap(),
@@ -99,10 +103,10 @@ impl ClanMateCollectionLogTotals for ClanMateCollectionLogTotalsDb {
     async fn get_guild_totals(
         &self,
         guild_id: u64,
-    ) -> Result<Vec<ClanMateCollectionLogTotalsView>, anyhow::Error> {
-        let collection = self
-            .db
-            .collection::<ClanMateCollectionLogTotalModel>(COLLECTION_LOG_COLLECTION_NAME);
+    ) -> Result<Vec<ClanMateCollectionLogTotalModel>, anyhow::Error> {
+        let collection = self.db.collection::<ClanMateCollectionLogTotalModel>(
+            ClanMateCollectionLogTotalModel::COLLECTION_NAME,
+        );
 
         let filter = doc! {
             "guild_id": bson::to_bson(&guild_id).unwrap(),
@@ -126,12 +130,6 @@ impl ClanMateCollectionLogTotals for ClanMateCollectionLogTotalsDb {
                         "$unwind": "$clan_mate"
                     },
                     doc! {
-                        "$project": {
-                            "player_name": "$clan_mate.player_name",
-                            "total": 1
-                        }
-                    },
-                    doc! {
                         "$sort": {
                             "total": -1
                         }
@@ -141,12 +139,12 @@ impl ClanMateCollectionLogTotals for ClanMateCollectionLogTotalsDb {
             )
             .await?;
 
-        let mut results: Vec<ClanMateCollectionLogTotalsView> = Vec::new();
+        let mut results: Vec<ClanMateCollectionLogTotalModel> = Vec::new();
 
         // Iterate through the results and map them to the struct
         while let Some(result) = cursor.try_next().await? {
             if let Ok(view) =
-                bson::from_bson::<ClanMateCollectionLogTotalsView>(bson::Bson::Document(result))
+                bson::from_bson::<ClanMateCollectionLogTotalModel>(bson::Bson::Document(result))
             {
                 results.push(view);
             }

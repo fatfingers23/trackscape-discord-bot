@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type {ClanDetail} from "@/services/TrackscapeApiTypes";
-import { type PropType } from 'vue'
+import { type PropType } from 'vue';
 import {useRoute} from "vue-router";
 import {ref} from "vue";
-import BroadcastList from '@/components/BroadcastList.vue'
+import BroadcastList from '@/components/clan/BroadcastList.vue';
 
 
 let clanId = ref<string>();
@@ -12,7 +12,7 @@ const props = defineProps({
     type: Object as PropType<ClanDetail>,
     required: true
   }
-})
+});
 
 if (props.clanDetail) {
   clanId.value= props.clanDetail.id;

@@ -1,20 +1,19 @@
 <script setup lang="ts">
-
-import {useRoute} from "vue-router";
+import { useRoute } from 'vue-router';
 import PageTitle from "@/components/PageTitle.vue";
 import TrackscapeApiClient from "@/services/TrackscapeApiClient";
 import {ref} from "vue";
-import type {  ClanDetail } from '@/services/TrackscapeApiTypes'
-import DiscordWidget from "@/components/DiscordWidget.vue";
-import BroadcastList from '@/components/BroadcastList.vue'
-import { useHead } from '@unhead/vue'
+import type {  ClanDetail } from '@/services/TrackscapeApiTypes';
+import DiscordWidget from "@/components/clan/DiscordWidget.vue";
+import BroadcastList from '@/components/clan/BroadcastList.vue';
+import { useHead } from '@unhead/vue';
 
 let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 
-const route = useRoute()
+const route = useRoute();
 const clanId = route.params.clanId as string;
 
-let clanDetail = ref<ClanDetail>()
+let clanDetail = ref<ClanDetail>();
 
 client.getClanDetail(clanId).then((clan) => {
   //put clan list in alphabetical order
@@ -30,7 +29,7 @@ client.getClanDetail(clanId).then((clan) => {
   clanDetail.value = clan;
   useHead({
     title: `${clan.name} - TrackScape`,
-  })
+  });
 });
 
 
@@ -41,19 +40,25 @@ const tabMenus = [
   {
     name: 'Members',
     routeName: 'members',
-    active: true
+    active: true,
+    childrenNames:[]
   },
   {
     name: 'Recent Broadcasts',
     routeName: 'broadcasts',
-    active: true
+    active: true,
+    childrenNames:[]
   },
   {
-    name: 'Collection Logs',
+    name: 'Leaderboards',
     routeName: 'collection-log',
-    active: false
+    active: false,
+    childrenNames: [
+      'collection-log',
+      'personal-best'
+    ]
   },
-]
+];
 
 </script>
 
@@ -103,7 +108,7 @@ const tabMenus = [
       <router-link v-for="(tabMenu,index) in tabMenus"
                    :key="index"
                    :to="{name: tabMenu.routeName, params: {clanId: clanId}}"
-                   :class="['tab', {'tab-active': route.name === tabMenu.routeName}]">{{tabMenu.name}}</router-link>
+                   :class="['tab', {'tab-active': route.name === tabMenu.routeName}, {'tab-active': tabMenu.childrenNames.includes(route.name?.toString() ?? '')}]">{{tabMenu.name}}</router-link>
     </div>
 
     <router-view v-slot="{ Component}" >

@@ -835,6 +835,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "capitalize"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd54114a9d54a97b36c91da88818b6d4b3b2bc97cfc524f9bc23bdeccb55b1a7"
+
+[[package]]
 name = "cbc"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4662,6 +4668,7 @@ dependencies = [
  "async-recursion",
  "async-trait",
  "bson",
+ "capitalize",
  "celery",
  "chrono",
  "futures",

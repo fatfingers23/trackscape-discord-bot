@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import type { Broadcast } from '@/services/TrackscapeApiTypes'
-import { type PropType, ref } from 'vue'
+import type { Broadcast } from '@/services/TrackscapeApiTypes';
+import { type PropType } from 'vue';
 
 const props = defineProps({
   broadcast: {
     type: Object as PropType<Broadcast>,
     required: true
   }
-})
+});
 
 </script>
 

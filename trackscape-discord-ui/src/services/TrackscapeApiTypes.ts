@@ -29,8 +29,8 @@ type ClanDetail = {
 
 type ClanMateCollectionLogTotalsView = {
   rank: number,
-  player_name: string,
   total: number,
+  clan_mate: ClanMate|null,
 }
 
 type BroadcastMessage = {
@@ -50,6 +50,18 @@ type Broadcast = {
   created_at: string
 }
 
+type PbActivity = {
+  _id: string
+  activity_name: string,
+  created_at: string,
+}
+
+type PbRecord = {
+  rank: number,
+  time_in_seconds: number,
+  clan_mate: ClanMate|null,
+}
+
 export type {
   BotInfo,
   Clan,
@@ -57,5 +69,8 @@ export type {
   ClanMate,
   ClanMateCollectionLogTotalsView,
   Broadcast,
-  BroadcastMessage
-}
+  BroadcastMessage,
+  PbActivity,
+  PbRecord
+
+};

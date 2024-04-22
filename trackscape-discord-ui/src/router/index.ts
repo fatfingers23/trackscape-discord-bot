@@ -1,12 +1,12 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import BotLandingPage from '../views/BotLandingPage.vue'
+import { createRouter, createWebHistory } from 'vue-router';
+import BotLandingPage from '../views/BotLandingPage.vue';
 import ClanRoutes from './clans';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  scrollBehavior(to, from, savedPosition) {
+  scrollBehavior() {
     // always scroll to top
-    return { top: 0 }
+    return { top: 0 };
   },
   routes: [
     {
@@ -16,6 +16,6 @@ const router = createRouter({
     },
       ...ClanRoutes
   ]
-})
+});
 
-export default router
+export default router;

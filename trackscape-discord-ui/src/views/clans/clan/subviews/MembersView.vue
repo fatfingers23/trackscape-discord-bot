@@ -1,15 +1,15 @@
 <script setup lang="ts">
 
-import DataTable from "@/components/General/DataTable.vue";
-import type {ClanDetail} from "@/services/TrackscapeApiTypes";
-import type {PropType} from "vue";
+import DataTable from '@/components/General/DataTable.vue';
+import type { ClanDetail } from '@/services/TrackscapeApiTypes';
+import type { PropType } from 'vue';
 
 const props = defineProps({
   clanDetail: {
     type: Object as PropType<ClanDetail>,
     required: true
   }
-})
+});
 
 const columns = [
   {
@@ -68,6 +68,3 @@ const columns = [
   </div>
 </template>
 
-<style scoped>
-
-</style>

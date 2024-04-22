@@ -9,3 +9,4 @@ Secrets.dev.toml
 #trackscape-discord-api/ui
 cargo-shuttle
 trackscape-discord-ui/bun.lockb
+.vscode

@@ -20,8 +20,18 @@
       type: String,
       required: false,
       default: ""
+    },
+    title: {
+      type: String,
+      required: false,
+      default: ""
+    },
+    description: {
+      type: String,
+      required: false,
+      default: ""
     }
-  })
+  });
 
   let searchedTerm = ref<string>("");
 
@@ -31,21 +41,48 @@
       if (props.searchField === "") {
         return true;
       }
-      return item[props.searchField].toLowerCase().includes(searchedTerm.value.toLowerCase());
+      let value = '';
+      if(props.searchField.includes('.')){
+        value = getMultiLevelValue(item, props.searchField);
+      } else {
+        value = item[props.searchField];
+      }
+
+      if(value === undefined){
+        throw new Error(`Could not find the key ${props.searchField} in the data to search by`);
+      }
+
+      return value.toLowerCase().includes(searchedTerm.value.toLowerCase());
     });
   });
 
+  const getMultiLevelValue = (obj: any, key: string) => {
+    const keys = key.split('.');
+    let value = obj;
+    for (let i = 0; i < keys.length; i++) {
+      value = value[keys[i]];
+    }
+    return value;
+  };
 
 </script>
 
 <template>
   <div>
-    <input
-      v-if="props.searchField !== ''"
-      v-model="searchedTerm"
-      type="text"
-      placeholder="Search"
-      class="input input-bordered w-full md:max-w-md max-w-full mb-3" />
+    <div class="flex justify-between items-center pb-2">
+      <div class="flex flex-col md:w-1/2 w-full pb-2">
+        <h3 v-if="props.title !== ''"
+            class="text-lg font-medium text-neutral-content pb-1">{{props.title}}</h3>
+        <p v-if="props.description !== ''"
+           class="text-sm">{{props.description}}</p>
+        <input
+          v-if="props.searchField !== ''"
+          v-model="searchedTerm"
+          type="text"
+          placeholder="Search"
+          class="input input-bordered w-full md:max-w-md max-w-full mb-3 mt-2" />
+      </div>
+    </div>
     <table class="table">
       <thead>
         <tr>
@@ -60,6 +97,7 @@
         </tr>
 
         <tr v-for="(item, index) in filteredData"
+            class="hover"
             :key="index">
           <th v-for="(column, index) in props.columns"
               :key="index">
