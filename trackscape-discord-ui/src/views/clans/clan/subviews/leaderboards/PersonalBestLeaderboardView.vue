@@ -54,6 +54,7 @@ const columns = [
 ];
 </script>
 <template>
+  <h1>Built differente</h1>
   <div v-if="props.clanDetail !== undefined"
        class="p-5 shadow-xl bg-base-100 " >
     <div class="">

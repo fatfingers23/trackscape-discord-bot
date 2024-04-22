@@ -1,19 +1,41 @@
+use crate::{database::clan_mates::ClanMates, jobs::job_helpers::get_mongodb};
+
 use super::get_runelite_api_url;
 use anyhow::{anyhow, Ok};
 use capitalize::Capitalize;
+use tokio::time::sleep;
 
 pub async fn get_pb(message: String, player: String, guild_id: u64) -> Result<(), anyhow::Error> {
+    //Let their message make it to runelite caches before we try to get the pb
+    sleep(tokio::time::Duration::from_secs(5)).await;
+
     let boss = get_boss_long_name(&message);
     if boss.is_empty() {
         println!("Could not find boss name in message: {}", message);
         return Err(anyhow!("Could not find boss name in message: {}", message));
     }
-    println!("Boss: {}", boss);
+
     let runelite_api_url = get_runelite_api_url().await?;
     let full_url = format!("{}/chat/pb?name={}&boss={}", runelite_api_url, player, boss);
-    println!("Full URL: {}", full_url);
-    let pb = reqwest::get(full_url).await?.text().await?.parse::<f64>()?;
+    let pb = reqwest::get(full_url).await?.text().await?;
     println!("PB: {}", pb);
+
+    let db = get_mongodb().await;
+    let activity = db.pb_activities.create_or_get_activity(boss).await?;
+    let clan_mate = db
+        .clan_mates
+        .find_or_create_clan_mate(guild_id, player)
+        .await;
+    let _ = db
+        .pb_records
+        .create_or_update_pb_record(
+            clan_mate.unwrap().id,
+            activity.id,
+            guild_id,
+            pb.parse::<f64>()?,
+        )
+        .await?;
+
     Ok(())
 }
 

@@ -126,7 +126,8 @@ async fn new_clan_chats(
             }
         }
         //Checks to make sure the message has not already been process since multiple people could be submitting them
-        let message_content_hash = hash_string(chat.message.clone());
+        let message_content_hash =
+            hash_string(format!("{}{}", chat.message.clone(), chat.sender.clone()));
         match cache.get_value(message_content_hash.clone()).await {
             Some(_) => continue,
             None => {

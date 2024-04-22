@@ -41,17 +41,22 @@ const tabMenus = [
   {
     name: 'Members',
     routeName: 'members',
-    active: true
+    active: true,
+    childrenNames:[]
   },
   {
     name: 'Recent Broadcasts',
     routeName: 'broadcasts',
-    active: true
+    active: true,
+    childrenNames:[]
   },
   {
-    name: 'Collection Logs',
+    name: 'Leaderboards',
     routeName: 'collection-log',
-    active: false
+    active: false,
+    childrenNames: [
+      'collection-log',
+    ]
   },
 ]
 
@@ -103,7 +108,7 @@ const tabMenus = [
       <router-link v-for="(tabMenu,index) in tabMenus"
                    :key="index"
                    :to="{name: tabMenu.routeName, params: {clanId: clanId}}"
-                   :class="['tab', {'tab-active': route.name === tabMenu.routeName}]">{{tabMenu.name}}</router-link>
+                   :class="['tab', {'tab-active': route.name === tabMenu.routeName} || tabMenu.childrenNames.includes(route.name)]">{{tabMenu.name}}</router-link>
     </div>
 
     <router-view v-slot="{ Component}" >
