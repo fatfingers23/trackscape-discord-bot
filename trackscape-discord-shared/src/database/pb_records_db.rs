@@ -126,8 +126,6 @@ impl PersonalBestRecordsDb {
         // Iterate through the results and map them to the struct
 
         while let Some(result) = cursor.try_next().await? {
-            println!("{:?}", result);
-
             if let Ok(view) =
                 bson::from_bson::<PersonalBestRecordsModel>(bson::Bson::Document(result))
             {

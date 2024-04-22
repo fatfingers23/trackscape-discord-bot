@@ -47,6 +47,11 @@
       } else {
         value = item[props.searchField];
       }
+
+      if(value === undefined){
+        throw new Error(`Could not find the key ${props.searchField} in the data to search by`);
+      }
+
       return value.toLowerCase().includes(searchedTerm.value.toLowerCase());
     });
   });

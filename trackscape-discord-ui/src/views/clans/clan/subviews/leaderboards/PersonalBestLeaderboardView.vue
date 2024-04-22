@@ -85,7 +85,6 @@ const columns = [
                 <ClanMateWithRank :rank="item.clan_mate.rank"
                                   :name="item.clan_mate.player_name" />
               </span >
-
               <span v-else>
                 {{item[column.key]}}
               </span>

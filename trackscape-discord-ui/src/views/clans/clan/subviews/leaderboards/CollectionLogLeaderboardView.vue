@@ -6,6 +6,7 @@ import {useRoute} from "vue-router";
 import {ref} from "vue";
 import DataTable from "@/components/General/DataTable.vue";
 import SkeletonTable from "@/components/General/SkeletonTable.vue";
+import ClanMateWithRank from '@/components/clan/ClanMateWithRank.vue';
 
 const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 
@@ -45,7 +46,7 @@ const columns = [
   },
   {
     name: 'Member',
-    key: 'player_name'
+    key: 'clan_mate.player_name'
   },
   {
     name: 'Total',
@@ -56,7 +57,7 @@ const columns = [
 <template>
   <div v-if="props.clanDetail !== undefined"
        class="p-5 shadow-xl bg-base-100 " >
-    <div class="">
+    <div>
       <TransitionGroup name="slide-fade">
 
         <SkeletonTable v-if="collectionLogLeaderboard === undefined"
@@ -69,12 +70,16 @@ const columns = [
           :columns="columns"
           title="Collection Log Leaderboard"
           :data="collectionLogLeaderboard"
-          search-field="player_name"
+          search-field="clan_mate.player_name"
         >
           <template #row-item="{item, column}" >
             <div class="text-sma md:text-base">
               <span v-if="column.key == 'total'">
                 {{item[column.key].toLocaleString()}}
+              </span>
+              <span v-else-if="column.key === 'clan_mate.player_name'">
+                <ClanMateWithRank :rank="item.clan_mate?.rank"
+                                  :name="item.clan_mate.player_name" />
               </span>
               <span v-else>
                 {{item[column.key]}}

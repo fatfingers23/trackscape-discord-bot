@@ -29,8 +29,8 @@ type ClanDetail = {
 
 type ClanMateCollectionLogTotalsView = {
   rank: number,
-  player_name: string,
   total: number,
+  clan_mate: ClanMate|null,
 }
 
 type BroadcastMessage = {
