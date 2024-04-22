@@ -50,6 +50,12 @@ type Broadcast = {
   created_at: string
 }
 
+type PbActivity = {
+  _id: string
+  activity_name: string,
+  created_at: string,
+}
+
 export type {
   BotInfo,
   Clan,
@@ -57,5 +63,6 @@ export type {
   ClanMate,
   ClanMateCollectionLogTotalsView,
   Broadcast,
-  BroadcastMessage
+  BroadcastMessage,
+  PbActivity
 }

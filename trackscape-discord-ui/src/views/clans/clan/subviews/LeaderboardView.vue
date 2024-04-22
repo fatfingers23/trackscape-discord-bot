@@ -6,6 +6,7 @@ import {useRoute} from "vue-router";
 import {ref} from "vue";
 import DataTable from "@/components/General/DataTable.vue";
 import SkeletonTable from "@/components/General/SkeletonTable.vue";
+import PersonalBestActivitySelect from '@/components/clan/PersonalBestActivitySelect.vue'
 
 
 
@@ -41,10 +42,10 @@ const leaderBoardMenus = [
 ];
 </script>
 <template>
-  <div class="pt-1 md:w-2/4 w-full">
+  <div class="pt-1 justify-between items-center flex md:flex-row flex-col">
     <div
       role="tablist"
-      class="tabs tabs-boxed">
+      class="tabs tabs-boxed md:w-1/2 w-full">
       <router-link v-for="(menu, index) in leaderBoardMenus"
                    :key="index"
                    :to="{name: menu.routeName, params: {clanId: clanId}}"
@@ -52,6 +53,7 @@ const leaderBoardMenus = [
                    role="tab"
       >{{ menu.name }}</router-link>
     </div>
+    <PersonalBestActivitySelect v-if="route.name === 'personal-best'"/>
   </div>
   <div class="container bg-base-200">
 

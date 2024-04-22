@@ -2,13 +2,9 @@ use anyhow::Result;
 use dotenv::dotenv;
 use env_logger::Env;
 use trackscape_discord_shared::jobs::{
-    add_job,
-    name_change_job::name_change,
-    new_pb_job::record_new_pb,
-    parse_rl_chat_command::{self, parse_command},
-    remove_clanmate_job::remove_clanmate,
-    update_create_clanmate_job::update_create_clanmate,
-    wom_guild_sync_job::wom_guild_sync,
+    add_job, name_change_job::name_change, new_pb_job::record_new_pb,
+    parse_rl_chat_command::parse_command, remove_clanmate_job::remove_clanmate,
+    update_create_clanmate_job::update_create_clanmate, wom_guild_sync_job::wom_guild_sync,
 };
 
 #[tokio::main]

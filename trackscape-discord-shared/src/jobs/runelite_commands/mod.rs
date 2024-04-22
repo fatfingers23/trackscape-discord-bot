@@ -1,16 +1,9 @@
-use std::f64::consts::E;
-
-use redis::{Commands, RedisResult};
-
 use super::job_helpers::get_redis_client;
+use redis::{Commands, RedisResult};
 
 pub mod pb_command;
 
 const RUNELITE_BASE_URL: &str = "https://api.runelite.net/runelite-";
-
-pub enum RuneliteCommandError {
-    CouldNotProcessCommand,
-}
 
 pub async fn get_runelite_api_url() -> Result<String, anyhow::Error> {
     let version = get_runelite_version().await?;
@@ -20,7 +13,7 @@ pub async fn get_runelite_api_url() -> Result<String, anyhow::Error> {
 async fn get_runelite_version() -> Result<String, anyhow::Error> {
     let mut redis_connection = get_redis_client().unwrap();
     let version_key = "runelite_version";
-    let exists: RedisResult<bool> = redis_connection.exists(version_key.clone());
+    let exists: RedisResult<bool> = redis_connection.exists(version_key);
     match exists {
         Ok(exist) => {
             if exist {

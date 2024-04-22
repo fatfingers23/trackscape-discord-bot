@@ -11,6 +11,7 @@ use crate::controllers::chat_controller::chat_controller;
 use actix_cors::Cors;
 use actix_web::web::Data;
 use actix_web::{guard, web, web::ServiceConfig, Error};
+use controllers::application_data_controller::application_data_controller;
 use dotenv::dotenv;
 use serenity::http::HttpBuilder;
 use shuttle_actix_web::ShuttleActixWeb;
@@ -112,6 +113,7 @@ async fn actix_web(
                 .service(info_controller())
                 .service(drop_log_controller())
                 .service(clan_controller())
+                .service(application_data_controller())
                 .wrap(
                     Cors::default()
                         .allow_any_origin()

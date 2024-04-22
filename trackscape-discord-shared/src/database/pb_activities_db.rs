@@ -1,6 +1,9 @@
+use bson::serde_helpers::serialize_object_id_as_hex_string;
 use bson::DateTime;
+use futures::{TryFutureExt, TryStreamExt};
 use mockall::predicate::*;
 use mongodb::bson::doc;
+use mongodb::options::FindOptions;
 use mongodb::{bson, Database};
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +12,7 @@ use super::PersonalBestActivitiesDb;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PersonalBestActivitiesModel {
     #[serde(rename = "_id")]
+    #[serde(serialize_with = "serialize_object_id_as_hex_string")]
     pub id: bson::oid::ObjectId,
     pub activity_name: String,
     pub created_at: DateTime,
@@ -48,5 +52,21 @@ impl PersonalBestActivitiesDb {
                 return Ok(new_activity);
             }
         }
+    }
+
+    pub async fn get_activities(
+        &self,
+    ) -> Result<Vec<PersonalBestActivitiesModel>, mongodb::error::Error> {
+        let collection = self.db.collection::<PersonalBestActivitiesModel>(
+            PersonalBestActivitiesModel::COLLECTION_NAME,
+        );
+
+        let opts = FindOptions::builder()
+            .sort(doc! { "activity_name": 1 })
+            .build();
+        let filter = doc! {"activity_name": {"$ne": ""}};
+        let cursor = collection.find(filter, opts).await?;
+        let result = cursor.try_collect().await;
+        Ok(result.unwrap())
     }
 }

@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import TrackscapeApiClient from "@/services/TrackscapeApiClient";
-import type {ClanDetail, ClanMateCollectionLogTotalsView} from "@/services/TrackscapeApiTypes";
+import type { ClanDetail, ClanMateCollectionLogTotalsView, PbActivity } from '@/services/TrackscapeApiTypes'
 import type {PropType} from "vue";
 import {useRoute} from "vue-router";
 import {ref} from "vue";
 import DataTable from "@/components/General/DataTable.vue";
 import SkeletonTable from "@/components/General/SkeletonTable.vue";
+import { usePbStore } from '@/stores/PbStore'
 
 const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
+const store = usePbStore();
 
 const props = defineProps({
   clanDetail: {
@@ -16,26 +18,27 @@ const props = defineProps({
   }
 })
 
-const callEndpoint = (id: string) => client.getCollectionLogLeaderboard(id).then((leaderboard) => {
-  let rank = 1;
-  leaderboard.map((item) => {
-    item.rank = rank;
-    rank++;
-  });
-  collectionLogLeaderboard.value = leaderboard
-});
+
+// const getPbs = (activityId: string) => client.getCollectionLogLeaderboard(id).then((leaderboard) => {
+//   let rank = 1;
+//   leaderboard.map((item) => {
+//     item.rank = rank;
+//     rank++;
+//   });
+//   // collectionLogLeaderboard.value = leaderboard
+// });
 
 
 let clan = ref<ClanDetail>();
-let collectionLogLeaderboard = ref<ClanMateCollectionLogTotalsView[]>();
+// let collectionLogLeaderboard = ref<ClanMateCollectionLogTotalsView[]>();
 
 if (props.clanDetail) {
   clan.value = props.clanDetail;
-  callEndpoint(props.clanDetail.id);
+  // callEndpoint(props.clanDetail.id);
 } else {
   const route = useRoute();
   const clanId = route.params.clanId as string;
-  callEndpoint(clanId);
+  // callEndpoint(clanId);
 }
 
 const columns = [
@@ -48,13 +51,13 @@ const columns = [
     key: 'player_name'
   },
   {
-    name: 'Total',
+    name: 'Personal Best',
     key: 'total'
   }
 ];
 </script>
 <template>
-  <h1>Built differente</h1>
+  <div>{{store.getSelectedActivity}}</div>
   <div v-if="props.clanDetail !== undefined"
        class="p-5 shadow-xl bg-base-100 " >
     <div class="">

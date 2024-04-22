@@ -3,7 +3,7 @@ import type {
     Broadcast,
     Clan,
     ClanDetail,
-    ClanMateCollectionLogTotalsView
+    ClanMateCollectionLogTotalsView, PbActivity
 } from '@/services/TrackscapeApiTypes'
 
 export default class TrackscapeApiClient {
@@ -37,6 +37,10 @@ export default class TrackscapeApiClient {
 
     public async getBroadcasts(clanID: string, limit: number): Promise<Broadcast[]> {
         return this.get<Broadcast[]>(`/clans/${clanID}/broadcasts/${limit}`);
+    }
+
+    public async getTrackScapePbActivities(): Promise<PbActivity[]> {
+        return this.get<PbActivity[]>("/resources/activities");
     }
 
 }

@@ -5,8 +5,8 @@ import PageTitle from "@/components/PageTitle.vue";
 import TrackscapeApiClient from "@/services/TrackscapeApiClient";
 import {ref} from "vue";
 import type {  ClanDetail } from '@/services/TrackscapeApiTypes'
-import DiscordWidget from "@/components/DiscordWidget.vue";
-import BroadcastList from '@/components/BroadcastList.vue'
+import DiscordWidget from "@/components/clan/DiscordWidget.vue";
+import BroadcastList from '@/components/clan/BroadcastList.vue'
 import { useHead } from '@unhead/vue'
 
 let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);

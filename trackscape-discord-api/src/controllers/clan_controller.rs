@@ -190,6 +190,52 @@ async fn broadcasts(
     }
 }
 
+// #[get("/{id}/personal-bests")]
+// async fn personal_bests(
+//     mongodb: Data<BotMongoDb>,
+//     path: web::Path<(String,)>,
+// ) -> Result<HttpResponse, Error> {
+//     let id = path.into_inner().0;
+//     let possible_parsed_id = bson::oid::ObjectId::from_str(id.as_str());
+//     let id = match possible_parsed_id {
+//         Ok(parsed_id) => parsed_id,
+//         Err(_) => {
+//             return Ok(HttpResponse::BadRequest().body("Invalid id format."));
+//         }
+//     };
+
+//     let registered_guild_query = mongodb.guilds.get_by_id(id).await;
+//     match registered_guild_query {
+//         Ok(possible_registered_guild) => match possible_registered_guild {
+//             None => {
+//                 return Ok(HttpResponse::NotFound().body("Clan not found."));
+//             }
+//             Some(registered_guild) => {
+//                 //return clan details
+//                 let result = mongodb
+//                     .clan_mates
+//                     .get_personal_bests(registered_guild.guild_id)
+//                     .await;
+//                 match result {
+//                     Ok(personal_bests) => {
+//                         return Ok(HttpResponse::Ok().json(personal_bests));
+//                     }
+//                     Err(err) => {
+//                         error!("Failed to get clan by id: {}", err);
+//                         return Ok(
+//                             HttpResponse::BadRequest().body("There was an issue with the request")
+//                         );
+//                     }
+//                 }
+//             }
+//         },
+//         Err(err) => {
+//             error!("Failed to get clan by id: {}", err);
+//             return Ok(HttpResponse::BadRequest().body("There was an issue with the request"));
+//         }
+//     }
+// }
+
 pub fn clan_controller() -> Scope {
     web::scope("/clans")
         .service(list_clans)

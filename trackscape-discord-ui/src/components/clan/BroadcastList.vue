@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BroadcastItem from '@/components/BroadcastItem.vue'
+import BroadcastItem from '@/components/clan/BroadcastItem.vue'
 import { ref } from 'vue'
 import type { Broadcast } from '@/services/TrackscapeApiTypes'
 import TrackscapeApiClient from '@/services/TrackscapeApiClient'
