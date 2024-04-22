@@ -1,7 +1,6 @@
 use actix_web::{get, web, Error, HttpResponse, Scope};
-use log::info;
 use serde::{Deserialize, Serialize};
-use trackscape_discord_shared::database::clan_mates::{ClanMateModel, ClanMates};
+use trackscape_discord_shared::database::clan_mates::ClanMateModel;
 use trackscape_discord_shared::database::BotMongoDb;
 use web::Data;
 

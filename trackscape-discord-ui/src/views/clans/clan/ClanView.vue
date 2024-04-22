@@ -1,6 +1,5 @@
 <script setup lang="ts">
-
-import {useRoute} from "vue-router";
+import { useRoute } from 'vue-router';
 import PageTitle from "@/components/PageTitle.vue";
 import TrackscapeApiClient from "@/services/TrackscapeApiClient";
 import {ref} from "vue";
@@ -56,6 +55,7 @@ const tabMenus = [
     active: false,
     childrenNames: [
       'collection-log',
+      'personal-best'
     ]
   },
 ];
@@ -108,7 +108,7 @@ const tabMenus = [
       <router-link v-for="(tabMenu,index) in tabMenus"
                    :key="index"
                    :to="{name: tabMenu.routeName, params: {clanId: clanId}}"
-                   :class="['tab', {'tab-active': route.name === tabMenu.routeName} || tabMenu.childrenNames.includes(route.name)]">{{tabMenu.name}}</router-link>
+                   :class="['tab', {'tab-active': route.name === tabMenu.routeName}, {'tab-active': tabMenu.childrenNames.includes(route.name?.toString() ?? '')}]">{{tabMenu.name}}</router-link>
     </div>
 
     <router-view v-slot="{ Component}" >

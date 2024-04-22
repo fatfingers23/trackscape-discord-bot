@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import TrackscapeApiClient from "@/services/TrackscapeApiClient";
-import type {ClanDetail, ClanMateCollectionLogTotalsView} from "@/services/TrackscapeApiTypes";
+import type {ClanDetail} from "@/services/TrackscapeApiTypes";
 import type {PropType} from "vue";
 import {useRoute} from "vue-router";
 import {ref} from "vue";
-import DataTable from "@/components/General/DataTable.vue";
-import SkeletonTable from "@/components/General/SkeletonTable.vue";
 import PersonalBestActivitySelect from '@/components/clan/PersonalBestActivitySelect.vue';
 
 

@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import type { ClanDetail } from '@/services/TrackscapeApiTypes';
 import type {PropType} from "vue";
-import {useRoute} from "vue-router";
 import {ref} from "vue";
 import DataTable from "@/components/General/DataTable.vue";
 import SkeletonTable from "@/components/General/SkeletonTable.vue";
 import { usePbStore } from '@/stores/PbStore';
 import ClanMateWithRank from '@/components/clan/ClanMateWithRank.vue';
-import { it } from 'vitest';
 
 const store = usePbStore();
 
@@ -23,9 +21,6 @@ let clan = ref<ClanDetail>();
 
 if (props.clanDetail) {
   clan.value = props.clanDetail;
-} else {
-  const route = useRoute();
-  const clanId = route.params.clanId as string;
 }
 
 const columns = [

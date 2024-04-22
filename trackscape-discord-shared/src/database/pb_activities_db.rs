@@ -1,6 +1,6 @@
 use bson::serde_helpers::serialize_object_id_as_hex_string;
 use bson::DateTime;
-use futures::{TryFutureExt, TryStreamExt};
+use futures::TryStreamExt;
 use mockall::predicate::*;
 use mongodb::bson::doc;
 use mongodb::options::FindOptions;
