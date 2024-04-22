@@ -1,15 +1,20 @@
 use super::get_runelite_api_url;
+use anyhow::{anyhow, Ok};
 use capitalize::Capitalize;
-use num_format::Locale::{bo, hu};
 
-pub async fn get_pb(message: String, player: String, guild_id: u64) {
+pub async fn get_pb(message: String, player: String, guild_id: u64) -> Result<(), anyhow::Error> {
     let boss = get_boss_long_name(&message);
     if boss.is_empty() {
         println!("Could not find boss name in message: {}", message);
-        return;
+        return Err(anyhow!("Could not find boss name in message: {}", message));
     }
     println!("Boss: {}", boss);
-    let runelite_api_url = get_runelite_api_url().await;
+    let runelite_api_url = get_runelite_api_url().await?;
+    let full_url = format!("{}/chat/pb?name={}&boss={}", runelite_api_url, player, boss);
+    println!("Full URL: {}", full_url);
+    let pb = reqwest::get(full_url).await?.text().await?.parse::<f64>()?;
+    println!("PB: {}", pb);
+    Ok(())
 }
 
 fn get_boss_long_name(message: &String) -> String {
