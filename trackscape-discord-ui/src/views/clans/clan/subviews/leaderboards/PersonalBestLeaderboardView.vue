@@ -7,6 +7,8 @@ import {ref} from "vue";
 import DataTable from "@/components/General/DataTable.vue";
 import SkeletonTable from "@/components/General/SkeletonTable.vue";
 import { usePbStore } from '@/stores/PbStore';
+import ClanMateWithRank from '@/components/clan/ClanMateWithRank.vue';
+import { it } from 'vitest';
 
 const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 const store = usePbStore();
@@ -80,8 +82,10 @@ const columns = [
                 {{item[column.key].toLocaleString()}}
               </span>
               <span v-else-if="column.key === 'clan_mate.player_name'">
-                {{item.clan_mate.player_name}}
-              </span>
+                <ClanMateWithRank :rank="item.clan_mate.rank"
+                                  :name="item.clan_mate.player_name" />
+              </span >
+
               <span v-else>
                 {{item[column.key]}}
               </span>

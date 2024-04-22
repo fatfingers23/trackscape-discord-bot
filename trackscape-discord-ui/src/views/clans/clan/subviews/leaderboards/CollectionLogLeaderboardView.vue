@@ -68,7 +68,6 @@ const columns = [
           v-if="collectionLogLeaderboard !== undefined"
           :columns="columns"
           title="Collection Log Leaderboard"
-          description="The total number of collection log items obtained by each clan member."
           :data="collectionLogLeaderboard"
           search-field="player_name"
         >
