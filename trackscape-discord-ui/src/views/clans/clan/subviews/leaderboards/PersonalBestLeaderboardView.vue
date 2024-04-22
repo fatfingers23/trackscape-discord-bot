@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import TrackscapeApiClient from "@/services/TrackscapeApiClient";
-import type { ClanDetail, ClanMateCollectionLogTotalsView, PbActivity } from '@/services/TrackscapeApiTypes';
+import type { ClanDetail } from '@/services/TrackscapeApiTypes';
 import type {PropType} from "vue";
 import {useRoute} from "vue-router";
 import {ref} from "vue";
@@ -10,7 +9,6 @@ import { usePbStore } from '@/stores/PbStore';
 import ClanMateWithRank from '@/components/clan/ClanMateWithRank.vue';
 import { it } from 'vitest';
 
-const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 const store = usePbStore();
 
 const props = defineProps({
@@ -20,27 +18,14 @@ const props = defineProps({
   }
 });
 
-
-// const getPbs = (activityId: string) => client.getCollectionLogLeaderboard(id).then((leaderboard) => {
-//   let rank = 1;
-//   leaderboard.map((item) => {
-//     item.rank = rank;
-//     rank++;
-//   });
-//   // collectionLogLeaderboard.value = leaderboard
-// });
-
-
 let clan = ref<ClanDetail>();
-// let collectionLogLeaderboard = ref<ClanMateCollectionLogTotalsView[]>();
+
 
 if (props.clanDetail) {
   clan.value = props.clanDetail;
-  // callEndpoint(props.clanDetail.id);
 } else {
   const route = useRoute();
   const clanId = route.params.clanId as string;
-  // callEndpoint(clanId);
 }
 
 const columns = [
@@ -59,13 +44,13 @@ const columns = [
 ];
 
 const osrsTimeDisplay = (timeInSeconds: number) => {
-    let grabMiliseconds = timeInSeconds.toString().split('.')[1];
+    let grabMilliseconds = timeInSeconds.toString().split('.')[1];
     let pad = function(num: number, size: number) { return ('000' + num).slice(size * -1); };
     let hours = Math.floor(timeInSeconds / 60 / 60);
     let minutes = Math.floor(timeInSeconds / 60) % 60;
     let seconds = Math.floor(timeInSeconds - minutes * 60);
 
-  return `${pad(hours, 2)}:${pad(minutes, 2)}:${pad(seconds, 2)}${grabMiliseconds !== undefined ? '.' + grabMiliseconds : ''}`;
+  return `${pad(hours, 2)}:${pad(minutes, 2)}:${pad(seconds, 2)}${grabMilliseconds !== undefined ? '.' + grabMilliseconds : ''}`;
 };
 
 </script>

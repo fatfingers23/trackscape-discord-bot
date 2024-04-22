@@ -28,7 +28,7 @@ export default [
             component: () => import('@/views/clans/clan/subviews/leaderboards/CollectionLogLeaderboardView.vue')
           },
           {
-            path: 'pb',
+            path: 'pb/:activityId?',
             name: 'personal-best',
             component: () => import('@/views/clans/clan/subviews/leaderboards/PersonalBestLeaderboardView.vue')
           }

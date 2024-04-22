@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import type { PbActivity } from '@/services/TrackscapeApiTypes';
 import TrackscapeApiClient from '@/services/TrackscapeApiClient';
 import { usePbStore } from '@/stores/PbStore';
+import { useRoute } from 'vue-router';
 
 const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 const store = usePbStore();
@@ -14,7 +15,7 @@ let props = defineProps({
     required: true
   }
 });
-
+const route = useRoute();
 
 client.getTrackScapePbActivities().then(async (activitiesFromApi) => {
   // activities.value = activitiesFromApi.map((activity) => {
@@ -24,7 +25,12 @@ client.getTrackScapePbActivities().then(async (activitiesFromApi) => {
   //   }
   // }) as SelectItem[];
   activities.value = activitiesFromApi;
-  await store.setSelectedActivity(activities.value[0] ,props.clanId);
+  let activityId = route.params.activityId !== '' ? route.params.activityId :  activities.value[0]._id;
+  let activity = activities.value.find((activity) => activity._id === activityId);
+  if(activity === undefined){
+    activity = activities.value[0];
+  }
+  await store.setSelectedActivity(activity ,props.clanId);
 });
 
 

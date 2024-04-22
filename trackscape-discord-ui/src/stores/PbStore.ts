@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import type { PbActivity, PbRecord } from '@/services/TrackscapeApiTypes';
 import TrackscapeApiClient from '@/services/TrackscapeApiClient';
+import router from '@/router';
 const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 
 export const usePbStore = defineStore('pb', {
@@ -22,7 +23,7 @@ export const usePbStore = defineStore('pb', {
 
         });
         this.records = records;
-
+        router.replace({ name: 'personal-best', params: { clanId: this.clanId, activityId: this.selectedActivity } });
       });
     },
     async setSelectedActivity(activity: PbActivity, guildId: string) {
