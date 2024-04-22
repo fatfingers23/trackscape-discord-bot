@@ -63,9 +63,9 @@ CC will not be able to be sent to Discord and parsed. This is done by the RuneLi
   - [ ] Check your K/D Pk ratio from Discord bot
   - [ ] Check your total kills and deaths from Discord bot
   - [ ] Check Gold earned and lost from Discord bot
-  - [ ] In clan leaderboards
+  - [x] In clan leaderboards
 * [x] Collection Log Leaderboards -  See where you log stands with the rest of the clan
-* [ ] Bossing PB Leaderboards - See where you stand with the rest of the clan for fastest kills
+* [x] Bossing PB Leaderboards - See where you stand with the rest of the clan for fastest kills
 * Simple Team Bingo - to be determined. May not happen
   - [ ] Bingo tiles by certain drops 
     - [ ] Bingo tiles by sets. Barrows, Godsword, etc

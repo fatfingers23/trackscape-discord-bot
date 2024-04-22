@@ -57,6 +57,17 @@ const columns = [
     key: 'time_in_seconds'
   }
 ];
+
+const osrsTimeDisplay = (timeInSeconds: number) => {
+    let grabMiliseconds = timeInSeconds.toString().split('.')[1];
+    let pad = function(num: number, size: number) { return ('000' + num).slice(size * -1); };
+    let hours = Math.floor(timeInSeconds / 60 / 60);
+    let minutes = Math.floor(timeInSeconds / 60) % 60;
+    let seconds = Math.floor(timeInSeconds - minutes * 60);
+
+  return `${pad(hours, 2)}:${pad(minutes, 2)}:${pad(seconds, 2)}${grabMiliseconds !== undefined ? '.' + grabMiliseconds : ''}`;
+};
+
 </script>
 <template>
   <div v-if="props.clanDetail !== undefined"
@@ -79,12 +90,12 @@ const columns = [
           <template #row-item="{item, column}" >
             <div class="text-sma md:text-base">
               <span v-if="column.key == 'time_in_seconds'">
-                {{item[column.key].toLocaleString()}}
+                {{osrsTimeDisplay(item[column.key])}}
               </span>
               <span v-else-if="column.key === 'clan_mate.player_name'">
                 <ClanMateWithRank :rank="item.clan_mate.rank"
                                   :name="item.clan_mate.player_name" />
-              </span >
+              </span>
               <span v-else>
                 {{item[column.key]}}
               </span>

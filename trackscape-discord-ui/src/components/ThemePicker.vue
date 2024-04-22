@@ -38,7 +38,6 @@
   ];
 
   let savedTheme = localStorage.getItem("theme");
-  console.log(savedTheme);
   let selectedTheme =  ref(savedTheme ?? "default");
 
   const onSelect = ((theme: string) => {

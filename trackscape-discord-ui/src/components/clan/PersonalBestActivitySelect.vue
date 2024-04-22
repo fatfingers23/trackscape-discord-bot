@@ -17,7 +17,6 @@ let props = defineProps({
 
 
 client.getTrackScapePbActivities().then(async (activitiesFromApi) => {
-  console.log(activitiesFromApi);
   // activities.value = activitiesFromApi.map((activity) => {
   //   return {
   //     label: activity.activity_name,
@@ -27,12 +26,6 @@ client.getTrackScapePbActivities().then(async (activitiesFromApi) => {
   activities.value = activitiesFromApi;
   await store.setSelectedActivity(activities.value[0] ,props.clanId);
 });
-
-const pbCall = (clanId: string, activityId: string) =>{
-  client.getTrackScapePbRecords(clanId, activityId).then((res) => {
-    console.log(res);
-  });
-};
 
 
 </script>
