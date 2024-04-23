@@ -11,6 +11,7 @@ export const usePbStore = defineStore('pb', {
       selectedActivityName: '',
       clanId: '',
       records: [] as PbRecord[],
+      loading: false
     };
   },
   actions: {
@@ -23,10 +24,12 @@ export const usePbStore = defineStore('pb', {
 
         });
         this.records = records;
+        this.loading = false;
         router.replace({ name: 'personal-best', params: { clanId: this.clanId, activityId: this.selectedActivity } });
       });
     },
     async setSelectedActivity(activity: PbActivity, guildId: string) {
+      this.loading = true;
       this.selectedActivity = activity._id;
       this.selectedActivityName = activity.activity_name;
       this.clanId = guildId;

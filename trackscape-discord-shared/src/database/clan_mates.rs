@@ -1,3 +1,4 @@
+use super::pb_records_db::PersonalBestRecordsModel;
 use crate::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotalModel;
 use crate::database::ClanMatesDb;
 use anyhow::Error;
@@ -198,6 +199,7 @@ impl ClanMates for ClanMatesDb {
     async fn remove_clan_mate(&self, guild_id: u64, player_name: String) -> Result<(), Error> {
         //TODO add a bit to clean up other collections too
 
+        //TODO dont forget to remove PBs
         let collection = self
             .db
             .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
@@ -212,25 +214,36 @@ impl ClanMates for ClanMatesDb {
         let player = possible_player.unwrap();
 
         //Removes other data from db may move else where
-        let collection_log_collection = self
-            .db
-            .collection::<ClanMateCollectionLogTotalModel>(ClanMateCollectionLogTotalModel::COLLECTION_NAME);
-
-        let filter = doc! {
+        let delete_filter = doc! {
             "guild_id": bson::to_bson(&guild_id).unwrap(),
             "player_id": player.id.clone(),
         };
-        let collection_log_result = collection_log_collection.delete_many(filter, None).await;
+
+        let collection_log_collection = self.db.collection::<ClanMateCollectionLogTotalModel>(
+            ClanMateCollectionLogTotalModel::COLLECTION_NAME,
+        );
+
+        let collection_log_result = collection_log_collection
+            .delete_many(delete_filter.clone(), None)
+            .await;
         if collection_log_result.is_err() {
             println!(
                 "Failed to remove collection log totals for clan mate: {}",
                 player_name
             );
             println!("Error: {:?}", collection_log_result.err());
-            return Err(anyhow::anyhow!(format!(
-                "Failed to remove collection log totals for clan mate: {}",
+        }
+
+        let pb_collection = self
+            .db
+            .collection::<PersonalBestRecordsModel>(PersonalBestRecordsModel::COLLECTION_NAME);
+        let pb_records_result = pb_collection.delete_many(delete_filter, None).await;
+        if pb_records_result.is_err() {
+            println!(
+                "Failed to remove personal best records for clan mate: {}",
                 player_name
-            )));
+            );
+            println!("Error: {:?}", pb_records_result.err());
         }
         //End of removing from other collections
 

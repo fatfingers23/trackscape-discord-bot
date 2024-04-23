@@ -30,6 +30,11 @@
       type: String,
       required: false,
       default: ""
+    },
+    noResultsMessage: {
+      type: String,
+      required: false,
+      default: "No results found"
     }
   });
 
@@ -94,7 +99,7 @@
       <tbody>
         <tr v-if="filteredData.length === 0"
             class="text-center min-w-full">
-          <td><p>No results found</p></td>
+          <td :colspan="props.columns?.length">{{ props.noResultsMessage }}</td>
         </tr>
 
         <tr v-for="(item, index) in filteredData"

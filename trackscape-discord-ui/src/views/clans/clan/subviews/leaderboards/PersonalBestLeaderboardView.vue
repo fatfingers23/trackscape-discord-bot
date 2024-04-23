@@ -55,14 +55,13 @@ const osrsTimeDisplay = (timeInSeconds: number) => {
     <div class="">
       <TransitionGroup name="slide-fade">
 
-        <SkeletonTable v-if="store.records.length === 0"
+        <SkeletonTable v-if="store.loading"
                        :search-field="true"
                        :columns="3"/>
 
-
         <DataTable
           v-else
-          
+          no-results-message="No personal bests found for this activity in your clan, can record yours with the RuneLite !pb command."
           :columns="columns"
           :data="store.getRecords"
           search-field="clan_mate.player_name"
