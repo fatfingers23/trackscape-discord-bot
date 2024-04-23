@@ -15,6 +15,8 @@ pub async fn get_pb(message: String, player: String, guild_id: u64) -> Result<()
         println!("Could not find boss name in message: {}", message);
         return Err(anyhow!("Could not find boss name in message: {}", message));
     }
+    //Should match whats in RL with spaces and each capitalized.
+    println!("Long Boss name is: {}", boss);
 
     let runelite_api_url = get_runelite_api_url().await?;
     let full_url = format!("{}/chat/pb?name={}&boss={}", runelite_api_url, player, boss);
@@ -340,6 +342,11 @@ fn get_boss_long_name(message: &String) -> String {
     if match_found {
         matched.to_string()
     } else {
-        boss.to_string().capitalize()
+        let new_boss_name = boss
+            .split(" ")
+            .map(|word| format!("{} ", word.capitalize()))
+            .collect();
+
+        new_boss_name
     }
 }
