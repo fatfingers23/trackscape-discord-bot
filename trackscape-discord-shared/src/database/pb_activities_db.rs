@@ -31,12 +31,13 @@ impl PersonalBestActivitiesDb {
         &self,
         activity_name: String,
     ) -> Result<PersonalBestActivitiesModel, mongodb::error::Error> {
+        let trimmed_activity_name = activity_name.trim();
         let collection = self.db.collection::<PersonalBestActivitiesModel>(
             PersonalBestActivitiesModel::COLLECTION_NAME,
         );
 
         let filter = doc! {
-            "activity_name": activity_name.clone()
+            "activity_name": trimmed_activity_name.clone()
         };
         match collection.find_one(filter.clone(), None).await? {
             Some(activity) => {
@@ -45,7 +46,7 @@ impl PersonalBestActivitiesDb {
             None => {
                 let new_activity = PersonalBestActivitiesModel {
                     id: bson::oid::ObjectId::new(),
-                    activity_name: activity_name.clone(),
+                    activity_name: trimmed_activity_name.to_string(),
                     created_at: bson::DateTime::now(),
                 };
                 collection.insert_one(new_activity.clone(), None).await?;

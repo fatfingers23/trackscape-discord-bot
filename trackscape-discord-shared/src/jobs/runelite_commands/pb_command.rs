@@ -15,11 +15,15 @@ pub async fn get_pb(message: String, player: String, guild_id: u64) -> Result<()
         println!("Could not find boss name in message: {}", message);
         return Err(anyhow!("Could not find boss name in message: {}", message));
     }
+    let trimmed_boss = boss.trim();
     //Should match whats in RL with spaces and each capitalized.
-    println!("Long Boss name is: {}", boss);
+    println!("Long Boss name is: {}", trimmed_boss);
 
     let runelite_api_url = get_runelite_api_url().await?;
-    let full_url = format!("{}/chat/pb?name={}&boss={}", runelite_api_url, player, boss);
+    let full_url = format!(
+        "{}/chat/pb?name={}&boss={}",
+        runelite_api_url, player, trimmed_boss
+    );
     let pb_request: reqwest::Response = reqwest::get(full_url).await?;
     if pb_request.status() != StatusCode::OK {
         println!(
@@ -35,7 +39,10 @@ pub async fn get_pb(message: String, player: String, guild_id: u64) -> Result<()
     println!("PB: {}", pb_time);
 
     let db = get_mongodb().await;
-    let activity = db.pb_activities.create_or_get_activity(boss).await?;
+    let activity = db
+        .pb_activities
+        .create_or_get_activity(trimmed_boss.to_string())
+        .await?;
     let clan_mate = db
         .clan_mates
         .find_or_create_clan_mate(guild_id, player)
