@@ -1,8 +1,8 @@
-use crate::{database::clan_mates::ClanMates, jobs::job_helpers::get_mongodb};
-
 use super::get_runelite_api_url;
+use crate::{database::clan_mates::ClanMates, jobs::job_helpers::get_mongodb};
 use anyhow::{anyhow, Ok};
 use capitalize::Capitalize;
+use rand::Rng;
 use reqwest::StatusCode;
 use tokio::time::sleep;
 
@@ -18,6 +18,14 @@ pub async fn get_pb(message: String, player: String, guild_id: u64) -> Result<()
     let trimmed_boss = boss.trim();
     //Should match whats in RL with spaces and each capitalized.
     println!("Long Boss name is: {}", trimmed_boss);
+
+    //Easter egg
+    if trimmed_boss.to_lowercase() == "nerdicus" {
+        let random_pb: f64 = rand::thread_rng().gen_range(0.50..10_000.00);
+        let random_pb_round = (random_pb * 100f64).trunc() / 100.0;
+        let _ = log_pb(trimmed_boss, player, guild_id, random_pb_round).await?; // Await the log_pb function call and assign the result to a variable
+        return Ok(());
+    }
 
     let runelite_api_url = get_runelite_api_url().await?;
     let full_url = format!(
@@ -37,11 +45,20 @@ pub async fn get_pb(message: String, player: String, guild_id: u64) -> Result<()
     }
     let pb_time = pb_request.text().await?.parse::<f64>()?;
     println!("PB: {}", pb_time);
+    log_pb(trimmed_boss, player, guild_id, pb_time).await?;
+    Ok(())
+}
 
+async fn log_pb(
+    boss: &str,
+    player: String,
+    guild_id: u64,
+    pb_time: f64,
+) -> Result<(), anyhow::Error> {
     let db = get_mongodb().await;
     let activity = db
         .pb_activities
-        .create_or_get_activity(trimmed_boss.to_string())
+        .create_or_get_activity(boss.to_string())
         .await?;
     let clan_mate = db
         .clan_mates
@@ -51,7 +68,6 @@ pub async fn get_pb(message: String, player: String, guild_id: u64) -> Result<()
         .pb_records
         .create_or_update_pb_record(clan_mate.unwrap().id, activity.id, guild_id, pb_time)
         .await?;
-
     Ok(())
 }
 

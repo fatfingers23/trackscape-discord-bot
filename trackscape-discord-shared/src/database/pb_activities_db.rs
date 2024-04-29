@@ -37,7 +37,7 @@ impl PersonalBestActivitiesDb {
         );
 
         let filter = doc! {
-            "activity_name": trimmed_activity_name.clone()
+            "activity_name": trimmed_activity_name
         };
         match collection.find_one(filter.clone(), None).await? {
             Some(activity) => {
