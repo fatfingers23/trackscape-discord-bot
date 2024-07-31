@@ -68,6 +68,11 @@ pub async fn update_create_clanmate(
                         None => {
                             //Player not found in db
                             let wom_client = get_wom_client();
+                            let today = chrono::Utc::now().date_naive().format("%Y-%m-%d");
+                            let redis_daily_calls_key = format!("api_calls:{}", today);
+                            let _: () = redis_connection
+                                .incr(redis_daily_calls_key.as_str(), 1)
+                                .expect("failed to execute INCR for 'counter'");
                             let name_change_result =
                                 get_latest_name_change(&wom_client, player_name.clone()).await;
                             if name_change_result.is_ok() {

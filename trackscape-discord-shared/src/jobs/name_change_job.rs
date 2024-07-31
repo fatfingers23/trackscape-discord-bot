@@ -1,14 +1,16 @@
 use crate::database::clan_mates::{name_compare, ClanMates};
-use crate::jobs::job_helpers::get_mongodb;
+use crate::jobs::job_helpers::{get_mongodb, get_redis_client};
 use crate::wom::{get_latest_name_change, get_wom_client, ApiLimiter};
 use celery::prelude::*;
 use log::info;
+use redis::Commands;
 
 #[celery::task]
 pub async fn name_change() -> TaskResult<()> {
     info!("Running name change job");
     let wom_client = get_wom_client();
     let mongodb = get_mongodb().await;
+    let mut redis_connection = get_redis_client().expect("Failed to get redis client.");
 
     let mut limiter = ApiLimiter::new();
 
@@ -26,6 +28,11 @@ pub async fn name_change() -> TaskResult<()> {
             .expect("Failed to get clan mates");
         for player in players {
             let player_name = player.player_name.clone();
+            let today = chrono::Utc::now().date_naive().format("%Y-%m-%d");
+            let redis_daily_calls_key = format!("api_calls:{}", today);
+            let _: () = redis_connection
+                .incr(redis_daily_calls_key.as_str(), 1)
+                .expect("failed to execute INCR for 'counter'");
             let latest_player_name_change_result = limiter
                 .api_limit_request(
                     || async { get_latest_name_change(&wom_client, player_name.clone()).await },

@@ -16,18 +16,25 @@ serde_json = "1.0"
 shuttle-actix-web = "0.37.0"
 shuttle-runtime = "0.37.0"
 shuttle-persist = "0.37.0"
-serenity = { version = "0.12.0", default-features = false, features = ["http",  "rustls_backend", "model",] }
+serenity = { version = "0.12.0", default-features = false, features = [
+    "http",
+    "rustls_backend",
+    "model",
+] }
 tokio = "1.26.0"
 rand = "0.8.5"
 trackscape-discord-shared = { path = "../trackscape-discord-shared" }
 futures-util = "0.3.28"
-uuid = {version = "1.4.1", features = [ "v4"] }
+uuid = { version = "1.4.1", features = ["v4"] }
 log = "0.4.20"
 actix-files = "0.6.2"
 ammonia = "3.3.0"
 num-format = "0.4.4"
 serde_with = "1.14.0"
-bson = { version = "^2.7", default-features = false, features = [ "chrono-0_4", "serde_with" ] }
+bson = { version = "^2.7", default-features = false, features = [
+    "chrono-0_4",
+    "serde_with",
+] }
 dateparser = "0.2.0"
 csv = "1.3.0"
 actix-cors = "0.6.4"
