@@ -1382,6 +1382,13 @@ mod tests {
             rank_image,
             "https://oldschool.runescape.wiki/images/Clan_icon_-_Deputy_owner.png".to_string()
         );
+
+        let goblin_rank = "Goblin";
+        assert_eq!(
+            get_wiki_clan_rank_image_url(goblin_rank.to_string()),
+            "https://oldschool.runescape.wiki/images/Clan_icon_-_Goblin.png".to_string()
+        );
+
     }
 
     #[test]

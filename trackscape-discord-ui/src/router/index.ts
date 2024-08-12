@@ -14,6 +14,16 @@ const router = createRouter({
       name: 'bot-landing-page',
       component: BotLandingPage
     },
+    {
+      path: '/TermsOfService',
+      name:'TermsOfService',
+      component:  () => import('@/views/borningStuff/TermsOfService.vue'),
+    },
+    {
+      path: '/PrivacyPolicy',
+      name:'PrivacyPolicy',
+      component:  () => import('@/views/borningStuff/PrivacyPolicy.vue'),
+    },
       ...ClanRoutes
   ]
 });

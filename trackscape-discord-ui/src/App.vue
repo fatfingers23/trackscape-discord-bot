@@ -28,6 +28,11 @@ import Drawer from "@/components/NavDrawer.vue";
             <p>Trackscape<br>OSRS tooling for clans!</p>
             <a class="link"
                href="https://github.com/fatfingers23/trackscape-discord-bot">Just show me the code</a>
+
+            <RouterLink class="link"
+                        to="/TermsOfService">Terms Of Service</RouterLink>
+            <RouterLink class="link"
+                        to="/PrivacyPolicy">Privacy Policy</RouterLink>
           </div>
 
         </footer>
