@@ -1,6 +1,7 @@
 services:
   mongo:
     image: mongo:5.0.10
+    restart: always
     ports:
       - '27017:27017'
     environment:
@@ -15,6 +16,7 @@ services:
     build:
       context: .
       dockerfile: dockerfiles/Shuttle.Dockerfile
+    restart: always
     ports:
       - '8000:8000'
       - '8001:8001'
@@ -36,6 +38,7 @@ services:
     build:
       context: .
       dockerfile: dockerfiles/Worker.Dockerfile
+    restart: always
     environment:
       MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@host.docker.internal:27017'
       DISCORD_TOKEN: '${DISCORD_TOKEN}'
@@ -54,6 +57,7 @@ services:
     build:
       context: .
       dockerfile: dockerfiles/CronWorker.Dockerfile
+    restart: always
     environment:
       MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@host.docker.internal:27017'
       TRACKSCAPE_API_BASE: '${TRACKSCAPE_API_BASE}'
@@ -69,6 +73,7 @@ services:
       - "host.docker.internal:host-gateway"
   redis:
     image: 'redis:alpine'
+    restart: always
     ports:
       - '${FORWARD_REDIS_PORT:-6379}:6379'
     volumes:
