@@ -3,7 +3,7 @@ use serenity::all::{CommandDataOption, CreateCommand};
 use trackscape_discord_shared::database::BotMongoDb;
 
 #[async_trait]
-pub trait TrackscapeCommand {
+pub trait _TrackscapeCommand {
     fn register() -> CreateCommand;
 
     async fn run(

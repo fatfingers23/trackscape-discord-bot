@@ -1,0 +1,92 @@
+# This is the production docker-compose and what powers TrackScape.app. Can also be used to host your own TrackScape instance.
+services:
+  mongo:
+    image: mongo:5.0.10
+    restart: always
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: '${MONGO_USERNAME}'
+      MONGO_INITDB_ROOT_PASSWORD: '${MONGO_PASSWORD}'
+      MONGO_INITDB_DATABASE: "TrackScapeDB"
+    volumes:
+      - trackscape-db:/data/db
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - trackscape-network
+  shuttle:
+    image: fatfingers23/trackscape:latest
+    restart: always
+    ports:
+      - '80:8000'
+      - '8001:8001'
+    environment:
+      MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017'
+      DISCORD_TOKEN: '${DISCORD_TOKEN}'
+      TRACKSCAPE_API_BASE: '${TRACKSCAPE_API_BASE}'
+      REDIS_ADDR: '${REDIS_ADDR}'
+      WOM_API_KEY: '${WOM_API_KEY}'
+      MANAGEMENT_API_KEY: '${MANAGEMENT_API_KEY}'
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - trackscape-network
+    command: "cargo shuttle run --release --external --working-directory /app"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  worker:
+    image: fatfingers23/trackscape-worker:latest
+    restart: always
+    environment:
+      MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017'
+      DISCORD_TOKEN: '${DISCORD_TOKEN}'
+      TRACKSCAPE_API_BASE: '${TRACKSCAPE_API_BASE}'
+      REDIS_ADDR: '${REDIS_ADDR}'
+      WOM_API_KEY: '${WOM_API_KEY}'
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - trackscape-network
+    command: ""
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  cron-worker:
+    image: fatfingers23/trackscape-cron-worker:latest
+    restart: always
+    environment:
+      MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017'
+      TRACKSCAPE_API_BASE: '${TRACKSCAPE_API_BASE}'
+      REDIS_ADDR: '${REDIS_ADDR}'
+      WOM_API_KEY: '${WOM_API_KEY}'
+    depends_on:
+      - mongo
+      - redis
+    networks:
+      - trackscape-network
+    command: ""
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  redis:
+    image: 'redis:alpine'
+    restart: always
+    ports:
+      - '${FORWARD_REDIS_PORT:-6379}:6379'
+    volumes:
+      - 'trackscape-redis:/data'
+    networks:
+      - trackscape-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      retries: 3
+      timeout: 5s
+volumes:
+  trackscape-db:
+    driver: local
+  trackscape-redis:
+    driver: local
+networks:
+  trackscape-network:
+    driver: bridge
