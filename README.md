@@ -86,7 +86,8 @@ CC will not be able to be sent to Discord and parsed. This is done by the RuneLi
     * `MONGO_USERNAME` and `MONGO_PASSWORD` can be w/e you like to secure your development server
     * `DISCORD_TOKEN` This is the discord token created from setting up a discord bot
     * `MANAGEMENT_API_KEY` can be set to w/e. It is used to password protect some endpoints of the API for communication between the bot and the api
-    * The bot and api are ran via [shuttle](https://github.com/shuttle-hq/shuttle). But uses an older version. So may find you need to install it via `cargo binstall cargo-shuttle -y --version 0.37.0`
+    * `DEV_GUILD_ID` is the id of your discord server that is hosting your TrackScape discord bot
+  * The bot and api are ran via [shuttle](https://github.com/shuttle-hq/shuttle). But uses an older version. So may find you need to install it via `cargo binstall cargo-shuttle -y --version 0.37.0`
 
 ## Setup
 1. Make sure docker desktop is running and run `docker compose up -d` in the root of the project. Or make sure your monogodb and redis services are running
