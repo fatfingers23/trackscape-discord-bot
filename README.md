@@ -49,13 +49,39 @@ By default, only Discord users with Manage Server permissions can use the majort
 
 ### and more!
 
-### Setup your own bot
-Coming soon! Everything needed is in the `.env` and `docker-compose.yml` files. But detailed instructions will come soon.
+## Setup your own bot
+Coming soon! Everything needed is in the [.env.save](.env.save) and [production-docker-compose.yml](./production/production-docker-compose.yml). But detailed instructions will come soon.
 
-### Contributing
+# Developer setup
+  This guide will help you get started with running TrackScape to make changes. This is the bare minimal to get TrackScape running and in a state to start development. As time permits and energy I will update this guide with more details. If you have any questions please do not hesitate to [join the TrackScape discord](https://discord.gg/kRM6Ydf5j9) and ask there! Always welcoming to beginners and first time contributors!
+  ## Requirements
+  * [Rust🦀](https://www.rust-lang.org/tools/install)
+  * Docker or [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+     * Rather not use docker? Then make sure you have a redis and mongo db instance running
+  * Create a dev discord bot. [Can follow this great discord.py guide](https://discordpy.readthedocs.io/en/stable/discord.html). Need to make sure you have MESSAGE CONTENT INTENT toggled on for access to message content for when developing any features that read discord messages and send them to the TrackScape plugin.
+  * Make a copy of [.env.save](.env.save)
+    * `MONGO_USERNAME` and `MONGO_PASSWORD` can be w/e you like to secure your development server
+    * `DISCORD_TOKEN` This is the discord token created from setting up a discord bot
+    * `MANAGEMENT_API_KEY` can be set to w/e. It is used to password protect some endpoints of the API for communication between the bot and the api
+    * `DEV_GUILD_ID` is the id of your discord server that is hosting your TrackScape discord bot
+  * The bot and api are ran via [shuttle](https://github.com/shuttle-hq/shuttle). But uses an older version. So may find you need to install it via `cargo binstall cargo-shuttle -y --version 0.37.0`
+
+## Running the Discord bot and API
+1. Make sure docker desktop is running and run `docker compose up -d` in the root of the project. Or make sure your monogodb and redis services are running
+2. Run the project with `cargo shuttle run`. And that's it! The API and bot should be running.
+
+## Setup for TrackScape Plugin
 Coming soon!
 
-## Future Features
+## Setup for UI Development
+Coming soon!
+
+## Further setup or questions
+If you do have any issues or questions can join the bots discord and feel free to ask questions there! [TrackScape Discord](https://discord.gg/kRM6Ydf5j9)
+
+# [Contributing](.github/CONTRIBUTING.md)
+
+# Future Features
 All of the features below depends on data gotten from Clan Chat messages. So if it is not sent to the bot or does not broadcast in
 CC will not be able to be sent to Discord and parsed. This is done by the RuneLite TrackScape Connector
 * Get clan member activity. Check for last time xp gained or last time a chat was sent
@@ -74,24 +100,3 @@ CC will not be able to be sent to Discord and parsed. This is done by the RuneLi
   - [ ] Ability to manually check/uncheck team tiles
   - [ ] Ability to auto check tiles
   - [ ] Check your bingo card from Discord bot
-
-  # Developer setup
-  This guide will help you get started with running TrackScape to make changes
-  ## Requirements
-  * [Rust🦀](https://www.rust-lang.org/tools/install)
-  * Docker or [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-     * Rather not use docker? Then make sure you have a redis and mongo db instance running
-  * Create a dev discord bot. [Can follow this great discord.py] guide(https://discordpy.readthedocs.io/en/stable/discord.html). Need to make sure you have MESSAGE CONTENT INTENT toggled on for access to message content for when developing any features that read discord messages and send them to the TrackScape plugin.
-  * Make a copy of [.env.save](.env.save)
-    * `MONGO_USERNAME` and `MONGO_PASSWORD` can be w/e you like to secure your development server
-    * `DISCORD_TOKEN` This is the discord token created from setting up a discord bot
-    * `MANAGEMENT_API_KEY` can be set to w/e. It is used to password protect some endpoints of the API for communication between the bot and the api
-    * `DEV_GUILD_ID` is the id of your discord server that is hosting your TrackScape discord bot
-  * The bot and api are ran via [shuttle](https://github.com/shuttle-hq/shuttle). But uses an older version. So may find you need to install it via `cargo binstall cargo-shuttle -y --version 0.37.0`
-
-## Setup
-1. Make sure docker desktop is running and run `docker compose up -d` in the root of the project. Or make sure your monogodb and redis services are running
-2. Run the project with `cargo shuttle run`. And that's it! The API and bot should be running.
-
-## Further setup or questions
-If you do have any issues or questions can join the bots discord and feel free to ask questions there! [TrackScape Discord](https://discord.gg/kRM6Ydf5j9)
