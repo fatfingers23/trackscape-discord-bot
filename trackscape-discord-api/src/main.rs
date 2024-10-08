@@ -15,7 +15,6 @@ use controllers::application_data_controller::application_data_controller;
 use dotenv::dotenv;
 use serenity::http::HttpBuilder;
 use shuttle_actix_web::ShuttleActixWeb;
-use shuttle_persist::PersistInstance;
 use std::env;
 use std::sync::atomic::AtomicI64;
 use std::sync::Mutex;
@@ -23,6 +22,9 @@ use std::time::Duration;
 use tokio::spawn;
 use trackscape_discord_shared::database::{BotMongoDb, MongoDb};
 use trackscape_discord_shared::ge_api::ge_api::{get_item_mapping, GeItemMapping};
+use trackscape_discord_shared::jobs::job_helpers::get_redis_client;
+use trackscape_discord_shared::jobs::redis_helpers::write_to_cache_with_seconds;
+
 use uuid::Uuid;
 
 pub use self::websocket_server::{ChatServer, ChatServerHandle};
@@ -47,33 +49,28 @@ async fn index() -> Result<NamedFile, Error> {
 }
 
 #[shuttle_runtime::main]
-async fn actix_web(
-    #[shuttle_persist::Persist] persist: PersistInstance,
-) -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
+async fn actix_web() -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
     dotenv().ok();
 
+    let _ = env::var("MANAGEMENT_API_KEY").expect("MANAGEMENT_API_KEY not set!");
     let discord_token = env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN not set!");
     let mongodb_url = env::var("MONGO_DB_URL").expect("MONGO_DB_URL not set!");
-    let management_api_key = env::var("MANAGEMENT_API_KEY").expect("MANAGEMENT_API_KEY not set!");
     let production_env = env::var("PRODUCTION");
     let mut is_production = false;
     match production_env {
         Ok(env) => is_production = env == "true",
         Err(_) => {}
     }
-    persist
-        .save("api-key", management_api_key)
-        .expect("Error saving api key");
+
     let db = BotMongoDb::new_db_instance(mongodb_url).await;
+    let mut redis_conn = get_redis_client().unwrap();
 
     if is_production {
         info!("Loading startup data from the web");
         let ge_mapping_request = get_item_mapping().await;
         match ge_mapping_request {
             Ok(ge_mapping) => {
-                let _state = persist
-                    .save::<GeItemMapping>("mapping", ge_mapping.clone())
-                    .map_err(|e| error!("Saving Item Mapping Error: {e}"));
+                write_to_cache_with_seconds(&mut redis_conn, "mapping", ge_mapping, 604800).await;
             }
             Err(error) => {
                 info!("Error getting ge mapping: {}", error)
@@ -83,9 +80,7 @@ async fn actix_web(
         let possible_quests = get_quests_and_difficulties().await;
         match possible_quests {
             Ok(quests) => {
-                let _state = persist
-                    .save::<Vec<WikiQuest>>("quests", quests.clone())
-                    .map_err(|e| error!("Saving Item Mapping Error: {e}"));
+                write_to_cache_with_seconds(&mut redis_conn, "quests", quests, 604800).await;
             }
             Err(e) => {
                 error!("Error getting quests: {}", e)
@@ -128,7 +123,6 @@ async fn actix_web(
         .app_data(web::Data::new(cache_clone))
         .app_data(web::Data::new(HttpBuilder::new(discord_token).build()))
         .app_data(web::Data::new(db))
-        .app_data(web::Data::new(persist.clone()))
         .app_data(web::Data::new(celery.clone()))
         .default_service(web::route().guard(guard::Not(guard::Get())).to(index));
     };
