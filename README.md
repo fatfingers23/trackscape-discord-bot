@@ -18,9 +18,9 @@
 ![Clan Chat Broadcast](images/clan_chat_broadcast.png)
 ***
 ## Commands
-By default, only Discord users with Manage Server permissions can use the majorty of the commands. This can be changed via Integrations. 
+By default, only Discord users with Manage Server permissions can use the majorty of the commands. This can be changed via Integrations.
 
-> `/info` - Get information about the bot 
+> `/info` - Get information about the bot
 
 > `/set_broadcast_channel channel: {channel}` - Sets the to receive emded Broadcast messages
 
@@ -29,10 +29,10 @@ By default, only Discord users with Manage Server permissions can use the majort
 > `/get_verification_code` - Get the verification code to link your RuneLite TrackScape Connector plugin to the bot
 
 
-***  
+***
 ## Broadcast Types
 
-### Diary Completed 
+### Diary Completed
 ![Diary Completed Broadcast](images/diary_completed_broadcast.png)
 
 ### Item Drop
@@ -64,7 +64,7 @@ Coming soon! Everything needed is in the [.env.save](.env.save) and [production-
     * `DISCORD_TOKEN` This is the discord token created from setting up a discord bot
     * `MANAGEMENT_API_KEY` can be set to w/e. It is used to password protect some endpoints of the API for communication between the bot and the api
     * `DEV_GUILD_ID` is the id of your discord server that is hosting your TrackScape discord bot
-  * The bot and api are ran via [shuttle](https://github.com/shuttle-hq/shuttle). But uses an older version. So may find you need to install it via `cargo binstall cargo-shuttle -y --version 0.37.0`
+  * The bot and api are ran via [shuttle](https://github.com/shuttle-hq/shuttle) via `cargo-shuttle v0.48.1`. If you are using an earlier version, it is recommended to upgrade.
 
 ## Running the Discord bot and API
 1. Make sure docker desktop is running and run `docker compose up -d` in the root of the project. Or make sure your monogodb and redis services are running
@@ -93,7 +93,7 @@ CC will not be able to be sent to Discord and parsed. This is done by the RuneLi
 * [x] Collection Log Leaderboards -  See where you log stands with the rest of the clan
 * [x] Bossing PB Leaderboards - See where you stand with the rest of the clan for fastest kills
 * Simple Team Bingo - to be determined. May not happen
-  - [ ] Bingo tiles by certain drops 
+  - [ ] Bingo tiles by certain drops
     - [ ] Bingo tiles by sets. Barrows, Godsword, etc
   - [ ] Bingo tiles by certain bosses
   - [ ] Bingo tiles by certain xp gain

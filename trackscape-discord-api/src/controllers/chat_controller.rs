@@ -8,12 +8,13 @@ use log::info;
 use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor};
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
-use shuttle_persist::PersistInstance;
 use std::sync::Arc;
 use tokio::task::spawn_local;
 use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::GeItemMapping;
 use trackscape_discord_shared::helpers::hash_string;
+use trackscape_discord_shared::jobs::job_helpers::get_redis_client;
+use trackscape_discord_shared::jobs::redis_helpers::fetch_redis_json_object;
 use trackscape_discord_shared::jobs::CeleryJobQueue;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     get_wiki_clan_rank_image_url, ClanMessage,
@@ -82,7 +83,6 @@ async fn new_clan_chats(
     cache: Data<Cache>,
     new_chat: Json<Vec<ClanMessage>>,
     mongodb: Data<BotMongoDb>,
-    persist: Data<PersistInstance>,
     celery: Data<Arc<Celery>>,
 ) -> actix_web::Result<String> {
     let possible_verification_code = req.headers().get("verification-code");
@@ -212,12 +212,13 @@ async fn new_clan_chats(
 
         let league_world = chat.is_league_world.unwrap_or(false);
 
-        let item_mapping_from_state = persist
-            .load::<GeItemMapping>("mapping")
-            .map_err(|e| info!("Saving Item Mapping Error: {e}"));
-        let quests_from_state = persist
-            .load::<Vec<WikiQuest>>("quests")
-            .map_err(|e| info!("Saving Quests Error: {e}"));
+        // TODO: Load this from Redis
+        let mut redis_connection = get_redis_client().unwrap();
+
+        let item_mapping_from_redis =
+            fetch_redis_json_object::<GeItemMapping>(&mut redis_connection, "mapping").await;
+        let quests_from_redis =
+            fetch_redis_json_object::<Vec<WikiQuest>>(&mut redis_connection, "quests").await;
 
         let cloned_celery = Arc::clone(&**celery);
         let celery_job_queue = Arc::new(CeleryJobQueue {
@@ -226,8 +227,8 @@ async fn new_clan_chats(
 
         let handler = OSRSBroadcastHandler::new(
             chat.clone(),
-            item_mapping_from_state,
-            quests_from_state,
+            Ok::<GeItemMapping, ()>(item_mapping_from_redis),
+            Ok::<Vec<WikiQuest>, ()>(quests_from_redis),
             registered_guild.clone(),
             league_world,
             mongodb.drop_logs.clone(),

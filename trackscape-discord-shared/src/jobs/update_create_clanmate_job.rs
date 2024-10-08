@@ -1,8 +1,8 @@
 use crate::database::clan_mates::{ClanMateModel, ClanMates};
-use crate::jobs::job_helpers::{get_mongodb, get_redis_client};
+use crate::jobs::job_helpers::{get_mongodb, get_redis_client, write_to_cache};
 use crate::wom::{get_latest_name_change, get_wom_client};
 use celery::prelude::*;
-use redis::{Commands, Connection, RedisResult};
+use redis::{Commands, RedisResult};
 
 ///
 /// Adds clan mates to the guild if they're not there already, and updates their rank if it's changed.
@@ -163,16 +163,4 @@ pub async fn update_create_clanmate(
 
     println!("update create clan mate job finished");
     Ok(4)
-}
-
-async fn write_to_cache(
-    redis_connection: &mut Connection,
-    redis_key: String,
-    updated_player: ClanMateModel,
-) {
-    let _: RedisResult<String> = redis_connection.set_ex(
-        redis_key.clone(),
-        serde_json::to_string(&updated_player).unwrap(),
-        3600,
-    );
 }
