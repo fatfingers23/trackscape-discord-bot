@@ -10,7 +10,6 @@ pub mod job_helpers;
 pub mod name_change_job;
 pub mod new_pb_job;
 pub mod parse_rl_chat_command;
-pub mod redis_helpers;
 pub mod remove_clanmate_job;
 mod runelite_commands;
 pub mod update_create_clanmate_job;

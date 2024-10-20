@@ -1,9 +1,15 @@
 pub mod wiki_api {
-    use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::QuestDifficulty;
+    use crate::{
+        osrs_broadcast_extractor::osrs_broadcast_extractor::QuestDifficulty,
+        redis_helpers::{fetch_redis_json_object, write_to_cache_with_seconds},
+    };
+    use redis::Connection;
     use serde::{Deserialize, Serialize};
     use serde_json::Value;
 
     const BASE_URL: &str = "https://oldschool.runescape.wiki/api.php";
+
+    const QUEST_CACHE_KEY: &str = "quests";
 
     static APP_USER_AGENT: &str = concat!(
         env!("CARGO_PKG_NAME"),
@@ -27,41 +33,60 @@ pub mod wiki_api {
         )
     }
 
-    pub async fn get_quests_and_difficulties() -> Result<Vec<WikiQuest>, reqwest::Error> {
-        let mut quests: Vec<WikiQuest> = Vec::new();
-        let client = reqwest::Client::builder()
-            .user_agent(APP_USER_AGENT)
-            .build()?;
-        for difficulty in QuestDifficulty::iter() {
-            let url = build_quest_url(difficulty.clone());
-            println!("Getting quests from {}", url.as_str());
-            let resp = client.get(url.as_str()).send().await;
-            match resp {
-                Ok(ok_resp) => {
-                    let possible_json_body = ok_resp.json::<Root>().await;
-                    match possible_json_body {
-                        Ok(wiki_result) => {
-                            wiki_result.parse.links.iter().for_each(|link| {
-                                if link.ns == 0 {
-                                    quests.push(WikiQuest {
-                                        name: link.field.clone(),
-                                        difficulty: difficulty.clone(),
+    pub async fn get_quests_and_difficulties(
+        redis_connection: &mut Connection,
+    ) -> Result<Vec<WikiQuest>, anyhow::Error> {
+        let cached_result =
+            fetch_redis_json_object::<Vec<WikiQuest>>(redis_connection, QUEST_CACHE_KEY).await;
+        match cached_result {
+            Ok(ge_mapping) => {
+                return Ok(ge_mapping);
+            }
+            Err(_) => {
+                let mut quests: Vec<WikiQuest> = Vec::new();
+                let client = reqwest::Client::builder()
+                    .user_agent(APP_USER_AGENT)
+                    .build()?;
+                for difficulty in QuestDifficulty::iter() {
+                    let url = build_quest_url(difficulty.clone());
+                    println!("Getting quests from {}", url.as_str());
+                    let resp = client.get(url.as_str()).send().await;
+                    match resp {
+                        Ok(ok_resp) => {
+                            let possible_json_body = ok_resp.json::<Root>().await;
+                            match possible_json_body {
+                                Ok(wiki_result) => {
+                                    wiki_result.parse.links.iter().for_each(|link| {
+                                        if link.ns == 0 {
+                                            quests.push(WikiQuest {
+                                                name: link.field.clone(),
+                                                difficulty: difficulty.clone(),
+                                            });
+                                        }
                                     });
                                 }
-                            });
+                                Err(e) => {
+                                    println!("Failed to parse quests from wiki: {}", e);
+                                    return Err(e.into());
+                                }
+                            }
                         }
                         Err(e) => {
-                            println!("Failed to parse quests from wiki: {}", e);
-                            return Err(e);
+                            return Err(e.into());
                         }
                     }
                 }
-                Err(e) => {
-                    return Err(e);
-                }
+                write_to_cache_with_seconds(
+                    redis_connection,
+                    QUEST_CACHE_KEY,
+                    quests.clone(),
+                    604800,
+                )
+                .await;
+
+                Ok(quests)
             }
         }
-        Ok(quests)
     }
 
     #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

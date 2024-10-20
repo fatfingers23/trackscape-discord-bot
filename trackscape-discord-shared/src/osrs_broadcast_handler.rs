@@ -55,8 +55,8 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
 {
     pub fn new(
         clan_message: ClanMessage,
-        item_mapping_from_state: Result<GeItemMapping, ()>,
-        quests_from_state: Result<Vec<WikiQuest>, ()>,
+        item_mapping_from_state: Result<GeItemMapping, anyhow::Error>,
+        quests_from_state: Result<Vec<WikiQuest>, anyhow::Error>,
         register_guild: RegisteredGuildModel,
         leagues_message: bool,
         drop_log_db: T,
