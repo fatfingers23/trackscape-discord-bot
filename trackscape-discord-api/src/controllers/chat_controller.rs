@@ -4,7 +4,7 @@ use crate::{handler, ChatServerHandle};
 use actix_web::web::Data;
 use actix_web::{error, post, web, Error, HttpRequest, HttpResponse, Scope};
 use celery::Celery;
-use log::info;
+use log::{error, info};
 use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor};
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
@@ -166,10 +166,12 @@ async fn new_clan_chats(
                         .timestamp(right_now),
                 );
 
-                let channel = ChannelId::new(channel_id);
-                let _ = discord_http_client
-                    .send_message(channel, vec![], &clan_chat_to_discord)
+                let new_chat_result = ChannelId::new(channel_id)
+                    .send_message(&*discord_http_client, clan_chat_to_discord)
                     .await;
+                if let Err(e) = new_chat_result {
+                    error!("Error sending normal cc: {:?}", e);
+                }
             }
             _ => {}
         }
@@ -239,8 +241,6 @@ async fn new_clan_chats(
         match possible_broadcast {
             None => {}
             Some(broadcast) => {
-                info!("Broadcast: {:?}", broadcast);
-                info!("{}\n", chat.message.clone());
                 let _ = mongodb
                     .broadcasts
                     .create_broadcast(registered_guild.guild_id, broadcast.clone())
@@ -262,13 +262,12 @@ async fn new_clan_chats(
                     false => registered_guild.broadcast_channel,
                 };
                 if let Some(channel_to_send_broadcast) = possible_channel_to_send_broadcast {
-                    let _ = discord_http_client
-                        .send_message(
-                            ChannelId::new(channel_to_send_broadcast),
-                            vec![],
-                            &broadcast_message,
-                        )
+                    let new_broad_cast = ChannelId::new(channel_to_send_broadcast)
+                        .send_message(&*discord_http_client, broadcast_message)
                         .await;
+                    if let Err(e) = new_broad_cast {
+                        error!("Error sending broadcast: {:?}", e);
+                    }
                 }
             }
         };
