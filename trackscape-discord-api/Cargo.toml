@@ -15,7 +15,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 shuttle-actix-web = "0.48.0"
 shuttle-runtime = "0.48.0"
-serenity = { version = "0.12.0", default-features = false, features = [
+serenity = { version = "0.12.2", default-features = false, features = [
     "http",
     "rustls_backend",
     "model",

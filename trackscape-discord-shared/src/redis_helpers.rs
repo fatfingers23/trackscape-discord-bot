@@ -1,3 +1,4 @@
+use log::error;
 use redis::{Connection, RedisResult};
 use serde::{Deserialize, Serialize};
 
@@ -28,13 +29,24 @@ pub async fn write_to_cache_with_seconds<T: Serialize>(
 pub async fn fetch_redis_json_object<T: for<'a> Deserialize<'a>>(
     redis_connection: &mut Connection,
     redis_key: &str,
-) -> T {
+) -> Result<T, RedisFetchErrors> {
     let val = redis::cmd("GET")
         .arg(redis_key)
         .query::<String>(redis_connection)
-        .unwrap();
+        .map_err(|err| {
+            error!("Error fetching from redis: {}", err);
+            RedisFetchErrors::FromDbError
+        })?;
 
-    let val: T = serde_json::from_str(&val).unwrap();
+    let val: T = serde_json::from_str(&val).map_err(|err| {
+        error!("Error parsing redis data: {}", err);
+        RedisFetchErrors::ParseError
+    })?;
 
-    val
+    Ok(val)
+}
+
+pub enum RedisFetchErrors {
+    FromDbError,
+    ParseError,
 }

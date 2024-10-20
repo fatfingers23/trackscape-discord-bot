@@ -11,16 +11,15 @@ use serenity::http::Http;
 use std::sync::Arc;
 use tokio::task::spawn_local;
 use trackscape_discord_shared::database::BotMongoDb;
-use trackscape_discord_shared::ge_api::ge_api::GeItemMapping;
+use trackscape_discord_shared::ge_api::ge_api::get_item_mapping;
 use trackscape_discord_shared::helpers::hash_string;
 use trackscape_discord_shared::jobs::job_helpers::get_redis_client;
-use trackscape_discord_shared::jobs::redis_helpers::fetch_redis_json_object;
 use trackscape_discord_shared::jobs::CeleryJobQueue;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     get_wiki_clan_rank_image_url, ClanMessage,
 };
 use trackscape_discord_shared::osrs_broadcast_handler::OSRSBroadcastHandler;
-use trackscape_discord_shared::wiki_api::wiki_api::WikiQuest;
+use trackscape_discord_shared::wiki_api::wiki_api::get_quests_and_difficulties;
 use web::Json;
 
 #[derive(Debug)]
@@ -215,10 +214,9 @@ async fn new_clan_chats(
         // TODO: Load this from Redis
         let mut redis_connection = get_redis_client().unwrap();
 
-        let item_mapping_from_redis =
-            fetch_redis_json_object::<GeItemMapping>(&mut redis_connection, "mapping").await;
-        let quests_from_redis =
-            fetch_redis_json_object::<Vec<WikiQuest>>(&mut redis_connection, "quests").await;
+        let item_mapping_from_redis = get_item_mapping(&mut redis_connection).await;
+
+        let quests_from_redis = get_quests_and_difficulties(&mut redis_connection).await;
 
         let cloned_celery = Arc::clone(&**celery);
         let celery_job_queue = Arc::new(CeleryJobQueue {
@@ -227,8 +225,8 @@ async fn new_clan_chats(
 
         let handler = OSRSBroadcastHandler::new(
             chat.clone(),
-            Ok::<GeItemMapping, ()>(item_mapping_from_redis),
-            Ok::<Vec<WikiQuest>, ()>(quests_from_redis),
+            item_mapping_from_redis,
+            quests_from_redis,
             registered_guild.clone(),
             league_world,
             mongodb.drop_logs.clone(),
