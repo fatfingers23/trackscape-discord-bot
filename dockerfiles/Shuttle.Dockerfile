@@ -1,10 +1,10 @@
-FROM node:lts-alpine3.18 as frontend
+FROM node:lts-alpine3.18 AS frontend
 WORKDIR /frontend-app
 COPY ./trackscape-discord-ui /frontend-app
 RUN npm install
 RUN npm run build
 
-FROM rust:1.75-bookworm as backend
+FROM rust:1.78-bookworm AS backend
 WORKDIR /app
 COPY . /app
 COPY --from=frontend /frontend-app/dist /app/trackscape-discord-api/ui
