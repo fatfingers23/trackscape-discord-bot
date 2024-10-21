@@ -5,6 +5,7 @@
 
 [![](https://img.shields.io/badge/Discord-%235865F2.svg?style=for-the-badge&logo=discord&logoColor=white)](https://discord.com/api/oauth2/authorize?client_id=864626697327869952&permissions=2147568704&scope=bot)
 
+[Join our Discord to get support or discuss TrackScape!](https://discord.gg/kRM6Ydf5j9)
 
 ## Features
 * Receive in game Clan Chat messages in Discord via the RuneLite TrackScape Connector plugin

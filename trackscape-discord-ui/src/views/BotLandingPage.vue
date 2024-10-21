@@ -37,26 +37,40 @@ client.getBotInfo().then((info) => {
         OSRS clan.
       </p>
 
-      <a
-        href="https://discord.com/api/oauth2/authorize?client_id=864626697327869952&permissions=2147568704&scope=bot"
-        target="_blank"
-        class="btn btn-primary btn-outline mr-2"
-      >Invite to Discord <img
-        class="w-7 h-8 ml-2"
-        src="@/assets/img/icon_clyde_blurple_RGB.svg"
-        alt="Discord Logo"
-      > </a>
+      <div class="flex flex-col space-y-2.5 justify-center">
+        <div class="">
+          <a
+            href="https://discord.com/api/oauth2/authorize?client_id=864626697327869952&permissions=2147568704&scope=bot"
+            target="_blank"
+            class="btn btn-primary btn-outline mr-2"
+          >Invite to Discord <img
+            class="w-7 h-8 ml-2"
+            src="@/assets/img/icon_clyde_blurple_RGB.svg"
+            alt="Discord Logo"
+          > </a>
 
-      <router-link
-        to="/clans"
-        class="btn btn-primary btn-outline ml-2"
-      >View Clans
-        <img
+          <router-link
+            to="/clans"
+            class="btn btn-primary btn-outline ml-2"
+          >View Clans
+            <img
 
-          src="https://oldschool.runescape.wiki/images/Your_Clan_icon.png"
-          alt="In game cc icon"
-        >
-      </router-link>
+              src="https://oldschool.runescape.wiki/images/Your_Clan_icon.png"
+              alt="In game cc icon"
+            >
+          </router-link>
+        </div>
+        <div class="justify-end">
+          <a
+            href="https://discord.gg/kRM6Ydf5j9"
+            target="_blank"
+            class="link mr-2"
+          >Join our Discord to get support or discuss TrackScape!</a>
+        </div>
+      </div>
+
+
+
       <div class="mt-4 ">
         <div class="stats">
           <div class="stat">
