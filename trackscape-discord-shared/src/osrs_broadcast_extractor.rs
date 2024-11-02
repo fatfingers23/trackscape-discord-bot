@@ -1,5 +1,26 @@
 pub mod osrs_broadcast_extractor {
+    use regex::Regex;
+    use once_cell::sync::Lazy;
     use serde::{Deserialize, Serialize};
+
+    static RAID_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) received special loot from a raid: (?P<item>.*?)([.]|$)"#,).unwrap());
+    static DROP_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) received a drop: (?:((?P<quantity>[,\d]+) x )?)(?P<item>.*?)(?: \((?P<value>[,\d]+) coins\))?(?: from .*?)?[.]?$"#).unwrap());
+    static PET_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) (?:has a funny feeling.*?|feels something weird sneaking into (?P<pronoun>her|his) backpack): (?P<pet_name>.*?) at (?P<count>[,\d]+) (?P<count_type>.*?)[.]$"#).unwrap());
+    static QUEST_COMPLETED_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) has completed a quest: (?P<quest_name>.+)$"#,).unwrap());
+    static DIARY_COMPLETED_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) has completed the (?P<diary_tier>Easy|Medium|Hard|Elite) (?P<diary_name>.*?).$"#).unwrap());
+    static PK_BROADCAST_EXTRACTOR_WINNER: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<winner_name>.*?) has defeated (?P<loser_name>.*?) and received \((?P<gp_value>[0-9,]+) coins\) worth of loot!"#).unwrap());
+    static PK_BROADCAST_EXTRACTOR_LOSER: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<loser_name>.*?) has been defeated by (?P<winner_name>.*?)(?: in (?P<location>The Wilderness))?(?: and lost \((?P<gp_value>[0-9,]+) coins\) worth of loot)?[!.]"#).unwrap());
+    static INVITE_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<clan_joiner>.*?) has been invited into the clan by (?P<clan_inviter>.*?).$"#,).unwrap());
+    static LEVELMILESTONE_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<clan_mate>.*?) has reached (?:a )?(?:the highest possible )?(?P<skill>.*?) level(?: of)? (?P<level>.*?)[!.]"#).unwrap());
+    static XPMILESTONE_BROADCAST_EXTRACTOR: Lazy<Regex>  =  Lazy::new(|| Regex::new(r#"^(?P<clan_member>.*?) has reached (?P<xp>.*?) XP in (?P<skill>.*?)[!.]"#,).unwrap());
+    static COLLECTION_LOG_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(?P<name>[\w\s]+) received a new collection log item: (?P<item>.+?) \((?P<number>\d+)/\d+\)").unwrap());
+    static LEFT_THE_CLAN_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(?P<player>[\w\s]+) has left the clan.$").unwrap());
+    static EXPELLED_FROM_CLAN_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(?P<mod>[\w\s]+) has expelled (?P<player>[\w\s]+) from the clan.$").unwrap());
+    static COFFER_DONATION_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?P<player>[\w\s]+) has (withdrawn|deposited) (?P<gp>[0-9,]+) coins (from|into) the coffer.").unwrap());
+    static COFFER_WITHDRAWAL_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?P<player>[\w\s]+) has (withdrawn|deposited) (?P<gp>[0-9,]+) coins (from|into) the coffer.").unwrap());
+    // RuneScape Player has achieved a new Vorkath personal best: 2:28
+    static PERSONAL_BEST_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player>[\w\s]+) has achieved a new (?P<activity>[\w\s\-'\.]+) personal best: (?<time>[\d:]+)"#,).unwrap());
+    static PERSONAL_BEST_BROADCAST_EXTRACTOR_RAID: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player>[\w\s]+) has achieved a new (?P<raid>[\w\s]+(?:\: [\w\s]+)?) \([Tt]eam [Ss]ize: (?P<team_size>[\w\s]+)\)(?:(?P<variant>[\w\s]+)?) personal best: (?<time>[\d:]+(?:\.\d{2})?)"#,).unwrap());
 
     #[derive(Deserialize, Serialize, Clone, Debug)]
     pub struct ClanMessage {
@@ -328,12 +349,7 @@ pub mod osrs_broadcast_extractor {
     }
 
     pub fn raid_broadcast_extractor(message: String) -> Option<DropItemBroadcast> {
-        let re = regex::Regex::new(
-            r#"^(?P<player_name>.*?) received special loot from a raid: (?P<item>.*?)([.]|$)"#,
-        )
-        .unwrap();
-
-        return if let Some(caps) = re.captures(message.as_str()) {
+        if let Some(caps) = RAID_BROADCAST_EXTRACTOR.captures(message.as_str()) {
             let player_name = caps.name("player_name").unwrap().as_str();
             let item = caps.name("item").unwrap().as_str();
 
@@ -346,13 +362,11 @@ pub mod osrs_broadcast_extractor {
             })
         } else {
             None
-        };
+        }
     }
 
     pub fn drop_broadcast_extractor(message: String) -> Option<DropItemBroadcast> {
-        let re = regex::Regex::new(r#"^(?P<player_name>.*?) received a drop: (?:((?P<quantity>[,\d]+) x )?)(?P<item>.*?)(?: \((?P<value>[,\d]+) coins\))?(?: from .*?)?[.]?$"#).unwrap();
-
-        return if let Some(caps) = re.captures(message.as_str()) {
+        if let Some(caps) = DROP_BROADCAST_EXTRACTOR.captures(message.as_str()) {
             let player_name = caps.name("player_name").unwrap().as_str();
             let item_name = caps.name("item").unwrap().as_str();
             // Extract and parse quantity
@@ -374,13 +388,11 @@ pub mod osrs_broadcast_extractor {
             })
         } else {
             None
-        };
+        }
     }
 
     pub fn pet_broadcast_extractor(message: String) -> Option<PetDropBroadcast> {
-        let re = regex::Regex::new(r#"^(?P<player_name>.*?) (?:has a funny feeling.*?|feels something weird sneaking into (?P<pronoun>her|his) backpack): (?P<pet_name>.*?) at (?P<count>[,\d]+) (?P<count_type>.*?)[.]$"#).unwrap();
-
-        if let Some(caps) = re.captures(message.as_str()) {
+        if let Some(caps) = PET_BROADCAST_EXTRACTOR.captures(message.as_str()) {
             let player_name = caps.name("player_name").unwrap().as_str();
             let pet_name = caps.name("pet_name").unwrap().as_str();
             let count = caps.name("count").unwrap().as_str().replace(",", "");
@@ -398,12 +410,7 @@ pub mod osrs_broadcast_extractor {
     }
 
     pub fn quest_completed_broadcast_extractor(message: String) -> Option<QuestCompletedBroadcast> {
-        let re = regex::Regex::new(
-            r#"^(?P<player_name>.*?) has completed a quest: (?P<quest_name>.+)$"#,
-        )
-        .unwrap();
-
-        return if let Some(caps) = re.captures(message.as_str()) {
+        if let Some(caps) = QUEST_COMPLETED_BROADCAST_EXTRACTOR.captures(message.as_str()) {
             let player_name = caps.name("player_name").unwrap().as_str();
             let quest_name = caps.name("quest_name").unwrap().as_str();
 
@@ -414,13 +421,11 @@ pub mod osrs_broadcast_extractor {
             })
         } else {
             None
-        };
+        }
     }
 
     pub fn diary_completed_broadcast_extractor(message: String) -> Option<DiaryCompletedBroadcast> {
-        let re = regex::Regex::new(r#"^(?P<player_name>.*?) has completed the (?P<diary_tier>Easy|Medium|Hard|Elite) (?P<diary_name>.*?).$"#).unwrap();
-
-        return if let Some(caps) = re.captures(message.as_str()) {
+        if let Some(caps) = DIARY_COMPLETED_BROADCAST_EXTRACTOR.captures(message.as_str()) {
             let player_name = caps.name("player_name").unwrap().as_str();
             let diary_name = caps.name("diary_name").unwrap().as_str();
             let diary_tier = caps.name("diary_tier").unwrap().as_str();
@@ -432,15 +437,17 @@ pub mod osrs_broadcast_extractor {
             })
         } else {
             None
-        };
+        }
     }
 
     pub fn pk_broadcast_extractor(message: String) -> Option<PkBroadcast> {
-        let mut re = regex::Regex::new(r#"^(?P<winner_name>.*?) has defeated (?P<loser_name>.*?) and received \((?P<gp_value>[0-9,]+) coins\) worth of loot!"#).unwrap();
-        if message.contains("defeated by") {
-            re = regex::Regex::new(r#"^(?P<loser_name>.*?) has been defeated by (?P<winner_name>.*?)(?: in (?P<location>The Wilderness))?(?: and lost \((?P<gp_value>[0-9,]+) coins\) worth of loot)?[!.]"#).unwrap();
+        let re = if message.contains("defeated by") {
+            &PK_BROADCAST_EXTRACTOR_LOSER
+        } else {
+            &PK_BROADCAST_EXTRACTOR_WINNER
         };
-        return if let Some(caps) = re.captures(message.as_str()) {
+
+        if let Some(caps) = re.captures(message.as_str()) {
             let winner_name = caps.name("winner_name").unwrap().as_str();
             let loser_name = caps.name("loser_name").unwrap().as_str();
             let mut clan_mate_name = caps.name("winner_name").unwrap().as_str();
@@ -465,16 +472,11 @@ pub mod osrs_broadcast_extractor {
             })
         } else {
             None
-        };
+        }
     }
 
     pub fn invite_broadcast_extractor(message: String) -> Option<InviteBroadcast> {
-        let re = regex::Regex::new(
-            r#"^(?P<clan_joiner>.*?) has been invited into the clan by (?P<clan_inviter>.*?).$"#,
-        )
-        .unwrap();
-
-        return if let Some(caps) = re.captures(message.as_str()) {
+        if let Some(caps) = INVITE_BROADCAST_EXTRACTOR.captures(message.as_str()) {
             let clan_mate = caps.name("clan_inviter").unwrap().as_str();
             let new_clan_mate = caps.name("clan_joiner").unwrap().as_str();
             Some(InviteBroadcast {
@@ -483,13 +485,11 @@ pub mod osrs_broadcast_extractor {
             })
         } else {
             None
-        };
+        }
     }
 
     pub fn levelmilestone_broadcast_extractor(message: String) -> Option<LevelMilestoneBroadcast> {
-        let re = regex::Regex::new(r#"^(?P<clan_mate>.*?) has reached (?:a )?(?:the highest possible )?(?P<skill>.*?) level(?: of)? (?P<level>.*?)[!.]"#).unwrap();
-
-        return if let Some(caps) = re.captures(message.as_str()) {
+        if let Some(caps) = LEVELMILESTONE_BROADCAST_EXTRACTOR.captures(message.as_str()) {
             let clan_mate = caps.name("clan_mate").unwrap().as_str();
             let skill_levelled = caps.name("skill").unwrap().as_str();
             let new_skill_level = caps.name("level").unwrap().as_str();
@@ -501,16 +501,11 @@ pub mod osrs_broadcast_extractor {
             })
         } else {
             None
-        };
+        }
     }
 
     pub fn xpmilestone_broadcast_extractor(message: String) -> Option<XPMilestoneBroadcast> {
-        let re = regex::Regex::new(
-            r#"^(?P<clan_member>.*?) has reached (?P<xp>.*?) XP in (?P<skill>.*?)[!.]"#,
-        )
-        .unwrap();
-
-        return if let Some(caps) = re.captures(message.as_str()) {
+        if let Some(caps) = XPMILESTONE_BROADCAST_EXTRACTOR.captures(message.as_str()) {
             let clan_mate = caps.name("clan_member").unwrap().as_str();
             let skill = caps.name("skill").unwrap().as_str();
             let new_skill_xp = caps.name("xp").unwrap().as_str();
@@ -522,61 +517,50 @@ pub mod osrs_broadcast_extractor {
             })
         } else {
             None
-        };
+        }
     }
 
     pub fn collection_log_broadcast_extractor(message: String) -> Option<CollectionLogBroadcast> {
-        let re = regex::Regex::new(r"^(?P<name>[\w\s]+) received a new collection log item: (?P<item>.+?) \((?P<number>\d+)/\d+\)").unwrap();
-
-        if let Some(captures) = re.captures(message.as_str()) {
+        if let Some(captures) = COLLECTION_LOG_BROADCAST_EXTRACTOR.captures(message.as_str()) {
             let name = captures.name("name").unwrap().as_str();
             let item = captures.name("item").unwrap().as_str();
             let number = captures.name("number").unwrap().as_str();
 
-            return Some(CollectionLogBroadcast {
+            Some(CollectionLogBroadcast {
                 player_it_happened_to: name.to_string(),
                 item_name: item.to_string(),
                 log_slots: number.parse().unwrap(),
                 item_icon: Some(get_wiki_image_url(item.to_string())),
-            });
+            })
+        } else {
+            None
         }
-        None
     }
 
     pub fn left_the_clan_broadcast_extractor(message: String) -> Option<String> {
-        let re = regex::Regex::new(r"^(?P<player>[\w\s]+) has left the clan.$").unwrap();
-
-        if let Some(captures) = re.captures(message.as_str()) {
+        if let Some(captures) = LEFT_THE_CLAN_BROADCAST_EXTRACTOR.captures(message.as_str()) {
             let name = captures.name("player").unwrap().as_str();
 
-            return Some(name.to_string());
+            Some(name.to_string())
+        } else {
+            None
         }
-        None
     }
 
     pub fn expelled_from_clan_broadcast_extractor(message: String) -> Option<String> {
-        let re = regex::Regex::new(
-            r"^(?P<mod>[\w\s]+) has expelled (?P<player>[\w\s]+) from the clan.$",
-        )
-        .unwrap();
-
-        if let Some(captures) = re.captures(message.as_str()) {
+        if let Some(captures) = EXPELLED_FROM_CLAN_BROADCAST_EXTRACTOR.captures(message.as_str()) {
             let name = captures.name("player").unwrap().as_str();
 
-            return Some(name.to_string());
-        }
-        None
+            Some(name.to_string())
+        } else{
+            None
+        } 
     }
 
     pub fn coffer_donation_broadcast_extractor(
         message: String,
     ) -> Option<CofferTransactionBroadcast> {
-        let re = regex::Regex::new(
-            r"(?P<player>[\w\s]+) has (withdrawn|deposited) (?P<gp>[0-9,]+) coins (from|into) the coffer."
-        )
-            .unwrap();
-
-        if let Some(captures) = re.captures(message.as_str()) {
+        if let Some(captures) = COFFER_DONATION_BROADCAST_EXTRACTOR.captures(message.as_str()) {
             let player = captures.name("player").unwrap().as_str();
             let gp = captures
                 .name("gp")
@@ -586,24 +570,20 @@ pub mod osrs_broadcast_extractor {
                 .parse()
                 .unwrap();
 
-            return Some(CofferTransactionBroadcast {
+            Some(CofferTransactionBroadcast {
                 player: player.to_string(),
                 gp,
                 transaction_type: CofferTransaction::Donation,
-            });
+            })
+        } else {
+            None
         }
-        None
     }
 
     pub fn coffer_withdrawal_broadcast_extractor(
         message: String,
     ) -> Option<CofferTransactionBroadcast> {
-        let re = regex::Regex::new(
-            r"(?P<player>[\w\s]+) has (withdrawn|deposited) (?P<gp>[0-9,]+) coins (from|into) the coffer."
-        )
-            .unwrap();
-
-        if let Some(captures) = re.captures(message.as_str()) {
+        if let Some(captures) = COFFER_WITHDRAWAL_BROADCAST_EXTRACTOR.captures(message.as_str()) {
             let player = captures.name("player").unwrap().as_str();
             let gp = captures
                 .name("gp")
@@ -613,23 +593,18 @@ pub mod osrs_broadcast_extractor {
                 .parse()
                 .unwrap();
 
-            return Some(CofferTransactionBroadcast {
+            Some(CofferTransactionBroadcast {
                 player: player.to_string(),
                 gp,
                 transaction_type: CofferTransaction::Withdrawal,
-            });
+            })
+        } else {
+            None
         }
-        None
     }
 
     pub fn personal_best_broadcast_extractor(message: String) -> Option<PersonalBestBroadcast> {
-        // RuneScape Player has achieved a new Vorkath personal best: 2:28
-        let reg_activity_regex = regex::Regex::new(
-            r#"^(?P<player>[\w\s]+) has achieved a new (?P<activity>[\w\s\-'\.]+) personal best: (?<time>[\d:]+)"#,
-        )
-        .unwrap();
-
-        if let Some(captures) = reg_activity_regex.captures(message.as_str()) {
+        if let Some(captures) = PERSONAL_BEST_BROADCAST_EXTRACTOR.captures(message.as_str()) {
             let player = captures.name("player").unwrap().as_str();
             let activity = captures.name("activity").unwrap().as_str();
             let time = captures.name("time").unwrap().as_str();
@@ -640,14 +615,10 @@ pub mod osrs_broadcast_extractor {
                 time_in_seconds: osrs_time_parser(time),
                 //Will prob need to look at hallow sepulchre and other activities that have variants here
                 variant: None,
-            });
+            })
         }
 
-        let raid_regex = regex::Regex::new(
-            r#"^(?P<player>[\w\s]+) has achieved a new (?P<raid>[\w\s]+(?:\: [\w\s]+)?) \([Tt]eam [Ss]ize: (?P<team_size>[\w\s]+)\)(?:(?P<variant>[\w\s]+)?) personal best: (?<time>[\d:]+(?:\.\d{2})?)"#,
-        ).unwrap();
-
-        if let Some(captures) = raid_regex.captures(message.as_str()) {
+        if let Some(captures) = PERSONAL_BEST_BROADCAST_EXTRACTOR_RAID.captures(message.as_str()) {
             let player = captures.name("player").unwrap().as_str();
             let raid = captures.name("raid").unwrap().as_str();            
             let time = captures.name("time").unwrap().as_str();
@@ -668,15 +639,15 @@ pub mod osrs_broadcast_extractor {
                 _ => raid,
             };
 
-            return Some(PersonalBestBroadcast {
+            Some(PersonalBestBroadcast {
                 player: player.to_string(),
                 activity: raid_name.to_string(),
                 time_in_seconds: osrs_time_parser(time),
                 variant: raid_name_standardize(full_raid, team_size)
-            });
+            })
+        } else {
+            None
         }
-
-        None
     }
 
     /// Parses a time string in the format of `HH:MM:SS` or `MM:SS` and returns the time in seconds
