@@ -29,6 +29,8 @@ import Drawer from "@/components/NavDrawer.vue";
             <a class="link"
                href="https://github.com/fatfingers23/trackscape-discord-bot">Just show me the code</a>
 
+            <a class="link"
+               href="https://www.patreon.com/TrackScape">Support us on Patreon</a>
             <RouterLink class="link"
                         to="/TermsOfService">Terms Of Service</RouterLink>
             <RouterLink class="link"
