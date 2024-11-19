@@ -1,5 +1,5 @@
 use crate::database::clan_mates::{ClanMateModel, ClanMates};
-use crate::jobs::job_helpers::{get_mongodb, get_redis_client, write_to_cache};
+use crate::jobs::job_helpers::{get_mongodb, get_redis_connection, write_to_cache};
 use crate::wom::{get_latest_name_change, get_wom_client};
 use celery::prelude::*;
 use redis::{Commands, RedisResult};
@@ -12,7 +12,7 @@ pub async fn update_create_clanmate(
     rank: String,
     guild_id: u64,
 ) -> TaskResult<i32> {
-    let mut redis_connection = get_redis_client().expect("Failed to get redis client.");
+    let mut redis_connection = get_redis_connection().expect("Failed to get redis client.");
     let redis_key = format!("players:{}", player_name.clone());
     let exists: RedisResult<bool> = redis_connection.exists(redis_key.clone());
 

@@ -1,5 +1,5 @@
 use crate::database::{BotMongoDb, MongoDb};
-use redis::{Connection, RedisResult};
+use redis::{Client, Connection, RedisResult};
 use serde::Serialize;
 use std::env;
 
@@ -10,11 +10,16 @@ pub async fn get_mongodb() -> BotMongoDb {
     BotMongoDb::new_db_instance(mongodb_url).await
 }
 
-pub fn get_redis_client() -> RedisResult<Connection> {
+pub fn get_redis_connection() -> RedisResult<Connection> {
     let redis_url = env::var("REDIS_ADDR").expect("REDIS_ADDR not set!");
     redis::Client::open(redis_url)
         .expect("Could not connect to redis")
         .get_connection()
+}
+
+pub fn get_redis_client() -> Client {
+    let redis_url = env::var("REDIS_ADDR").expect("REDIS_ADDR not set!");
+    redis::Client::open(redis_url).expect("Could not connect to redis")
 }
 
 pub async fn write_to_cache<T: Serialize>(

@@ -59,6 +59,13 @@ client.getBotInfo().then((info) => {
               alt="In game cc icon"
             >
           </router-link>
+
+          <a
+            href="https://www.patreon.com/TrackScape"
+            class="btn btn-primary btn-outline ml-2 md:pt-0 mt-2"
+          >
+            Support TrackScape on Patreon
+          </a>
         </div>
         <div class="justify-end">
           <a

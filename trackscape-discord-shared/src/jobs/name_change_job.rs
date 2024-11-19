@@ -1,5 +1,5 @@
 use crate::database::clan_mates::{name_compare, ClanMates};
-use crate::jobs::job_helpers::{get_mongodb, get_redis_client};
+use crate::jobs::job_helpers::{get_mongodb, get_redis_connection};
 use crate::wom::{get_latest_name_change, get_wom_client, ApiLimiter};
 use celery::prelude::*;
 use log::info;
@@ -10,7 +10,7 @@ pub async fn name_change() -> TaskResult<()> {
     info!("Running name change job");
     let wom_client = get_wom_client();
     let mongodb = get_mongodb().await;
-    let mut redis_connection = get_redis_client().expect("Failed to get redis client.");
+    let mut redis_connection = get_redis_connection().expect("Failed to get redis client.");
 
     let mut limiter = ApiLimiter::new();
 

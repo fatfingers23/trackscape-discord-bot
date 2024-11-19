@@ -1,4 +1,4 @@
-use super::job_helpers::get_redis_client;
+use super::job_helpers::get_redis_connection;
 use redis::{Commands, RedisResult};
 
 pub mod pb_command;
@@ -11,7 +11,7 @@ pub async fn get_runelite_api_url() -> Result<String, anyhow::Error> {
 }
 
 async fn get_runelite_version() -> Result<String, anyhow::Error> {
-    let mut redis_connection = get_redis_client().unwrap();
+    let mut redis_connection = get_redis_connection().unwrap();
     let version_key = "runelite_version";
     let exists: RedisResult<bool> = redis_connection.exists(version_key);
     match exists {

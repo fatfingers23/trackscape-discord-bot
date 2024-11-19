@@ -1,11 +1,9 @@
 extern crate dotenv;
 
-mod cache;
 mod controllers;
 mod handler;
 mod websocket_server;
 
-use crate::cache::Cache;
 use crate::controllers::bot_info_controller::info_controller;
 use crate::controllers::chat_controller::chat_controller;
 use actix_cors::Cors;
@@ -18,7 +16,6 @@ use shuttle_actix_web::ShuttleActixWeb;
 use std::env;
 use std::sync::atomic::AtomicI64;
 use std::sync::Mutex;
-use std::time::Duration;
 use tokio::spawn;
 use trackscape_discord_shared::database::{BotMongoDb, MongoDb};
 use trackscape_discord_shared::ge_api::ge_api::get_item_mapping;
@@ -61,7 +58,10 @@ async fn actix_web() -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send +
     }
 
     let db = BotMongoDb::new_db_instance(mongodb_url).await;
-    let mut redis_conn = get_redis_client().unwrap();
+    let redis_client = get_redis_client();
+    let mut redis_conn = redis_client
+        .get_connection()
+        .expect("Could not connect to redis");
 
     info!("Loading startup data from the web");
     let ge_mapping_request = get_item_mapping(&mut redis_conn).await;
@@ -83,12 +83,6 @@ async fn actix_web() -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send +
             error!("Error getting quests: {}", e)
         }
     }
-
-    let mut cache = Cache::new(Duration::from_secs(10));
-    let cache_clone = cache.clone();
-    spawn(async move {
-        cache.clean_expired().await;
-    });
 
     #[allow(clippy::mutex_atomic)] // it's intentional.
     let connected_websockets_counter = Data::new(Mutex::new(0usize));
@@ -117,10 +111,10 @@ async fn actix_web() -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send +
         .app_data(web::Data::new(server_tx.clone()))
         .app_data(connected_websockets_counter)
         .app_data(connected_discord_servers)
-        .app_data(web::Data::new(cache_clone))
         .app_data(web::Data::new(HttpBuilder::new(discord_token).build()))
         .app_data(web::Data::new(db))
         .app_data(web::Data::new(celery.clone()))
+        .app_data(web::Data::new(redis_client.clone()))
         .default_service(web::route().guard(guard::Not(guard::Get())).to(index));
     };
 

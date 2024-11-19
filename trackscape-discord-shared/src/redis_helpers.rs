@@ -46,6 +46,18 @@ pub async fn fetch_redis_json_object<T: for<'a> Deserialize<'a>>(
     Ok(val)
 }
 
+pub async fn fetch_redis<T: redis::FromRedisValue>(
+    redis_connection: &mut Connection,
+    redis_key: &str,
+) -> Result<T, RedisFetchErrors> {
+    let val = redis::cmd("GET")
+        .arg(redis_key)
+        .query::<T>(redis_connection)
+        .map_err(|_| RedisFetchErrors::FromDbError)?;
+
+    Ok(val)
+}
+
 pub enum RedisFetchErrors {
     FromDbError,
     ParseError,
