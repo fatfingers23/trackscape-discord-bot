@@ -1,4 +1,3 @@
-use crate::cache::Cache;
 use crate::websocket_server::DiscordToClanChatMessage;
 use crate::{handler, ChatServerHandle};
 use actix_web::web::Data;
@@ -13,12 +12,12 @@ use tokio::task::spawn_local;
 use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::get_item_mapping;
 use trackscape_discord_shared::helpers::hash_string;
-use trackscape_discord_shared::jobs::job_helpers::get_redis_client;
 use trackscape_discord_shared::jobs::CeleryJobQueue;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     get_wiki_clan_rank_image_url, ClanMessage,
 };
 use trackscape_discord_shared::osrs_broadcast_handler::OSRSBroadcastHandler;
+use trackscape_discord_shared::redis_helpers::{fetch_redis, write_to_cache_with_seconds};
 use trackscape_discord_shared::wiki_api::wiki_api::get_quests_and_difficulties;
 use web::Json;
 
@@ -79,7 +78,7 @@ async fn new_discord_message(
 async fn new_clan_chats(
     req: HttpRequest,
     discord_http_client: Data<Http>,
-    cache: Data<Cache>,
+    redis_client: Data<redis::Client>,
     new_chat: Json<Vec<ClanMessage>>,
     mongodb: Data<BotMongoDb>,
     celery: Data<Arc<Celery>>,
@@ -127,12 +126,18 @@ async fn new_clan_chats(
         //Checks to make sure the message has not already been process since multiple people could be submitting them
         let message_content_hash =
             hash_string(format!("{}{}", chat.message.clone(), chat.sender.clone()));
-        match cache.get_value(message_content_hash.clone()).await {
-            Some(_) => continue,
-            None => {
-                cache
-                    .set_value(message_content_hash.clone(), "true".to_string())
-                    .await;
+
+        let mut redis_connection = redis_client
+            .get_connection()
+            .expect("Could not connect to redis");
+
+        let redis_key = format!("MessageHashes:{}", message_content_hash);
+        match fetch_redis::<String>(&mut redis_connection, &redis_key).await {
+            Ok(_) => {
+                continue;
+            }
+            Err(_) => {
+                write_to_cache_with_seconds(&mut redis_connection, &redis_key, true, 10).await
             }
         }
 
@@ -143,6 +148,7 @@ async fn new_clan_chats(
         }
 
         if registered_guild.clan_name.clone().unwrap() != chat.clan_name {
+            error!("Clan name does not match the clan name saved in the database");
             continue;
         }
 
@@ -212,9 +218,6 @@ async fn new_clan_chats(
         }
 
         let league_world = chat.is_league_world.unwrap_or(false);
-
-        // TODO: Load this from Redis
-        let mut redis_connection = get_redis_client().unwrap();
 
         let item_mapping_from_redis = get_item_mapping(&mut redis_connection).await;
 
