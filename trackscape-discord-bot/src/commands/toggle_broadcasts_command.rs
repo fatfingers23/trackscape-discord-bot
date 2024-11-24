@@ -85,13 +85,32 @@ pub fn register() -> CreateCommand {
                 BroadcastType::PersonalBest.to_string(),
                 BroadcastType::PersonalBest.to_slug(),
             )
+            .add_string_choice(
+                BroadcastType::AreaUnlock.to_string(),
+                BroadcastType::AreaUnlock.to_slug(),
+            )
+            .add_string_choice(
+                BroadcastType::LeaguesRank.to_string(),
+                BroadcastType::LeaguesRank.to_slug(),
+            )
+            .add_string_choice(
+                BroadcastType::CombatMasteries.to_string(),
+                BroadcastType::CombatMasteries.to_slug(),
+            )
+            .add_string_choice(
+                BroadcastType::RelicTier.to_string(),
+                BroadcastType::RelicTier.to_slug(),
+            )
             .required(true),
         )
-        .add_option(CreateCommandOption::new(
-            CommandOptionType::Boolean,
-            "toggle",
-            "Turns on(true) or off(false) the broadcast type.",
-        ))
+        .add_option(
+            CreateCommandOption::new(
+                CommandOptionType::Boolean,
+                "toggle",
+                "Turns on(true) or off(false) the broadcast type.",
+            )
+            .required(true),
+        )
 }
 
 pub async fn run(

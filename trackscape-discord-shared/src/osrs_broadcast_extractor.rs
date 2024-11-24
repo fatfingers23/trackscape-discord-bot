@@ -288,6 +288,18 @@ pub mod osrs_broadcast_extractor {
         NormalBroadCast
     }
 
+    impl LeaguesBroadCastType {
+        pub fn to_broadcast_type(&self) -> BroadcastType {
+            match self {
+                LeaguesBroadCastType::AreaUnlock => BroadcastType::AreaUnlock,
+                LeaguesBroadCastType::LeaguesRank => BroadcastType::LeaguesRank,
+                LeaguesBroadCastType::CombatMasteries => BroadcastType::CombatMasteries,
+                LeaguesBroadCastType::RelicTier => BroadcastType::RelicTier,
+                LeaguesBroadCastType::NormalBroadCast => BroadcastType::Unknown,
+            }
+        }
+    }
+
     #[derive(PartialEq, Deserialize, Serialize, Debug, Clone)]
     pub enum BroadcastType {
         ItemDrop,

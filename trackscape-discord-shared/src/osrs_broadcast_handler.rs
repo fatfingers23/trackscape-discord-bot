@@ -509,10 +509,6 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                 }
             }
             BroadcastType::PersonalBest => self.personal_best_handler().await,
-            // BroadcastType::AreaUnlock
-            // | BroadcastType::LeaguesRank
-            // | BroadcastType::CombatMasteries
-            // | BroadcastType::RelicTier => self.leagues_handler().await,
             _ => None,
         }
     }
@@ -851,14 +847,22 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
     }
 
     pub async fn extract_leagues_message(&self) -> Option<BroadcastMessageToDiscord> {
-        let possible_leagues_broad_cast_type =
+        let possible_leagues_broadcast_type =
             leagues_catch_all_broadcast_extractor(self.clan_message.message.clone());
-        info!(
-            "possible_leagues_broad_cast_type: {:?}",
-            possible_leagues_broad_cast_type
-        );
-        match possible_leagues_broad_cast_type {
-            Some(leagues_broadcast_type) => match leagues_broadcast_type {
+
+        if let Some(leagues_broadcast_type) = possible_leagues_broadcast_type {
+            //Bit odd to have same name enums in each but did it to keep commands
+            let full_broadcast = leagues_broadcast_type.to_broadcast_type();
+            let is_disallowed = self.check_if_allowed_broad_cast(full_broadcast);
+            info!(
+                "Leagues broadcast type: {:?} is disallowed: {}",
+                leagues_broadcast_type, is_disallowed
+            );
+            if is_disallowed {
+                return None;
+            }
+
+            match leagues_broadcast_type {
                 LeaguesBroadCastType::AreaUnlock => Some(BroadcastMessageToDiscord {
                     type_of_broadcast: BroadcastType::AreaUnlock,
                     player_it_happened_to: "".to_string(),
@@ -893,8 +897,9 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                 }),
                 //Ideally previous broadcast logic should catch this and we just come to leagues for the new types
                 LeaguesBroadCastType::NormalBroadCast => None,
-            },
-            None => None,
+            }
+        } else {
+            None
         }
     }
 
