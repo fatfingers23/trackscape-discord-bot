@@ -1,3 +1,4 @@
+use log::error;
 use serenity::all::{
     CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommandOption,
 };
@@ -9,7 +10,7 @@ use std::any::Any;
 use tracing::info;
 use trackscape_discord_shared::database::BotMongoDb;
 
-pub fn _register() -> CreateCommand {
+pub fn register() -> CreateCommand {
     CreateCommand::new("set_leagues_channel")
         .description("Sets a channel to receive league broadcasts. This is off by default")
         .default_member_permissions(Permissions::MANAGE_GUILD)
@@ -32,10 +33,21 @@ pub async fn run(
     let option = options.get(0).expect("Expected Channel Id option");
 
     if let CommandDataOptionValue::Channel(channel) = option.value {
-        if channel.type_id() != ChannelType::Text.type_id() {
+        let possible_actual_channel = channel.to_channel(&ctx).await;
+        if possible_actual_channel.is_err() {
+            error!("Error getting channel: {:?}", possible_actual_channel.err());
+            return Some("Error getting channel".to_string());
+        }
+        let guild_channel = possible_actual_channel
+            .expect("Expected channel")
+            .guild()
+            .expect("Expected guild channel");
+
+        if guild_channel.kind != ChannelType::Text {
+            error!("Please select a text channel.");
             return Some("Please select a text channel.".to_string());
         }
-        info!("Channel: {:?}", channel);
+
         let saved_guild_query = db.guilds.get_by_guild_id(guild_id).await;
 
         return match saved_guild_query {

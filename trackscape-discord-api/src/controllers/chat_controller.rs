@@ -120,7 +120,7 @@ async fn new_clan_chats(
 
         if chat.is_league_world.is_some() {
             if chat.is_league_world.unwrap() {
-                info!("Broadcast from League World")
+                // info!("Broadcast from League World")
             }
         }
         //Checks to make sure the message has not already been process since multiple people could be submitting them
@@ -148,7 +148,8 @@ async fn new_clan_chats(
         }
 
         if registered_guild.clan_name.clone().unwrap() != chat.clan_name {
-            error!("Clan name does not match the clan name saved in the database");
+            //TODO may remove. it happens a lot assuming from ppl moving clans
+            // error!("Clan name does not match the clan name saved in the database");
             continue;
         }
 

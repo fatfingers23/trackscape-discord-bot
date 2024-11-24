@@ -338,8 +338,7 @@ fn get_commands() -> Vec<CreateCommand> {
     commands.push(commands::expel_clanmate_command::register());
     commands.push(commands::name_change_command::register());
     commands.push(commands::manually_run_wom_sync_command::register());
-    //leagues didnt have any braodcasts this time around and over now
-    // commands.push(commands::set_leagues_broadcast_channel::register());
+    commands.push(commands::set_leagues_broadcast_channel::register());
     commands
 }
 pub async fn create_commands_for_guild(guild_id: &GuildId, ctx: Context) {
