@@ -257,6 +257,49 @@ pub mod osrs_broadcast_extractor {
         pub time_in_seconds: f64,
     }
 
+    //Leagues broadcasts
+    //TODO may come back and add more descriptive broadcasts for Leagues, but right now just going the "firehose" route
+    // #[derive(Clone, Debug, Serialize, Deserialize)]
+    // pub struct AreaUnlockBroadcast {
+    //     pub area: String,
+    //     pub player: String
+    // }
+
+    // #[derive(Clone, Debug, Serialize, Deserialize)]
+    // pub struct LeaguesRankBroadcast {
+    //     pub area: String,
+    //     pub player: String
+    // }
+
+    // #[derive(Clone, Debug, Serialize, Deserialize)]
+    // pub struct CombatMasteriesBroadcast {
+    //     pub player: String,
+    //     pub combat_mastery: String,
+    //     pub rank: i64,
+    // }
+    
+    #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+    pub enum LeaguesBroadCastType {
+        AreaUnlock,
+        LeaguesRank,
+        CombatMasteries,
+        RelicTier,
+        //Normal broadcast but for leagues, like drops
+        NormalBroadCast
+    }
+
+    impl LeaguesBroadCastType {
+        pub fn to_broadcast_type(&self) -> BroadcastType {
+            match self {
+                LeaguesBroadCastType::AreaUnlock => BroadcastType::AreaUnlock,
+                LeaguesBroadCastType::LeaguesRank => BroadcastType::LeaguesRank,
+                LeaguesBroadCastType::CombatMasteries => BroadcastType::CombatMasteries,
+                LeaguesBroadCastType::RelicTier => BroadcastType::RelicTier,
+                LeaguesBroadCastType::NormalBroadCast => BroadcastType::Unknown,
+            }
+        }
+    }
+
     #[derive(PartialEq, Deserialize, Serialize, Debug, Clone)]
     pub enum BroadcastType {
         ItemDrop,
@@ -274,7 +317,12 @@ pub mod osrs_broadcast_extractor {
         ExpelledFromClan,
         CofferDonation,
         CofferWithdrawal,
-        PersonalBest,
+        PersonalBest,        
+        //Leagues Broadcasts        
+        AreaUnlock,
+        LeaguesRank,
+        CombatMasteries,
+        RelicTier,
         Unknown,
     }
 
@@ -297,7 +345,12 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::ExpelledFromClan => "Expelled From Clan".to_string(),
                 BroadcastType::CofferDonation => "Coffer Donation".to_string(),
                 BroadcastType::CofferWithdrawal => "Coffer Withdrawal".to_string(),
-                BroadcastType::PersonalBest => "Personal Best".to_string(),
+                BroadcastType::PersonalBest => "Personal Best".to_string(),                
+                //Leagues Broadcasts
+                BroadcastType::AreaUnlock => "Area Unlock".to_string(),
+                BroadcastType::LeaguesRank => "Leagues Rank".to_string(),
+                BroadcastType::CombatMasteries => "Combat Masteries".to_string(),
+                BroadcastType::RelicTier => "Relic Tier".to_string(),
             }
         }
 
@@ -315,6 +368,11 @@ pub mod osrs_broadcast_extractor {
                 "Level Milestone" => BroadcastType::LevelMilestone,
                 "Collection Log" => BroadcastType::CollectionLog,
                 "Personal Best" => BroadcastType::PersonalBest,
+                //Leagues Broadcasts
+                "Area Unlock" => BroadcastType::AreaUnlock,
+                "Leagues Rank" => BroadcastType::LeaguesRank,
+                "Combat Masteries" => BroadcastType::CombatMasteries,
+                "Relic Tier" => BroadcastType::RelicTier,
                 _ => BroadcastType::Unknown,
             }
         }
@@ -338,6 +396,11 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::CofferDonation,
                 BroadcastType::CofferWithdrawal,
                 BroadcastType::PersonalBest,
+                //Leagues Broadcasts
+                BroadcastType::AreaUnlock,
+                BroadcastType::LeaguesRank,
+                BroadcastType::CombatMasteries,
+                BroadcastType::RelicTier,
             ]
         }
 
@@ -650,6 +713,23 @@ pub mod osrs_broadcast_extractor {
         }
     }
 
+    pub fn leagues_catch_all_broadcast_extractor(
+        message: String,
+    ) -> Option<LeaguesBroadCastType> {
+        if message.contains("has earned") && message.contains("Combat mastery") {
+            return Some(LeaguesBroadCastType::CombatMasteries);
+        }
+
+        if message.contains("has unlocked") && message.contains("League area") {
+            return Some(LeaguesBroadCastType::AreaUnlock);
+        }
+
+        if message.contains("has unlocked") && message.contains("League relic!") {
+            return Some(LeaguesBroadCastType::RelicTier);
+        }
+        None
+    }
+
     /// Parses a time string in the format of `HH:MM:SS` or `MM:SS` and returns the time in seconds
     pub fn osrs_time_parser(time: &str) -> f64 {
         let split_sub_second: Vec<&str> = time.split(".").collect();
@@ -826,6 +906,7 @@ mod tests {
         LevelMilestoneBroadcast, PersonalBestBroadcast, PetDropBroadcast, PkBroadcast,
         QuestCompletedBroadcast, XPMilestoneBroadcast,
     };
+    use osrs_broadcast_extractor::LeaguesBroadCastType;
     use rstest::rstest;
     use tracing::info;
 
@@ -1452,6 +1533,21 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_leagues_catch_all_broadcast_extractor() {
+        let test_leagues_catch_all = get_leagues_catch_all_broadcast_messages();
+        for test_leagues_catch_all in test_leagues_catch_all {
+            let possible_leagues_catch_all_extract =
+                osrs_broadcast_extractor::leagues_catch_all_broadcast_extractor(
+                    test_leagues_catch_all.message.clone(),
+                );
+            let leagues_catch_all = possible_leagues_catch_all_extract.unwrap();
+            info!("{:?}", leagues_catch_all);
+            assert_eq!(leagues_catch_all, test_leagues_catch_all.broadcast);
+        }
+    }
+
 
     #[rstest]
     #[case("0:56.40", 56.40)]
@@ -2299,6 +2395,29 @@ mod tests {
                 variant: None
             },
         });
+
+        messages
+    }
+
+    fn get_leagues_catch_all_broadcast_messages() -> Vec<TestBroadcast<LeaguesBroadCastType>> {
+        let mut messages: Vec<TestBroadcast<LeaguesBroadCastType>> = Vec::new();
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has earned their 6th Combat mastery point!".to_string(),
+            broadcast: LeaguesBroadCastType::CombatMasteries,
+        });
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has unlocked their 3rd League area!".to_string(),
+            broadcast: LeaguesBroadCastType::AreaUnlock,
+        });
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has unlocked their tier 3 League relic!".to_string(),
+            broadcast: LeaguesBroadCastType::RelicTier,
+        });
+
+        //TODO add rank as we find more examples
 
         messages
     }

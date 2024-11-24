@@ -3,7 +3,7 @@ use crate::{handler, ChatServerHandle};
 use actix_web::web::Data;
 use actix_web::{error, post, web, Error, HttpRequest, HttpResponse, Scope};
 use celery::Celery;
-use log::{error, info};
+use log::error;
 use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor};
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
@@ -120,7 +120,7 @@ async fn new_clan_chats(
 
         if chat.is_league_world.is_some() {
             if chat.is_league_world.unwrap() {
-                info!("Broadcast from League World")
+                // info!("Broadcast from League World")
             }
         }
         //Checks to make sure the message has not already been process since multiple people could be submitting them
@@ -148,7 +148,8 @@ async fn new_clan_chats(
         }
 
         if registered_guild.clan_name.clone().unwrap() != chat.clan_name {
-            error!("Clan name does not match the clan name saved in the database");
+            //TODO may remove. it happens a lot assuming from ppl moving clans
+            // error!("Clan name does not match the clan name saved in the database");
             continue;
         }
 
@@ -242,7 +243,36 @@ async fn new_clan_chats(
         let possible_broadcast = handler.extract_message().await;
 
         match possible_broadcast {
-            None => {}
+            None => {
+                if league_world {
+                    let possible_leagues_message = handler.extract_leagues_message().await;
+                    if let Some(leagues_message) = possible_leagues_message {
+                        let mut broadcast_embed = CreateEmbed::new()
+                            .title(leagues_message.title.clone())
+                            .description(leagues_message.message.clone())
+                            .color(0x0000FF)
+                            .timestamp(right_now);
+                        match leagues_message.icon_url {
+                            None => {}
+                            Some(icon_url) => {
+                                broadcast_embed = broadcast_embed.image(icon_url);
+                            }
+                        }
+                        let broadcast_message = CreateMessage::new().embed(broadcast_embed);
+                        //Only send if theres a leagues channel
+                        if let Some(channel_to_send_broadcast) =
+                            registered_guild.leagues_broadcast_channel
+                        {
+                            let new_broad_cast = ChannelId::new(channel_to_send_broadcast)
+                                .send_message(&*discord_http_client, broadcast_message)
+                                .await;
+                            if let Err(e) = new_broad_cast {
+                                error!("Error sending broadcast: {:?}", e);
+                            }
+                        }
+                    }
+                }
+            }
             Some(broadcast) => {
                 let _ = mongodb
                     .broadcasts

@@ -9,13 +9,14 @@ use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     coffer_donation_broadcast_extractor, coffer_withdrawal_broadcast_extractor,
     collection_log_broadcast_extractor, diary_completed_broadcast_extractor,
     drop_broadcast_extractor, expelled_from_clan_broadcast_extractor, get_broadcast_type,
-    invite_broadcast_extractor, left_the_clan_broadcast_extractor,
-    levelmilestone_broadcast_extractor, personal_best_broadcast_extractor, pet_broadcast_extractor,
-    pk_broadcast_extractor, quest_completed_broadcast_extractor, raid_broadcast_extractor,
-    xpmilestone_broadcast_extractor, BroadcastType, ClanMessage,
+    invite_broadcast_extractor, leagues_catch_all_broadcast_extractor,
+    left_the_clan_broadcast_extractor, levelmilestone_broadcast_extractor,
+    personal_best_broadcast_extractor, pet_broadcast_extractor, pk_broadcast_extractor,
+    quest_completed_broadcast_extractor, raid_broadcast_extractor, xpmilestone_broadcast_extractor,
+    BroadcastType, ClanMessage, LeaguesBroadCastType,
 };
 use crate::wiki_api::wiki_api::WikiQuest;
-use log::error;
+use log::{error, info};
 use num_format::{Locale, ToFormattedString};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -842,6 +843,63 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     item_quantity: None,
                 })
             }
+        }
+    }
+
+    pub async fn extract_leagues_message(&self) -> Option<BroadcastMessageToDiscord> {
+        let possible_leagues_broadcast_type =
+            leagues_catch_all_broadcast_extractor(self.clan_message.message.clone());
+
+        if let Some(leagues_broadcast_type) = possible_leagues_broadcast_type {
+            //Bit odd to have same name enums in each but did it to keep commands
+            let full_broadcast = leagues_broadcast_type.to_broadcast_type();
+            let is_disallowed = self.check_if_allowed_broad_cast(full_broadcast);
+            info!(
+                "Leagues broadcast type: {:?} is disallowed: {}",
+                leagues_broadcast_type, is_disallowed
+            );
+            if is_disallowed {
+                return None;
+            }
+
+            match leagues_broadcast_type {
+                LeaguesBroadCastType::AreaUnlock => Some(BroadcastMessageToDiscord {
+                    type_of_broadcast: BroadcastType::AreaUnlock,
+                    player_it_happened_to: "".to_string(),
+                    message: self.clan_message.message.clone(),
+                    icon_url: Some("https://oldschool.runescape.wiki/images/Leagues_V-_Raging_Echoes_-_Summer_Summit_2024_%282%29.png?3877a".to_string()),
+                    title: ":new: New Leagues Area Unlock!".to_string(),
+                    item_quantity: None,
+                }),
+                LeaguesBroadCastType::LeaguesRank => Some(BroadcastMessageToDiscord {
+                    type_of_broadcast: BroadcastType::LeaguesRank,
+                    player_it_happened_to: "".to_string(),
+                    message: self.clan_message.message.clone(),
+                    icon_url: Some("https://oldschool.runescape.wiki/images/thumb/Leagues_icon.png/260px-Leagues_icon.png?0570b".to_string()),
+                    title: ":new: New Leagues Rank Unlock!".to_string(),
+                    item_quantity: None,
+                }),
+                LeaguesBroadCastType::CombatMasteries => Some(BroadcastMessageToDiscord {
+                    type_of_broadcast: BroadcastType::CombatMasteries,
+                    player_it_happened_to: "".to_string(),
+                    message: self.clan_message.message.clone(),
+                    icon_url: Some("https://oldschool.runescape.wiki/images/Raging_Echoes_League_combat_masteries_icon.png?4e2c2".to_string()),
+                    title: ":new: New Leagues Combat Mastery earned!".to_string(),
+                    item_quantity: None,
+                }),
+                LeaguesBroadCastType::RelicTier => Some(BroadcastMessageToDiscord {
+                    type_of_broadcast: BroadcastType::RelicTier,
+                    player_it_happened_to: "".to_string(),
+                    message: self.clan_message.message.clone(),
+                    icon_url: Some("https://oldschool.runescape.wiki/images/thumb/Leagues_icon.png/260px-Leagues_icon.png?0570b".to_string()),
+                    title: ":new: New Leagues Relic unlocked!".to_string(),
+                    item_quantity: None,
+                }),
+                //Ideally previous broadcast logic should catch this and we just come to leagues for the new types
+                LeaguesBroadCastType::NormalBroadCast => None,
+            }
+        } else {
+            None
         }
     }
 
