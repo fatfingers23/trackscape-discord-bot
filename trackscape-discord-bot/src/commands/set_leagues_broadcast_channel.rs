@@ -6,7 +6,6 @@ use serenity::builder::{CreateCommand, CreateMessage};
 use serenity::client::Context;
 use serenity::model::channel::ChannelType;
 use serenity::model::prelude::Permissions;
-use std::any::Any;
 use tracing::info;
 use trackscape_discord_shared::database::BotMongoDb;
 
