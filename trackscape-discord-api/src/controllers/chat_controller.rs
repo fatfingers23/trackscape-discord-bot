@@ -3,7 +3,7 @@ use crate::{handler, ChatServerHandle};
 use actix_web::web::Data;
 use actix_web::{error, post, web, Error, HttpRequest, HttpResponse, Scope};
 use celery::Celery;
-use log::{error, info};
+use log::error;
 use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor};
 use serenity::builder::CreateMessage;
 use serenity::http::Http;

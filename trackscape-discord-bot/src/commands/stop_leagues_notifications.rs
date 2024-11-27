@@ -1,7 +1,5 @@
-use crate::on_boarding_message::send_on_boarding;
 use serenity::all::{CommandDataOption, CreateCommand};
 use serenity::client::Context;
-use serenity::model::id::ChannelId;
 use trackscape_discord_shared::database::BotMongoDb;
 
 pub fn register() -> CreateCommand {
@@ -11,7 +9,7 @@ pub fn register() -> CreateCommand {
 
 pub async fn run(
     _options: &[CommandDataOption],
-    ctx: &Context,
+    _ctx: &Context,
     db: &BotMongoDb,
     guild_id: u64,
 ) -> Option<String> {
@@ -32,5 +30,4 @@ pub async fn run(
             Some("There was a technical error. Please try again later.".to_string())
         }
     };
-    None
 }
