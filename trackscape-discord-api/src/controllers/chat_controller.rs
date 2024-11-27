@@ -3,7 +3,7 @@ use crate::{handler, ChatServerHandle};
 use actix_web::web::Data;
 use actix_web::{error, post, web, Error, HttpRequest, HttpResponse, Scope};
 use celery::Celery;
-use log::error;
+use log::{error, info};
 use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor};
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
@@ -25,6 +25,8 @@ use web::Json;
 struct MyError {
     message: &'static str,
 }
+
+const LEAGUES_ICON_TAG: &str = "<img=22> ";
 
 #[post("/new-discord-message")]
 async fn new_discord_message(
@@ -88,7 +90,7 @@ async fn new_clan_chats(
         let result = Err(MyError {
             message: "No verification code was set",
         });
-        return result.map_err(|err| error::ErrorBadRequest(err.message));
+        return result.map_err(|err: MyError| error::ErrorBadRequest(err.message));
     }
 
     let verification_code = possible_verification_code.unwrap().to_str().unwrap();
@@ -113,7 +115,7 @@ async fn new_clan_chats(
         return result.map_err(|err| error::ErrorBadRequest(err.message));
     };
 
-    for chat in new_chat.clone() {
+    for mut chat in new_chat.clone() {
         if chat.sender.clone() == "" && chat.clan_name.clone() == "" {
             continue;
         }
@@ -139,6 +141,12 @@ async fn new_clan_chats(
             Err(_) => {
                 write_to_cache_with_seconds(&mut redis_connection, &redis_key, true, 10).await
             }
+        }
+
+        //HACK leagues. is_league_world is not getting set as expected so we need to check the icon_id
+        if let Some(icon_id) = chat.icon_id {
+            //League icon id
+            chat.is_league_world = Some(icon_id == 22);
         }
 
         //Sets the clan name to the guild. Bit of a hack but best way to get clan name
@@ -168,7 +176,8 @@ async fn new_clan_chats(
                     CreateEmbed::new()
                         .title("")
                         .author(CreateEmbedAuthor::new(chat.sender.clone()).icon_url(author_image))
-                        .description(chat.message.clone())
+                        //HACK
+                        .description(chat.message.clone().replace(LEAGUES_ICON_TAG, ""))
                         .color(0x0000FF)
                         .timestamp(right_now),
                 );
@@ -218,7 +227,13 @@ async fn new_clan_chats(
             continue;
         }
 
-        let league_world = chat.is_league_world.unwrap_or(false);
+        // let league_world = chat.is_league_world.unwrap_or(false);
+        //HACK leagues. is_league_world is not getting set as expected so we need to check the broadcast for the icon tag
+        let league_world = chat.message.starts_with(LEAGUES_ICON_TAG);
+        if league_world {
+            chat.message = chat.message.replace(LEAGUES_ICON_TAG, "");
+            chat.is_league_world = Some(true);
+        }
 
         let item_mapping_from_redis = get_item_mapping(&mut redis_connection).await;
 

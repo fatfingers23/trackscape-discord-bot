@@ -11,5 +11,6 @@ pub mod set_leagues_broadcast_channel;
 pub mod set_quest_min_command;
 pub mod set_threshold_command;
 pub mod set_wom_id_command;
+pub mod stop_leagues_notifications;
 pub mod toggle_broadcasts_command;
 pub mod trackscape_command_trait;

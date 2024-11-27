@@ -298,6 +298,15 @@ impl EventHandler for Bot {
                     )
                     .await
                 }
+                "stop_leagues_notifications" => {
+                    commands::stop_leagues_notifications::run(
+                        &command.data.options,
+                        &ctx,
+                        &self.mongo_db,
+                        command.guild_id.unwrap().get(),
+                    )
+                    .await
+                }
                 _ => {
                     info!("not implemented :(");
                     None
@@ -339,6 +348,7 @@ fn get_commands() -> Vec<CreateCommand> {
     commands.push(commands::name_change_command::register());
     commands.push(commands::manually_run_wom_sync_command::register());
     commands.push(commands::set_leagues_broadcast_channel::register());
+    commands.push(commands::stop_leagues_notifications::register());
     commands
 }
 pub async fn create_commands_for_guild(guild_id: &GuildId, ctx: Context) {
