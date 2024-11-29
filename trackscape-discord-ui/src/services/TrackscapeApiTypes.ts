@@ -1,6 +1,7 @@
 type BotInfo = {
   server_count: number;
   connected_users: number;
+  total_chat_messages_for_today: number | null
 }
 
 type Clan = {

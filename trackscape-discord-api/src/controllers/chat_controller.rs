@@ -3,7 +3,7 @@ use crate::{handler, ChatServerHandle};
 use actix_web::web::Data;
 use actix_web::{error, post, web, Error, HttpRequest, HttpResponse, Scope};
 use celery::Celery;
-use log::error;
+use redis::Commands;
 use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor};
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
@@ -115,6 +115,14 @@ async fn new_clan_chats(
         return result.map_err(|err| error::ErrorBadRequest(err.message));
     };
 
+    let mut redis_connection = redis_client
+        .get_connection()
+        .expect("Could not connect to redis");
+
+    let mut clan_chat_queue: Vec<CreateEmbed> = vec![];
+    let mut broadcast_queue: Vec<CreateEmbed> = vec![];
+    let mut leagues_broadcast_queue: Vec<CreateEmbed> = vec![];
+
     for mut chat in new_chat.clone() {
         if chat.sender.clone() == "" && chat.clan_name.clone() == "" {
             continue;
@@ -128,10 +136,6 @@ async fn new_clan_chats(
         //Checks to make sure the message has not already been process since multiple people could be submitting them
         let message_content_hash =
             hash_string(format!("{}{}", chat.message.clone(), chat.sender.clone()));
-
-        let mut redis_connection = redis_client
-            .get_connection()
-            .expect("Could not connect to redis");
 
         let redis_key = format!("MessageHashes:{}", message_content_hash);
         match fetch_redis::<String>(&mut redis_connection, &redis_key).await {
@@ -164,7 +168,7 @@ async fn new_clan_chats(
         let right_now = serenity::model::timestamp::Timestamp::now();
 
         match registered_guild.clan_chat_channel {
-            Some(channel_id) => {
+            Some(_channel_id) => {
                 let author_image = match chat.clan_name.clone() == chat.sender.clone() {
                     true => {
                         "https://oldschool.runescape.wiki/images/Your_Clan_icon.png".to_string()
@@ -172,7 +176,7 @@ async fn new_clan_chats(
                     false => get_wiki_clan_rank_image_url(chat.rank.clone()),
                 };
 
-                let clan_chat_to_discord = CreateMessage::new().embed(
+                clan_chat_queue.push(
                     CreateEmbed::new()
                         .title("")
                         .author(CreateEmbedAuthor::new(chat.sender.clone()).icon_url(author_image))
@@ -181,13 +185,6 @@ async fn new_clan_chats(
                         .color(0x0000FF)
                         .timestamp(right_now),
                 );
-
-                let new_chat_result = ChannelId::new(channel_id)
-                    .send_message(&*discord_http_client, clan_chat_to_discord)
-                    .await;
-                if let Err(e) = new_chat_result {
-                    error!("Error sending normal cc: {:?}", e);
-                }
             }
             _ => {}
         }
@@ -260,6 +257,7 @@ async fn new_clan_chats(
         match possible_broadcast {
             None => {
                 if league_world {
+                    //This checks for leagues only broadcasts. Like new area, etc
                     let possible_leagues_message = handler.extract_leagues_message().await;
                     if let Some(leagues_message) = possible_leagues_message {
                         let mut broadcast_embed = CreateEmbed::new()
@@ -273,17 +271,12 @@ async fn new_clan_chats(
                                 broadcast_embed = broadcast_embed.image(icon_url);
                             }
                         }
-                        let broadcast_message = CreateMessage::new().embed(broadcast_embed);
+
                         //Only send if theres a leagues channel
-                        if let Some(channel_to_send_broadcast) =
+                        if let Some(_channel_to_send_broadcast) =
                             registered_guild.leagues_broadcast_channel
                         {
-                            let new_broad_cast = ChannelId::new(channel_to_send_broadcast)
-                                .send_message(&*discord_http_client, broadcast_message)
-                                .await;
-                            if let Err(e) = new_broad_cast {
-                                error!("Error sending broadcast: {:?}", e);
-                            }
+                            leagues_broadcast_queue.push(broadcast_embed);
                         }
                     }
                 }
@@ -304,21 +297,86 @@ async fn new_clan_chats(
                         broadcast_embed = broadcast_embed.image(icon_url);
                     }
                 }
-                let broadcast_message = CreateMessage::new().embed(broadcast_embed);
-                let possible_channel_to_send_broadcast = match league_world {
-                    true => registered_guild.leagues_broadcast_channel,
-                    false => registered_guild.broadcast_channel,
-                };
-                if let Some(channel_to_send_broadcast) = possible_channel_to_send_broadcast {
-                    let new_broad_cast = ChannelId::new(channel_to_send_broadcast)
-                        .send_message(&*discord_http_client, broadcast_message)
-                        .await;
-                    if let Err(e) = new_broad_cast {
-                        error!("Error sending broadcast: {:?}", e);
+
+                match league_world {
+                    true => {
+                        if registered_guild.leagues_broadcast_channel.is_some() {
+                            leagues_broadcast_queue.push(broadcast_embed);
+                        }
                     }
-                }
+                    false => {
+                        if registered_guild.broadcast_channel.is_some() {
+                            broadcast_queue.push(broadcast_embed);
+                        }
+                    }
+                };
             }
         };
+    }
+
+    let today = chrono::Utc::now().date_naive().format("%Y-%m-%d");
+    let redis_broadcast_stats_prefix = format!("chat_stats:{}", today);
+
+    //Send all the messages
+    if clan_chat_queue.len() > 0 {
+        let clan_chat_queue_length = clan_chat_queue.len();
+        if let Some(channel_id) = registered_guild.clan_chat_channel {
+            let result = ChannelId::new(channel_id)
+                .send_message(
+                    &*discord_http_client,
+                    CreateMessage::new().embeds(clan_chat_queue),
+                )
+                .await;
+            if let Err(_e) = result {
+                // error!("Error sending clan chat: {:?}", e);
+            }
+        }
+        let clan_chat_key = format!("{}:{}", redis_broadcast_stats_prefix, "clan_chat");
+        let _: () = redis_connection
+            .incr(clan_chat_key.as_str(), clan_chat_queue_length)
+            .expect("failed to execute INCR for 'Clan Chat'");
+    }
+
+    if broadcast_queue.len() > 0 {
+        let broadcast_key = format!("{}:{}", redis_broadcast_stats_prefix, "broadcast");
+        let broadcast_queue_length = broadcast_queue.len();
+        if let Some(channel_id) = registered_guild.broadcast_channel {
+            let result = ChannelId::new(channel_id)
+                .send_message(
+                    &*discord_http_client,
+                    CreateMessage::new().embeds(broadcast_queue),
+                )
+                .await;
+            if let Err(_e) = result {
+                // error!("Error sending broadcast: {:?}", e);
+            }
+        }
+        let _: () = redis_connection
+            .incr(broadcast_key.as_str(), broadcast_queue_length)
+            .expect("failed to execute INCR for 'Broadcast'");
+    }
+
+    if leagues_broadcast_queue.len() > 0 {
+        let leagues_broadcast_queue_length = leagues_broadcast_queue.len();
+        if let Some(channel_id) = registered_guild.leagues_broadcast_channel {
+            let result = ChannelId::new(channel_id)
+                .send_message(
+                    &*discord_http_client,
+                    CreateMessage::new().embeds(leagues_broadcast_queue),
+                )
+                .await;
+            if let Err(_e) = result {
+                // error!("Error sending leagues broadcast: {:?}", e);
+            }
+        }
+        let leagues_broadcast_key =
+            format!("{}:{}", redis_broadcast_stats_prefix, "leagues_broadcast");
+        let _: () = redis_connection
+            .incr(
+                leagues_broadcast_key.as_str(),
+                leagues_broadcast_queue_length,
+            )
+            .expect("failed to execute INCR for 'Broadcast'");
     }
 
     return Ok("Message processed".to_string());

@@ -79,7 +79,7 @@ client.getBotInfo().then((info) => {
 
 
       <div class="mt-4 ">
-        <div class="stats">
+        <div class="stats stats-vertical md:stats-horizontal">
           <div class="stat">
             <div class="stat-title">
               Servers Joined
@@ -95,6 +95,14 @@ client.getBotInfo().then((info) => {
             </div>
             <div class="stat-value text-secondary">
               {{ botInfo?.connected_users.toLocaleString()}}
+            </div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">
+              Messages sent today
+            </div>
+            <div class="stat-value text-accent">
+              {{ botInfo?.total_chat_messages_for_today?.toLocaleString()}}
             </div>
           </div>
         </div>
