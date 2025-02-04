@@ -134,6 +134,34 @@ impl GuildsDb {
         }
     }
 
+    pub async fn reset_verification_code(&self, guild_id: u64) -> Result<String, anyhow::Error> {
+        let saved_guild_query = self.get_by_guild_id(guild_id).await;
+        match saved_guild_query {
+            Ok(saved_guild) => match saved_guild {
+                Some(mut guild) => {
+                    let check_for_unique_code = self
+                        .recursive_check_for_unique_code(guild.verification_code.clone())
+                        .await;
+                    match check_for_unique_code {
+                        Ok(new_code) => {
+                            guild.verification_code = new_code.clone();
+                            guild.hashed_verification_code = hash_string(new_code.clone());
+                            self.update_guild(guild).await;
+                            Ok(new_code)
+                        }
+                        Err(_) => Err(anyhow::Error::msg("Failed to reset verification code.")),
+                    }
+                }
+                None => Err(anyhow::Error::msg(
+                    "Could not find a clan with that guild id.",
+                )),
+            },
+            Err(_) => Err(anyhow::Error::msg(
+                "Failed to get the saved guild to  reset verification code.",
+            )),
+        }
+    }
+
     pub async fn get_guild_by_code_and_clan_name(
         &self,
         code: String,
