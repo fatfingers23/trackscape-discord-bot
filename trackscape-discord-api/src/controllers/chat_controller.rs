@@ -1,5 +1,5 @@
 use crate::websocket_server::DiscordToClanChatMessage;
-use crate::{handler, ChatServerHandle};
+use crate::{handler, ChatServerHRandle};
 use actix_web::web::Data;
 use actix_web::{error, post, web, Error, HttpRequest, HttpResponse, Scope};
 use celery::Celery;

@@ -36,9 +36,17 @@ impl PersonalBestActivitiesDb {
             PersonalBestActivitiesModel::COLLECTION_NAME,
         );
 
-        let filter = doc! {
-            "activity_name": trimmed_activity_name
+        //Matches case insensitive and exact name from start and end
+        let name_filter = format!("^{}$", trimmed_activity_name);
+        let re = mongodb::bson::Regex {
+            pattern: name_filter,
+            options: "i".to_string(),
         };
+
+        let filter = doc! {
+            "activity_name": re
+        };
+
         match collection.find_one(filter.clone(), None).await? {
             Some(activity) => {
                 return Ok(activity);
