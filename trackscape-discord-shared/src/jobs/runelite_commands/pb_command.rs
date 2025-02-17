@@ -2,7 +2,6 @@ use super::get_runelite_api_url;
 use crate::{database::clan_mates::ClanMates, jobs::job_helpers::get_mongodb};
 use anyhow::{anyhow, Ok};
 use capitalize::Capitalize;
-use rand::Rng;
 use reqwest::StatusCode;
 use tokio::time::sleep;
 
@@ -18,14 +17,6 @@ pub async fn get_pb(message: String, player: String, guild_id: u64) -> Result<()
     let trimmed_boss = boss.trim();
     //Should match whats in RL with spaces and each capitalized.
     println!("Long Boss name is: {}", trimmed_boss);
-
-    //Easter egg
-    if trimmed_boss.to_lowercase() == "nerdicus" {
-        let random_pb: f64 = rand::thread_rng().gen_range(0.50..10_000.00);
-        let random_pb_round = (random_pb * 100f64).trunc() / 100.0;
-        let _ = log_pb(trimmed_boss, player, guild_id, random_pb_round).await?; // Await the log_pb function call and assign the result to a variable
-        return Ok(());
-    }
 
     let runelite_api_url = get_runelite_api_url().await?;
     let full_url = format!(
@@ -240,6 +231,24 @@ fn get_boss_long_name(message: &String) -> String {
         "hs4" | "hs 4" => "Hallowed Sepulchre Floor 4",
         "hs5" | "hs 5" => "Hallowed Sepulchre Floor 5",
 
+        // Colossal Wyrm Basic Agility Course
+        "wbac"
+        | "cwbac"
+        | "wyrmb"
+        | "wyrmbasic"
+        | "wyrm basic"
+        | "colossal basic"
+        | "colossal wyrm basic" => "Colossal Wyrm Agility Course (Basic)",
+
+        // Colossal Wyrm Advanced Agility Course
+        "waac"
+        | "cwaac"
+        | "wyrma"
+        | "wyrmadvanced"
+        | "wyrm advanced"
+        | "colossal advanced"
+        | "colossal wyrm advanced" => "Colossal Wyrm Agility Course (Advanced)",
+
         // Prifddinas Agility Course
         "prif" | "prifddinas" => "Prifddinas Agility Course",
 
@@ -356,7 +365,29 @@ fn get_boss_long_name(message: &String) -> String {
         // lunar chest variants
         "lunar chests" | "perilous moons" | "perilous moon" | "moons of peril" => "Lunar Chest",
 
-        //TODO have to return and captlize the first letter of each word
+        // hunter rumour variants
+        "hunterrumour" | "hunter contract" | "hunter contracts" | "hunter tasks"
+        | "hunter task" | "rumours" | "rumour" => "Hunter Rumours",
+
+        // sol heredit
+        "sol" | "colo" | "colosseum" | "fortis colosseum" => "Sol Heredit",
+
+        "bird egg" | "bird eggs" | "bird's egg" | "bird's eggs" => "Bird's egg offerings",
+
+        "amox" => "Amoxliatl",
+
+        "the hueycoatl" | "huey" => "Hueycoatl",
+
+        "crystal chest" => "crystal chest",
+
+        "larran small chest" | "larran's small chest" => "Larran's small chest",
+
+        "larran chest" | "larran's chest" | "larran big chest" | "larran's big chest" => {
+            "Larran's big chest"
+        }
+
+        "brimstone chest" => "Brimstone chest",
+
         _ => {
             match_found = false;
             ""
