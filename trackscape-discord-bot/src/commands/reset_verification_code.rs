@@ -5,9 +5,7 @@ use serenity::model::prelude::Permissions;
 
 pub fn register() -> CreateCommand {
     CreateCommand::new("reset_verification_code")
-        .description(
-            "Resets the verification code for the server. MUST UPDATE THE NEW CODE IN THE PLUGIN.",
-        )
+        .description("Resets the verification code. MUST UPDATE THE NEW CODE IN THE PLUGIN.")
         .default_member_permissions(Permissions::MANAGE_GUILD)
 }
 

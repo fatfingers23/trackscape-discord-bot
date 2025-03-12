@@ -186,7 +186,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                             .disallowed_broadcast_types
                             .iter()
                             .find(|&x| {
-                                if let BroadcastType::Quest = x {
+                                if let BroadcastType::PetDrop = x {
                                     return true;
                                 }
                                 false
