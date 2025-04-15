@@ -15,3 +15,4 @@ pub mod set_wom_id_command;
 pub mod stop_leagues_notifications;
 pub mod toggle_broadcasts_command;
 pub mod trackscape_command_trait;
+pub mod set_custom_drop_broadcast_filter;

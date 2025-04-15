@@ -99,6 +99,14 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                         None
                     }
                     Some(mut drop_item) => {
+                        if self.check_if_filtered_broad_cast(drop_item.item_name.clone()) {
+                            println!(
+                                "Filtered out broadcast: Player={}, Item={}",
+                                drop_item.player_it_happened_to.clone(),
+                                drop_item.item_name.clone()
+                            );
+                            return None;
+                        }
                         match &self.item_mapping {
                             Some(item_mapping) => {
                                 for item in item_mapping {
@@ -525,6 +533,14 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                 None
             }
             Some(drop_item) => {
+                if self.check_if_filtered_broad_cast(drop_item.item_name.clone()) {
+                    println!(
+                        "Filtered out broadcast: Player={}, Item={}",
+                        drop_item.player_it_happened_to.clone(),
+                        drop_item.item_name.clone()
+                    );
+                    return None;
+                }
                 if !self.leagues_message {
                     self.drop_log_db
                         .new_drop_log(drop_item.clone(), self.registered_guild.guild_id)
@@ -973,6 +989,18 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
             });
         if is_disallowed.is_some() {
             return true;
+        }
+        false
+    }
+
+    fn check_if_filtered_broad_cast(&self, item: String) -> bool {
+        if let Some(filters) = &self.registered_guild.custom_drop_broadcast_filter {
+            let item_lower = item.to_lowercase();
+            for filter in filters {
+                if item_lower.contains(&filter.to_lowercase()) {
+                    return true;
+                }
+            }
         }
         false
     }
