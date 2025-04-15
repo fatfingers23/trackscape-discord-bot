@@ -914,6 +914,48 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
             x if x.contains("tombs of amascut") => {
                 "https://oldschool.runescape.wiki/images/Tombs_of_Amascut.png".to_string()
             }
+            x if x.contains("colosseum") => {
+                "https://oldschool.runescape.wiki/images/Sol_Heredit.png".to_string()
+            }
+            x if x.contains("hueycoatl") => {
+                "https://oldschool.runescape.wiki/images/The_Hueycoatl.png".to_string()
+            }
+            x if x.contains("whisperer") => {
+                "https://oldschool.runescape.wiki/images/The_Whisperer.png".to_string()
+            }
+            x if x.contains("leviathan") => {
+                "https://oldschool.runescape.wiki/images/The_Leviathan.png".to_string()
+            }
+            x if x.contains("mimic") => {
+                "https://oldschool.runescape.wiki/images/The_Mimic.png".to_string()
+            }
+            x if x.contains("zulrah") => {
+                "https://oldschool.runescape.wiki/images/Zulrah_(serpentine).png".to_string()
+            }
+            x if x.contains("corrupted gauntlet") => {
+                "https://oldschool.runescape.wiki/images/Corrupted_Hunllef.png".to_string()
+            }
+            x if x.contains("gauntlet") => {
+                "https://oldschool.runescape.wiki/images/Crystalline_Hunllef.png".to_string()
+            }
+            x if x.contains("inferno") => {
+                "https://oldschool.runescape.wiki/images/TzKal-Zuk.png".to_string()
+            }
+            x if x.contains("fight caves") => {
+                "https://oldschool.runescape.wiki/images/TzTok-Jad.png".to_string()
+            }
+            x if x.contains("duke sucellus") => {
+                "https://oldschool.runescape.wiki/images/Duke_Sucellus.png".to_string()
+            }
+            x if x.contains("phantom muspah") => {
+                "https://oldschool.runescape.wiki/images/Phantom_Muspah_(ranged).png".to_string()
+            }
+            x if x.contains("royal titans") => {
+                "https://oldschool.runescape.wiki/images/Eldric_the_Ice_King.png".to_string()
+            }
+            x if x.contains("grotesque guardians") => {
+                "https://oldschool.runescape.wiki/images/Dusk_(2nd_form).png".to_string()
+            }
             _ => format!("https://oldschool.runescape.wiki/images/{}.png", activity).to_string(),
         }
     }
