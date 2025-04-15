@@ -316,8 +316,17 @@ impl EventHandler for Bot {
                     )
                     .await
                 }
-                "custom_drop_broadcast_filter" => {
+                "set_custom_drop_broadcast_filter" => {
                     commands::set_custom_drop_broadcast_filter::run(
+                        &command.data.options,
+                        &ctx,
+                        &self.mongo_db,
+                        command.guild_id.unwrap().get(),
+                    )
+                    .await
+                }
+                "get_custom_drop_broadcast_filter" => {
+                    commands::get_custom_drop_broadcast_filter::run(
                         &command.data.options,
                         &ctx,
                         &self.mongo_db,
@@ -369,6 +378,7 @@ fn get_commands() -> Vec<CreateCommand> {
     commands.push(commands::stop_leagues_notifications::register());
     commands.push(commands::reset_verification_code::register());
     commands.push(commands::set_custom_drop_broadcast_filter::register());
+    commands.push(commands::get_custom_drop_broadcast_filter::register());
     commands
 }
 pub async fn create_commands_for_guild(guild_id: &GuildId, ctx: Context) {

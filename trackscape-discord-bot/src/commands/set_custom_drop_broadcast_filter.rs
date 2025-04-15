@@ -8,14 +8,14 @@ use serenity::model::prelude::Permissions;
 use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
 
 pub fn register() -> CreateCommand {
-    CreateCommand::new("custom_drop_broadcast_filter")
+    CreateCommand::new("set_custom_drop_broadcast_filter")
         .description("Sets a list of words/items to be filtered from the Broadcast channel.")
         .default_member_permissions(Permissions::MANAGE_GUILD)
         .add_option(
             CreateCommandOption::new(
                 CommandOptionType::String,
-                "Filter list",
-                "Enter a list of terms to filter drop broadcasts with, each separated by a comma e.g. rune, Torag, (g)",
+                "filter_list",
+                "Enter a list to filter drop broadcasts with, separated by comma's e.g. rune, Torag, (g)",
             )
             .required(true),
         )
@@ -34,10 +34,8 @@ pub async fn run(
             let filter = command.get(0).expect("Expected a list of values");
 
             if let CommandDataOptionValue::String(ref filter) = filter.value {
-                let filter_list: Vec<String> = filter
-                    .split(',')
-                    .map(|s| s.trim().to_string()) 
-                    .collect();
+                let filter_list: Vec<String> =
+                    filter.split(',').map(|s| s.trim().to_string()).collect();
                 saved_guild.custom_drop_broadcast_filter = Some(filter_list);
                 db.guilds.update_guild(saved_guild).await;
                 None
