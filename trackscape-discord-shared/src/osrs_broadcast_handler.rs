@@ -143,6 +143,10 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                             false => ":tada: New raid drop!".to_string(),
                         };
 
+                        if self.check_if_filtered_broad_cast(BroadcastType::RaidDrop,drop_item.player_it_happened_to.clone(), drop_item.item_name.clone()) {
+                            return None;
+                        }
+
                         Some(BroadcastMessageToDiscord {
                             player_it_happened_to: drop_item.player_it_happened_to.clone(),
                             type_of_broadcast: BroadcastType::RaidDrop,
@@ -199,6 +203,10 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                             true => ":bar_chart: New Leagues Pet drop!".to_string(),
                             false => ":tada: New Pet drop!".to_string(),
                         };
+
+                        if self.check_if_filtered_broad_cast(BroadcastType::PetDrop, pet_drop.player_it_happened_to.clone(),pet_drop.pet_name.clone()) {
+                            return None;
+                        }
 
                         Some(BroadcastMessageToDiscord {
                             type_of_broadcast: BroadcastType::PetDrop,
@@ -549,6 +557,10 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     false => ":tada: New High Value drop!".to_string(),
                 };
 
+                if self.check_if_filtered_broad_cast(BroadcastType::ItemDrop, drop_item.player_it_happened_to.clone(),drop_item.item_name.clone()) {
+                    return None;
+                }
+
                 Some(BroadcastMessageToDiscord {
                     player_it_happened_to: drop_item.player_it_happened_to.clone(),
                     type_of_broadcast: BroadcastType::ItemDrop,
@@ -668,7 +680,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     && possible_quests.is_some()
                     && self.quests.is_some()
                 {
-                    let quest_name = exported_data.quest_name;
+                    let quest_name = exported_data.quest_name.clone();
 
                     let quests = &possible_quests.unwrap();
                     let possible_difficulty = quests.iter().find(|&x| x.name == quest_name);
@@ -687,6 +699,11 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     true => ":bar_chart: New Leagues quest completed!".to_string(),
                     false => ":tada: New quest completed!".to_string(),
                 };
+
+                if self.check_if_filtered_broad_cast(BroadcastType::Quest, exported_data.player_it_happened_to.clone(),exported_data.quest_name.clone()) {
+                    return None;
+                }
+
                 Some(BroadcastMessageToDiscord {
                     type_of_broadcast: BroadcastType::Quest,
                     player_it_happened_to: exported_data.player_it_happened_to,
@@ -735,6 +752,9 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     true => ":bar_chart: New Leagues diary completed!".to_string(),
                     false => ":tada: New diary completed!".to_string(),
                 };
+                if self.check_if_filtered_broad_cast(BroadcastType::Diary, exported_data.player_it_happened_to.clone(),exported_data.diary_name.clone() + " " + exported_data.diary_tier.to_string().as_str()) {
+                    return None;
+                }
                 Some(BroadcastMessageToDiscord {
                     type_of_broadcast: BroadcastType::Diary,
                     player_it_happened_to: exported_data.player_it_happened_to,
@@ -794,6 +814,10 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     true => ":bar_chart: New Leagues collection log item!".to_string(),
                     false => ":tada: New collection log item!".to_string(),
                 };
+
+                if self.check_if_filtered_broad_cast(BroadcastType::CollectionLog,collection_log_broadcast.player_it_happened_to.clone(), collection_log_broadcast.item_name.clone()) {
+                    return None;
+                }
                 Some(BroadcastMessageToDiscord {
                     type_of_broadcast: BroadcastType::CollectionLog,
                     player_it_happened_to: collection_log_broadcast.player_it_happened_to,
@@ -833,6 +857,10 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
 
                 let job = record_new_pb::new(exported_data.clone(), self.registered_guild.guild_id);
                 let _ = self.job_queue.send_task(job).await;
+
+                if self.check_if_filtered_broad_cast(BroadcastType::PersonalBest, exported_data.player.clone(), exported_data.activity.clone()) {
+                    return None;
+                }
 
                 Some(BroadcastMessageToDiscord {
                     type_of_broadcast: BroadcastType::PersonalBest,
@@ -973,6 +1001,28 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
             });
         if is_disallowed.is_some() {
             return true;
+        }
+        false
+    }
+
+    fn check_if_filtered_broad_cast(&self, broadcast_type: BroadcastType, broadcast_player: String, broadcast_element: String) -> bool {
+        if let Some(ref filter_map) = self.registered_guild.custom_drop_broadcast_filter {
+            if let Some(filter_list) = filter_map.get(&broadcast_type) {
+                let broadcast_element_lower = broadcast_element.to_lowercase();
+                for filter in filter_list {
+                    if broadcast_element_lower.contains(&filter.to_lowercase()) {
+                        println!(
+                            "Filtered out {} broadcast: Player={}, Raid Item={}",
+                            broadcast_type.to_string(),
+                            broadcast_player.clone(),
+                            broadcast_element.clone()
+                        );
+                        return true;
+                    }
+                }
+            } else {
+                return false;
+            }
         }
         false
     }
