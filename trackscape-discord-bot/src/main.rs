@@ -1,6 +1,5 @@
 mod commands;
 mod on_boarding_message;
-
 use crate::on_boarding_message::send_on_boarding;
 use dotenv::dotenv;
 use serenity::all::{
@@ -168,7 +167,9 @@ impl EventHandler for Bot {
             let global_guild_commands =
                 Command::set_global_commands(&ctx.http, get_commands()).await;
             match global_guild_commands {
-                Ok(_) => {}
+                Ok(_) => {
+                    info!("Created global commands");
+                }
                 Err(e) => {
                     error!("Error creating global commands: {}", e)
                 }
