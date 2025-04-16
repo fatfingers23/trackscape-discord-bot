@@ -34,7 +34,7 @@ pub struct RegisteredGuildModel {
     pub pk_value_threshold: Option<i64>,
     pub wom_id: Option<i64>,
     pub created_at: Option<DateTime>,
-    pub custom_drop_broadcast_filter: Option<Vec<String>>,
+    pub custom_drop_broadcast_filter: Option<std::collections::HashMap<BroadcastType, Vec<String>>>,
 }
 
 impl RegisteredGuildModel {
@@ -58,7 +58,7 @@ impl RegisteredGuildModel {
             pk_value_threshold: None,
             wom_id: None,
             created_at: DateTime::now().into(),
-            custom_drop_broadcast_filter: Some(Vec::new()),
+            custom_drop_broadcast_filter: Some(std::collections::HashMap::new()),
         }
     }
 

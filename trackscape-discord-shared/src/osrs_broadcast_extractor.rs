@@ -300,7 +300,7 @@ pub mod osrs_broadcast_extractor {
         }
     }
 
-    #[derive(PartialEq, Deserialize, Serialize, Debug, Clone)]
+    #[derive(PartialEq, Deserialize, Serialize, Debug, Clone, Eq, Hash)]
     pub enum BroadcastType {
         ItemDrop,
         PetDrop,
