@@ -625,9 +625,9 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                 if is_disallowed {
                     return None;
                 }
-                if self.registered_guild.drop_price_threshold.is_some() {
+                if self.registered_guild.clue_item_price_threshold.is_some() {
                     if clue_item.item_value.is_some() {
-                        if self.registered_guild.drop_price_threshold.unwrap()
+                        if self.registered_guild.clue_item_price_threshold.unwrap()
                             > clue_item.item_value.unwrap()
                         {
                             return None;

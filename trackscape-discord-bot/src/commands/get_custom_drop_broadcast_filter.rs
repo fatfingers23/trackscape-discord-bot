@@ -42,6 +42,10 @@ pub fn register() -> CreateCommand {
                 BroadcastType::PersonalBest.to_string(),
                 BroadcastType::PersonalBest.to_slug(),
             )
+            .add_string_choice(
+                BroadcastType::ClueItem.to_string(),
+                BroadcastType::ClueItem.to_slug(),
+            )
             .required(true),
         )
 }
