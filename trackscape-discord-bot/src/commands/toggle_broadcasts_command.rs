@@ -38,6 +38,10 @@ pub fn register() -> CreateCommand {
                 BroadcastType::PetDrop.to_slug(),
             )
             .add_string_choice(
+                BroadcastType::ClueItem.to_string(),
+                BroadcastType::ClueItem.to_slug(),
+            )
+            .add_string_choice(
                 BroadcastType::Invite.to_string(),
                 BroadcastType::Invite.to_slug(),
             )
