@@ -35,7 +35,6 @@ pub struct RegisteredGuildModel {
     pub wom_id: Option<i64>,
     pub created_at: Option<DateTime>,
     pub custom_drop_broadcast_filter: Option<std::collections::HashMap<BroadcastType, Vec<String>>>,
-    pub clue_item_price_threshold: Option<i64>,
 }
 
 impl RegisteredGuildModel {
@@ -60,7 +59,6 @@ impl RegisteredGuildModel {
             wom_id: None,
             created_at: DateTime::now().into(),
             custom_drop_broadcast_filter: Some(std::collections::HashMap::new()),
-            clue_item_price_threshold: None,
         }
     }
 

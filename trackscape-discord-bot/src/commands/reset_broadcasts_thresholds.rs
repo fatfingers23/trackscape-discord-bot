@@ -33,9 +33,6 @@ pub fn register() -> CreateCommand {
                 BroadcastType::Diary.to_string(),
                 BroadcastType::Diary.to_slug(),
             )
-            .add_string_choice(
-                BroadcastType::ClueItem.to_string(),
-                 BroadcastType::ClueItem.to_slug())
             .required(true),
         )
 }
@@ -68,9 +65,6 @@ pub async fn run(
                     }
                     BroadcastType::Diary => {
                         saved_guild.min_diary_tier = None;
-                    }
-                    BroadcastType::ClueItem => {
-                        saved_guild.clue_item_price_threshold = None;
                     }
                     _ => {
                         return Some("Invalid broadcast type.".to_string());

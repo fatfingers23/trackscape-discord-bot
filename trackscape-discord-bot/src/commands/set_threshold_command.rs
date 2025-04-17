@@ -19,7 +19,6 @@ pub fn register() -> CreateCommand {
             )
             .add_string_choice("Item Drops", "item_drop")
             .add_string_choice("PK Loot", "pk_loot")
-            .add_string_choice("Clue Item", "clue_item")
             .required(true),
         )
         .add_option(
@@ -59,11 +58,6 @@ pub async fn run(
                         "pk_loot" => {
                             //TODO: Implement
                             saved_guild.pk_value_threshold = Some(threshold);
-                            db.guilds.update_guild(saved_guild).await;
-                            None
-                        }
-                        "clue_item" => {
-                            saved_guild.clue_item_price_threshold = Some(threshold);
                             db.guilds.update_guild(saved_guild).await;
                             None
                         }

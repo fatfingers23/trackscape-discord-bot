@@ -6,15 +6,14 @@ use crate::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
 use crate::jobs::new_pb_job::record_new_pb;
 use crate::jobs::{remove_clanmate_job, JobQueue};
 use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-    coffer_donation_broadcast_extractor, coffer_withdrawal_broadcast_extractor,
-    collection_log_broadcast_extractor, diary_completed_broadcast_extractor,
-    drop_broadcast_extractor, expelled_from_clan_broadcast_extractor, get_broadcast_type,
-    invite_broadcast_extractor, leagues_catch_all_broadcast_extractor,
-    left_the_clan_broadcast_extractor, levelmilestone_broadcast_extractor,
-    personal_best_broadcast_extractor, pet_broadcast_extractor, pk_broadcast_extractor,
-    quest_completed_broadcast_extractor, raid_broadcast_extractor, xpmilestone_broadcast_extractor,
-    clue_item_broadcast_extractor, 
-    BroadcastType, ClanMessage, LeaguesBroadCastType,
+    clue_item_broadcast_extractor, coffer_donation_broadcast_extractor,
+    coffer_withdrawal_broadcast_extractor, collection_log_broadcast_extractor,
+    diary_completed_broadcast_extractor, drop_broadcast_extractor,
+    expelled_from_clan_broadcast_extractor, get_broadcast_type, invite_broadcast_extractor,
+    leagues_catch_all_broadcast_extractor, left_the_clan_broadcast_extractor,
+    levelmilestone_broadcast_extractor, personal_best_broadcast_extractor, pet_broadcast_extractor,
+    pk_broadcast_extractor, quest_completed_broadcast_extractor, raid_broadcast_extractor,
+    xpmilestone_broadcast_extractor, BroadcastType, ClanMessage, LeaguesBroadCastType,
 };
 use crate::wiki_api::wiki_api::WikiQuest;
 use log::{error, info};
@@ -144,7 +143,11 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                             false => ":tada: New raid drop!".to_string(),
                         };
 
-                        if self.check_if_filtered_broad_cast(BroadcastType::RaidDrop,drop_item.player_it_happened_to.clone(), drop_item.item_name.clone()) {
+                        if self.check_if_filtered_broad_cast(
+                            BroadcastType::ItemDrop,
+                            drop_item.player_it_happened_to.clone(),
+                            drop_item.item_name.clone(),
+                        ) {
                             return None;
                         }
 
@@ -206,7 +209,11 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                             false => ":tada: New Pet drop!".to_string(),
                         };
 
-                        if self.check_if_filtered_broad_cast(BroadcastType::PetDrop, pet_drop.player_it_happened_to.clone(),pet_drop.pet_name.clone()) {
+                        if self.check_if_filtered_broad_cast(
+                            BroadcastType::PetDrop,
+                            pet_drop.player_it_happened_to.clone(),
+                            pet_drop.pet_name.clone(),
+                        ) {
                             return None;
                         }
 
@@ -559,7 +566,11 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     false => ":tada: New High Value drop!".to_string(),
                 };
 
-                if self.check_if_filtered_broad_cast(BroadcastType::ItemDrop, drop_item.player_it_happened_to.clone(),drop_item.item_name.clone()) {
+                if self.check_if_filtered_broad_cast(
+                    BroadcastType::ItemDrop,
+                    drop_item.player_it_happened_to.clone(),
+                    drop_item.item_name.clone(),
+                ) {
                     return None;
                 }
 
@@ -633,9 +644,9 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                 if is_disallowed {
                     return None;
                 }
-                if self.registered_guild.clue_item_price_threshold.is_some() {
+                if self.registered_guild.drop_price_threshold.is_some() {
                     if clue_item.item_value.is_some() {
-                        if self.registered_guild.clue_item_price_threshold.unwrap()
+                        if self.registered_guild.drop_price_threshold.unwrap()
                             > clue_item.item_value.unwrap()
                         {
                             return None;
@@ -648,7 +659,11 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     false => ":tada: New High Value drop!".to_string(),
                 };
 
-                if self.check_if_filtered_broad_cast(BroadcastType::ClueItem, clue_item.player_it_happened_to.clone(),clue_item.item_name.clone()) {
+                if self.check_if_filtered_broad_cast(
+                    BroadcastType::ItemDrop,
+                    clue_item.player_it_happened_to.clone(),
+                    clue_item.item_name.clone(),
+                ) {
                     return None;
                 }
 
@@ -789,7 +804,11 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     false => ":tada: New quest completed!".to_string(),
                 };
 
-                if self.check_if_filtered_broad_cast(BroadcastType::Quest, exported_data.player_it_happened_to.clone(),exported_data.quest_name.clone()) {
+                if self.check_if_filtered_broad_cast(
+                    BroadcastType::Quest,
+                    exported_data.player_it_happened_to.clone(),
+                    exported_data.quest_name.clone(),
+                ) {
                     return None;
                 }
 
@@ -841,7 +860,13 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     true => ":bar_chart: New Leagues diary completed!".to_string(),
                     false => ":tada: New diary completed!".to_string(),
                 };
-                if self.check_if_filtered_broad_cast(BroadcastType::Diary, exported_data.player_it_happened_to.clone(),exported_data.diary_name.clone() + " " + exported_data.diary_tier.to_string().as_str()) {
+                if self.check_if_filtered_broad_cast(
+                    BroadcastType::Diary,
+                    exported_data.player_it_happened_to.clone(),
+                    exported_data.diary_name.clone()
+                        + " "
+                        + exported_data.diary_tier.to_string().as_str(),
+                ) {
                     return None;
                 }
                 Some(BroadcastMessageToDiscord {
@@ -904,7 +929,11 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     false => ":tada: New collection log item!".to_string(),
                 };
 
-                if self.check_if_filtered_broad_cast(BroadcastType::CollectionLog,collection_log_broadcast.player_it_happened_to.clone(), collection_log_broadcast.item_name.clone()) {
+                if self.check_if_filtered_broad_cast(
+                    BroadcastType::ItemDrop,
+                    collection_log_broadcast.player_it_happened_to.clone(),
+                    collection_log_broadcast.item_name.clone(),
+                ) {
                     return None;
                 }
                 Some(BroadcastMessageToDiscord {
@@ -947,7 +976,11 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                 let job = record_new_pb::new(exported_data.clone(), self.registered_guild.guild_id);
                 let _ = self.job_queue.send_task(job).await;
 
-                if self.check_if_filtered_broad_cast(BroadcastType::PersonalBest, exported_data.player.clone(), exported_data.activity.clone()) {
+                if self.check_if_filtered_broad_cast(
+                    BroadcastType::PersonalBest,
+                    exported_data.player.clone(),
+                    exported_data.activity.clone(),
+                ) {
                     return None;
                 }
 
@@ -1094,14 +1127,19 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
         false
     }
 
-    fn check_if_filtered_broad_cast(&self, broadcast_type: BroadcastType, broadcast_player: String, broadcast_element: String) -> bool {
+    fn check_if_filtered_broad_cast(
+        &self,
+        broadcast_type: BroadcastType,
+        broadcast_player: String,
+        broadcast_element: String,
+    ) -> bool {
         if let Some(ref filter_map) = self.registered_guild.custom_drop_broadcast_filter {
             if let Some(filter_list) = filter_map.get(&broadcast_type) {
                 let broadcast_element_lower = broadcast_element.to_lowercase();
                 for filter in filter_list {
                     if broadcast_element_lower.contains(&filter.to_lowercase()) {
                         println!(
-                            "Filtered out {} broadcast: Player={}, Raid Item={}",
+                            "Filtered out {} broadcast: Player={}, Item={}",
                             broadcast_type.to_string(),
                             broadcast_player.clone(),
                             broadcast_element.clone()
