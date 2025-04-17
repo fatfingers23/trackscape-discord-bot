@@ -19,8 +19,12 @@ pub fn register() -> CreateCommand {
                 "broadcast",
                 "Broadcast type to reset notifications back to default.",
             )
-            .add_string_choice(ItemDrop.to_string(), ItemDrop.to_slug())
-            .add_string_choice(BroadcastType::Pk.to_string(), BroadcastType::Pk.to_slug())
+            .add_string_choice(
+                ItemDrop.to_string(),
+                 ItemDrop.to_slug())
+            .add_string_choice(
+                BroadcastType::Pk.to_string(),
+                 BroadcastType::Pk.to_slug())
             .add_string_choice(
                 BroadcastType::Quest.to_string(),
                 BroadcastType::Quest.to_slug(),
@@ -29,7 +33,9 @@ pub fn register() -> CreateCommand {
                 BroadcastType::Diary.to_string(),
                 BroadcastType::Diary.to_slug(),
             )
-            .add_string_choice(BroadcastType::ClueItem.to_string(), BroadcastType::ClueItem.to_slug())
+            .add_string_choice(
+                BroadcastType::ClueItem.to_string(),
+                 BroadcastType::ClueItem.to_slug())
             .required(true),
         )
 }
