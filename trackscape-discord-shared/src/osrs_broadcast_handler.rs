@@ -6,14 +6,7 @@ use crate::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
 use crate::jobs::new_pb_job::record_new_pb;
 use crate::jobs::{remove_clanmate_job, JobQueue};
 use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-    coffer_donation_broadcast_extractor, coffer_withdrawal_broadcast_extractor,
-    collection_log_broadcast_extractor, diary_completed_broadcast_extractor,
-    drop_broadcast_extractor, expelled_from_clan_broadcast_extractor, get_broadcast_type,
-    invite_broadcast_extractor, leagues_catch_all_broadcast_extractor,
-    left_the_clan_broadcast_extractor, levelmilestone_broadcast_extractor,
-    personal_best_broadcast_extractor, pet_broadcast_extractor, pk_broadcast_extractor,
-    quest_completed_broadcast_extractor, raid_broadcast_extractor, xpmilestone_broadcast_extractor,
-    BroadcastType, ClanMessage, LeaguesBroadCastType,
+    clue_item_broadcast_extractor, coffer_donation_broadcast_extractor, coffer_withdrawal_broadcast_extractor, collection_log_broadcast_extractor, diary_completed_broadcast_extractor, drop_broadcast_extractor, expelled_from_clan_broadcast_extractor, get_broadcast_type, invite_broadcast_extractor, leagues_catch_all_broadcast_extractor, left_the_clan_broadcast_extractor, levelmilestone_broadcast_extractor, personal_best_broadcast_extractor, pet_broadcast_extractor, pk_broadcast_extractor, quest_completed_broadcast_extractor, raid_broadcast_extractor, xpmilestone_broadcast_extractor, BroadcastType, ClanMessage, LeaguesBroadCastType
 };
 use crate::wiki_api::wiki_api::WikiQuest;
 use log::{error, info};
@@ -174,6 +167,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                 }
             }
             BroadcastType::ItemDrop => self.drop_item_handler().await,
+            BroadcastType::ClueItem => self.clue_item_handler().await,
             BroadcastType::PetDrop => {
                 let pet_drop_item = pet_broadcast_extractor(self.clan_message.message.clone());
                 match pet_drop_item {
@@ -605,6 +599,93 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     },
                     icon_url: drop_item.item_icon,
                     item_quantity: drop_item.item_value,
+                })
+            }
+        }
+    }
+
+    async fn clue_item_handler(&self) -> Option<BroadcastMessageToDiscord> {
+        let clue_item = clue_item_broadcast_extractor(self.clan_message.message.clone());
+
+        match clue_item {
+            None => {
+                error!(
+                    "Failed to extract clue item from message: {}",
+                    self.clan_message.message.clone()
+                );
+                None
+            }
+            Some(clue_item) => {
+                if !self.leagues_message {
+                    self.drop_log_db
+                        .new_drop_log(clue_item.clone(), self.registered_guild.guild_id)
+                        .await;
+                }
+                let is_disallowed = self.check_if_allowed_broad_cast(BroadcastType::ClueItem);
+                if is_disallowed {
+                    return None;
+                }
+                if self.registered_guild.drop_price_threshold.is_some() {
+                    if clue_item.item_value.is_some() {
+                        if self.registered_guild.drop_price_threshold.unwrap()
+                            > clue_item.item_value.unwrap()
+                        {
+                            return None;
+                        }
+                    }
+                }
+
+                let title = match self.leagues_message {
+                    true => ":bar_chart: New Leagues High Value drop!".to_string(),
+                    false => ":tada: New High Value drop!".to_string(),
+                };
+
+                if self.check_if_filtered_broad_cast(BroadcastType::ClueItem, clue_item.player_it_happened_to.clone(),clue_item.item_name.clone()) {
+                    return None;
+                }
+
+                Some(BroadcastMessageToDiscord {
+                    player_it_happened_to: clue_item.player_it_happened_to.clone(),
+                    type_of_broadcast: BroadcastType::ClueItem,
+                    title,
+                    message: match clue_item.item_quantity {
+                        //If there is only one of the items dropped
+                        1 => match clue_item.item_value {
+                            //If the item has a value with it
+                            None => format!(
+                                "{} received a clue item: {}.",
+                                clue_item.player_it_happened_to, clue_item.item_name
+                            ),
+                            _ => format!(
+                                "{} received a clue item: {} ({} coins).",
+                                clue_item.player_it_happened_to,
+                                clue_item.item_name,
+                                clue_item
+                                    .item_value
+                                    .unwrap()
+                                    .to_formatted_string(&Locale::en)
+                            ),
+                        },
+                        _ => match clue_item.item_value {
+                            //If the item has a value with it
+                            None => format!(
+                                "{} received a clue item: {}",
+                                clue_item.player_it_happened_to,
+                                clue_item.item_name,
+                            ),
+                            _ => format!(
+                                "{} received a clue item: {} ({} coins).",
+                                clue_item.player_it_happened_to,
+                                clue_item.item_name,
+                                clue_item
+                                    .item_value
+                                    .unwrap()
+                                    .to_formatted_string(&Locale::en)
+                            ),
+                        },
+                    },
+                    icon_url: clue_item.item_icon,
+                    item_quantity: clue_item.item_value,
                 })
             }
         }

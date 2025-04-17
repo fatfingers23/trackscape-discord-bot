@@ -333,7 +333,7 @@ pub mod osrs_broadcast_extractor {
         CombatMasteries,
         RelicTier,
         Unknown,
-        ClueItemBroadcast
+        ClueItem
     }
 
     impl BroadcastType {
@@ -361,7 +361,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::LeaguesRank => "Leagues Rank".to_string(),
                 BroadcastType::CombatMasteries => "Combat Masteries".to_string(),
                 BroadcastType::RelicTier => "Relic Tier".to_string(),
-                BroadcastType::ClueItemBroadcast => "Clue Item".to_string(),
+                BroadcastType::ClueItem => "Clue Item".to_string(),
             }
         }
 
@@ -384,6 +384,7 @@ pub mod osrs_broadcast_extractor {
                 "Leagues Rank" => BroadcastType::LeaguesRank,
                 "Combat Masteries" => BroadcastType::CombatMasteries,
                 "Relic Tier" => BroadcastType::RelicTier,
+                "Clue Item" => BroadcastType::ClueItem,
                 _ => BroadcastType::Unknown,
             }
         }
@@ -412,6 +413,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::LeaguesRank,
                 BroadcastType::CombatMasteries,
                 BroadcastType::RelicTier,
+                BroadcastType::ClueItem,
             ]
         }
 
@@ -845,7 +847,7 @@ pub mod osrs_broadcast_extractor {
             return BroadcastType::PetDrop;
         }
         if message_content.contains("received a clue item:") {
-            return BroadcastType::ClueItemBroadcast;
+            return BroadcastType::ClueItem;
         }
         if message_content.contains("has completed a quest:") {
             return BroadcastType::Quest;
@@ -891,7 +893,6 @@ pub mod osrs_broadcast_extractor {
     fn format_wiki_image_name(item_name: String) -> String {
         let replace_spaces = item_name.replace(" ", "_");
         let encoded_item_name = urlencoding::encode(replace_spaces.as_str());
-        println!("Encoded item name: {}", encoded_item_name.clone().parse::<String>().unwrap());
         encoded_item_name.parse().unwrap()
     }
 
