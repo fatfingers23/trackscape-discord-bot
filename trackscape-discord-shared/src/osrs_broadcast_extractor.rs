@@ -5,6 +5,7 @@ pub mod osrs_broadcast_extractor {
 
     static RAID_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) received special loot from a raid: (?P<item>.*?)([.]|$)"#,).unwrap());
     static DROP_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) received a drop: (?:((?P<quantity>[,\d]+) x )?)(?P<item>.*?)(?: \((?P<value>[,\d]+) coins\))?(?: from .*?)?[.]?$"#).unwrap());
+    static CLUE_ITEM_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) received a clue item: (?P<item>.*?)(?: \((?P<value>[,\d]+) coins\))?[.]?$"#).unwrap());
     static PET_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) (?:has a funny feeling.*?|feels something weird sneaking into (?P<pronoun>her|his) backpack): (?P<pet_name>.*?) at (?P<count>[,\d]+) (?P<count_type>.*?)[.]$"#).unwrap());
     static QUEST_COMPLETED_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) has completed a quest: (?P<quest_name>.+)$"#,).unwrap());
     static DIARY_COMPLETED_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) has completed the (?P<diary_tier>Easy|Medium|Hard|Elite) (?P<diary_name>.*?).$"#).unwrap());
@@ -231,6 +232,14 @@ pub mod osrs_broadcast_extractor {
         pub value: i64,
     }
 
+    pub struct ClueItemBroadcast {
+        pub player_it_happened_to: String,
+        pub item_name: String,
+        pub item_quantity: i64,
+        pub item_value: Option<i64>,
+        pub item_icon: Option<String>,
+    }
+
     pub struct CollectionLogBroadcast {
         pub player_it_happened_to: String,
         pub item_name: String,
@@ -324,6 +333,7 @@ pub mod osrs_broadcast_extractor {
         CombatMasteries,
         RelicTier,
         Unknown,
+        ClueItem
     }
 
     impl BroadcastType {
@@ -351,6 +361,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::LeaguesRank => "Leagues Rank".to_string(),
                 BroadcastType::CombatMasteries => "Combat Masteries".to_string(),
                 BroadcastType::RelicTier => "Relic Tier".to_string(),
+                BroadcastType::ClueItem => "Clue Item".to_string(),
             }
         }
 
@@ -373,6 +384,7 @@ pub mod osrs_broadcast_extractor {
                 "Leagues Rank" => BroadcastType::LeaguesRank,
                 "Combat Masteries" => BroadcastType::CombatMasteries,
                 "Relic Tier" => BroadcastType::RelicTier,
+                "Clue Item" => BroadcastType::ClueItem,
                 _ => BroadcastType::Unknown,
             }
         }
@@ -401,6 +413,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::LeaguesRank,
                 BroadcastType::CombatMasteries,
                 BroadcastType::RelicTier,
+                BroadcastType::ClueItem,
             ]
         }
 
@@ -466,6 +479,26 @@ pub mod osrs_broadcast_extractor {
                 pet_icon: get_wiki_image_url(pet_name.to_string()).parse().ok(),
                 actions_optioned_at: count.parse().ok(),
                 action_for_pet: count_type.parse().ok(),
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn clue_item_broadcast_extractor(message: String) -> Option<DropItemBroadcast> {
+        if let Some(caps) = CLUE_ITEM_BROADCAST_EXTRACTOR.captures(message.as_str()) {
+            let player_name = caps.name("player_name").unwrap().as_str();
+            let item = caps.name("item").unwrap().as_str();
+
+            let value_with_commas = caps.name("value").map_or("", |m| m.as_str());
+            let value: i64 = value_with_commas.replace(",", "").parse().unwrap_or(0);
+
+            Some(DropItemBroadcast {
+                player_it_happened_to: player_name.to_string(),
+                item_name: item.to_string(),
+                item_quantity: 1,
+                item_value: Some(value),
+                item_icon: Some(get_wiki_image_url(item.to_string())),
             })
         } else {
             None
@@ -812,6 +845,9 @@ pub mod osrs_broadcast_extractor {
                 && message_content.contains("backpack:")
         {
             return BroadcastType::PetDrop;
+        }
+        if message_content.contains("received a clue item:") {
+            return BroadcastType::ClueItem;
         }
         if message_content.contains("has completed a quest:") {
             return BroadcastType::Quest;
@@ -1166,6 +1202,35 @@ mod tests {
                         pet_broadcast.action_for_pet,
                         possible_pet_broadcast.pet_drop.action_for_pet
                     );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_clue_item_extractor() {
+        let possible_clue_item_broadcasts = get_clue_item_messages();
+        for possible_clue_item_broadcast in possible_clue_item_broadcasts {
+            let message = possible_clue_item_broadcast.message.clone();
+            let possible_clue_item =
+                osrs_broadcast_extractor::clue_item_broadcast_extractor(possible_clue_item_broadcast.message);
+            match possible_clue_item {
+                None => {
+                    info!("Failed to extract clue item from message: {}", message);
+                    assert!(false);
+                }
+                Some(clue_item) => {
+                    assert_eq!(clue_item.item_name, possible_clue_item_broadcast.item_name);
+                    assert_eq!(
+                        clue_item.item_quantity,
+                        possible_clue_item_broadcast.item_quantity
+                    );
+                    assert_eq!(clue_item.item_value, possible_clue_item_broadcast.item_value);
+                    assert_eq!(
+                        clue_item.player_it_happened_to,
+                        possible_clue_item_broadcast.player_it_happened_to
+                    );
+                    assert_eq!(clue_item.item_icon, possible_clue_item_broadcast.item_icon);
                 }
             }
         }
@@ -1809,6 +1874,72 @@ mod tests {
         });
 
         return possible_drop_broadcasts;
+    }
+
+    fn get_clue_item_messages() -> Vec<ItemMessageTest> {
+        let mut possible_clue_item_broadcasts: Vec<ItemMessageTest> = Vec::new();
+
+        possible_clue_item_broadcasts.push(ItemMessageTest {
+            message:
+                "RuneScape Player received a clue item: Saradomin d'hide body (136,662 coins)."
+                    .to_string(),
+            player_it_happened_to: "RuneScape Player".to_string(),
+            item_name: "Saradomin d'hide body".to_string(),
+            item_quantity: 1,
+            item_value: Some(136_662),
+            item_icon: Some(
+                "https://oldschool.runescape.wiki/images/Saradomin_d%27hide_body_detail.png".to_string(),
+            ),
+            _discord_message:
+                "RuneScape Player received a clue item: Saradomin d'hide body (136,662 coins).".to_string(),
+        });
+
+        possible_clue_item_broadcasts.push(ItemMessageTest {
+            message:
+                "RuneScape Player received a clue item: Blue wizard robe (g) (105,162 coins)."
+                    .to_string(),
+            player_it_happened_to: "RuneScape Player".to_string(),
+            item_name: "Blue wizard robe (g)".to_string(),
+            item_quantity: 1,
+            item_value: Some(105_162),
+            item_icon: Some(
+                "https://oldschool.runescape.wiki/images/Blue_wizard_robe_%28g%29_detail.png".to_string(),
+            ),
+            _discord_message:
+                "RuneScape Player received a clue item: Blue wizard robe (g) (105,162 coins).".to_string(),
+        });
+
+        possible_clue_item_broadcasts.push(ItemMessageTest {
+            message:
+                "RuneScape Player received a clue item: Master scroll book (empty) (200,472 coins)."
+                    .to_string(),
+            player_it_happened_to: "RuneScape Player".to_string(),
+            item_name: "Master scroll book (empty)".to_string(),
+            item_quantity: 1,
+            item_value: Some(200_472),
+            item_icon: Some(
+                "https://oldschool.runescape.wiki/images/Master_scroll_book_%28empty%29_detail.png".to_string(),
+            ),
+            _discord_message:
+                "RuneScape Player received a clue item: Master scroll book (empty) (200,472 coins).".to_string(),
+        });
+
+        possible_clue_item_broadcasts.push(ItemMessageTest {
+            message:
+                "RuneScape Player received a clue item: Ranger boots (36,460,467 coins)."
+                    .to_string(),
+            player_it_happened_to: "RuneScape Player".to_string(),
+            item_name: "Ranger boots".to_string(),
+            item_quantity: 1,
+            item_value: Some(36_460_467),
+            item_icon: Some(
+                "https://oldschool.runescape.wiki/images/Ranger_boots_detail.png".to_string(),
+            ),
+            _discord_message:
+                "RuneScape Player received a clue item: Ranger boots (36,460,467 coins).".to_string(),
+        });
+
+        return possible_clue_item_broadcasts;
     }
 
     fn get_quest_completed_messages() -> Vec<QuestCompletedBroadcastTest> {

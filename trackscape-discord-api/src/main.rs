@@ -29,6 +29,7 @@ use actix_files::{Files, NamedFile};
 use log::{error, info};
 use trackscape_discord_shared::jobs::get_celery_caller;
 use trackscape_discord_shared::wiki_api::wiki_api::get_quests_and_difficulties;
+use trackscape_discord_shared::wiki_api::wiki_api::get_clogs_and_percentages;
 
 /// Connection ID.
 pub type ConnId = Uuid;
@@ -81,6 +82,16 @@ async fn actix_web() -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send +
         }
         Err(e) => {
             error!("Error getting quests: {}", e)
+        }
+    }
+
+    let possible_clogs = get_clogs_and_percentages(&mut redis_conn).await;
+    match possible_clogs {
+        Ok(_) => {
+            info!("Clog mapping was out of date, updating cache");
+        }
+        Err(e) => {
+            error!("Error getting clogs: {}", e)
         }
     }
 

@@ -19,8 +19,12 @@ pub fn register() -> CreateCommand {
                 "broadcast",
                 "Broadcast type to reset notifications back to default.",
             )
-            .add_string_choice(ItemDrop.to_string(), ItemDrop.to_slug())
-            .add_string_choice(BroadcastType::Pk.to_string(), BroadcastType::Pk.to_slug())
+            .add_string_choice(
+                ItemDrop.to_string(),
+                 ItemDrop.to_slug())
+            .add_string_choice(
+                BroadcastType::Pk.to_string(),
+                 BroadcastType::Pk.to_slug())
             .add_string_choice(
                 BroadcastType::Quest.to_string(),
                 BroadcastType::Quest.to_slug(),
@@ -28,6 +32,10 @@ pub fn register() -> CreateCommand {
             .add_string_choice(
                 BroadcastType::Diary.to_string(),
                 BroadcastType::Diary.to_slug(),
+            )
+            .add_string_choice(
+                BroadcastType::CollectionLog.to_string(),
+                BroadcastType::CollectionLog.to_slug(),
             )
             .required(true),
         )
@@ -61,6 +69,9 @@ pub async fn run(
                     }
                     BroadcastType::Diary => {
                         saved_guild.min_diary_tier = None;
+                    }
+                    BroadcastType::CollectionLog => {
+                        saved_guild.collection_log_max_percentage = None;
                     }
                     _ => {
                         return Some("Invalid broadcast type.".to_string());

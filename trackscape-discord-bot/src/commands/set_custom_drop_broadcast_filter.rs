@@ -23,16 +23,8 @@ pub fn register() -> CreateCommand {
                 BroadcastType::ItemDrop.to_slug(),
             )
             .add_string_choice(
-                BroadcastType::RaidDrop.to_string(),
-                BroadcastType::RaidDrop.to_slug(),
-            )
-            .add_string_choice(
                 BroadcastType::PetDrop.to_string(),
                 BroadcastType::PetDrop.to_slug(),
-            )
-            .add_string_choice(
-                BroadcastType::CollectionLog.to_string(),
-                BroadcastType::CollectionLog.to_slug(),
             )
             .add_string_choice(
                 BroadcastType::Quest.to_string(),
