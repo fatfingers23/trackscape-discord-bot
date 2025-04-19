@@ -246,8 +246,17 @@ impl EventHandler for Bot {
                     )
                     .await
                 }
-                "reset" => {
+                "reset_broadcasts_thresholds" => {
                     commands::reset_broadcasts_thresholds::run(
+                        &command.data.options,
+                        &ctx,
+                        &self.mongo_db,
+                        command.guild_id.unwrap().get(),
+                    )
+                    .await
+                }
+                "reset_broadcasts_channels" => {
+                    commands::reset_broadcasts_channels::run(
                         &command.data.options,
                         &ctx,
                         &self.mongo_db,
@@ -380,6 +389,7 @@ fn get_commands() -> Vec<CreateCommand> {
     commands.push(commands::set_clog_max_percentage::register());
     commands.push(commands::set_diary_min_command::register());
     commands.push(commands::reset_broadcasts_thresholds::register());
+    commands.push(commands::reset_broadcasts_channels::register());
     commands.push(commands::toggle_broadcasts_command::register());
     commands.push(commands::set_wom_id_command::register());
     commands.push(commands::expel_clanmate_command::register());

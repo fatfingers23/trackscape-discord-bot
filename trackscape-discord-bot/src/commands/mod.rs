@@ -5,6 +5,7 @@ pub mod info;
 pub(crate) mod manually_run_wom_sync_command;
 pub mod name_change_command;
 pub mod reset_broadcasts_thresholds;
+pub mod reset_broadcasts_channels;
 pub mod reset_verification_code;
 pub mod set_broadcast_channel;
 pub mod set_clan_chat_channel;

@@ -10,7 +10,7 @@ use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extracto
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::BroadcastType::ItemDrop;
 
 pub fn register() -> CreateCommand {
-    CreateCommand::new("reset")
+    CreateCommand::new("reset_broadcasts_thresholds")
         .description("Resets a selected broadcast threshold or min broadcast level.")
         .default_member_permissions(Permissions::MANAGE_GUILD)
         .add_option(

@@ -333,7 +333,8 @@ pub mod osrs_broadcast_extractor {
         CombatMasteries,
         RelicTier,
         Unknown,
-        ClueItem
+        ClueItem,
+        Default
     }
 
     impl BroadcastType {
@@ -362,6 +363,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::CombatMasteries => "Combat Masteries".to_string(),
                 BroadcastType::RelicTier => "Relic Tier".to_string(),
                 BroadcastType::ClueItem => "Clue Item".to_string(),
+                BroadcastType::Default => "Default".to_string(),
             }
         }
 
@@ -385,6 +387,7 @@ pub mod osrs_broadcast_extractor {
                 "Combat Masteries" => BroadcastType::CombatMasteries,
                 "Relic Tier" => BroadcastType::RelicTier,
                 "Clue Item" => BroadcastType::ClueItem,
+                "Default" => BroadcastType::Default,
                 _ => BroadcastType::Unknown,
             }
         }
@@ -414,6 +417,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::CombatMasteries,
                 BroadcastType::RelicTier,
                 BroadcastType::ClueItem,
+                BroadcastType::Default,
             ]
         }
 
