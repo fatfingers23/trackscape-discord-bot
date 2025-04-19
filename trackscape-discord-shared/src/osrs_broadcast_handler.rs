@@ -15,7 +15,7 @@ use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
     pk_broadcast_extractor, quest_completed_broadcast_extractor, raid_broadcast_extractor,
     xpmilestone_broadcast_extractor, BroadcastType, ClanMessage, LeaguesBroadCastType,
 };
-use crate::wiki_api::wiki_api::WikiQuest;
+use crate::wiki_api::wiki_api::{WikiClogs, WikiQuest};
 use log::{error, info};
 use num_format::{Locale, ToFormattedString};
 use serde::{Deserialize, Serialize};
@@ -43,6 +43,7 @@ pub struct OSRSBroadcastHandler<
     clan_message: ClanMessage,
     item_mapping: Option<GeItemMapping>,
     quests: Option<Vec<WikiQuest>>,
+    clogs: Option<Vec<WikiClogs>>,
     registered_guild: RegisteredGuildModel,
     leagues_message: bool,
     drop_log_db: T,
@@ -58,6 +59,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
         clan_message: ClanMessage,
         item_mapping_from_state: Result<GeItemMapping, anyhow::Error>,
         quests_from_state: Result<Vec<WikiQuest>, anyhow::Error>,
+        clogs_from_state: Result<Vec<WikiClogs>, anyhow::Error>,
         register_guild: RegisteredGuildModel,
         leagues_message: bool,
         drop_log_db: T,
@@ -73,6 +75,10 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
             },
             quests: match quests_from_state {
                 Ok(quests) => Some(quests),
+                Err(_) => None,
+            },
+            clogs: match clogs_from_state {
+                Ok(clogs) => Some(clogs),
                 Err(_) => None,
             },
             registered_guild: register_guild,
@@ -693,8 +699,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                             //If the item has a value with it
                             None => format!(
                                 "{} received a clue item: {}",
-                                clue_item.player_it_happened_to,
-                                clue_item.item_name,
+                                clue_item.player_it_happened_to, clue_item.item_name,
                             ),
                             _ => format!(
                                 "{} received a clue item: {} ({} coins).",
@@ -887,6 +892,8 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
     async fn collection_log_handler(&self) -> Option<BroadcastMessageToDiscord> {
         let possible_collection_log =
             collection_log_broadcast_extractor(self.clan_message.message.clone());
+
+        let possible_clogs = self.clogs.clone();
         match possible_collection_log {
             None => {
                 error!(
@@ -923,6 +930,39 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                 let is_disallowed = self.check_if_allowed_broad_cast(BroadcastType::CollectionLog);
                 if is_disallowed {
                     return None;
+                }
+                if self
+                    .registered_guild
+                    .collection_log_max_percentage
+                    .is_some()
+                    && possible_clogs.is_some()
+                    && self.clogs.is_some()
+                {
+                    let collection_log_name = collection_log_broadcast.item_name.clone();
+
+                    let clogs = &possible_clogs.unwrap();
+                    let possible_percentage = clogs.iter().find(|&x| x.name == collection_log_name);
+                    if possible_percentage.is_none() {
+                        println!("No cached percentage found for {}", collection_log_name);
+                        return None;
+                    }
+                    println!(
+                        "Cached clog matched successfully: {:?}, Completion percentage: {:?}",
+                        possible_percentage.unwrap().name.clone(),
+                        possible_percentage.unwrap().percentage.clone()
+                    );
+                    let collection_log_max_percentage = self
+                        .registered_guild
+                        .clone()
+                        .collection_log_max_percentage
+                        .unwrap();
+                    if possible_percentage.unwrap().percentage > collection_log_max_percentage {
+                        println!(
+                            "Collection log completion percentage {} for {} is greater than the guild max of {}",
+                            possible_percentage.unwrap().percentage, collection_log_name, collection_log_max_percentage
+                        );
+                        return None;
+                    }
                 }
                 let title = match self.leagues_message {
                     true => ":bar_chart: New Leagues collection log item!".to_string(),
@@ -1217,6 +1257,8 @@ mod tests {
 
         let quests = Ok(Vec::new());
 
+        let clogs = Ok(Vec::new());
+
         let mut drop_log_db_mock = MockDropLogs::new();
         drop_log_db_mock.expect_new_drop_log().returning(|_, _| {
             info!("Should not be calling this function");
@@ -1228,6 +1270,7 @@ mod tests {
             clan_message,
             get_item_mapping,
             quests,
+            clogs,
             registered_guild,
             false,
             drop_log_db_mock,
@@ -1278,6 +1321,8 @@ mod tests {
         }
         let quests = Ok(Vec::new());
 
+        let clogs = Ok(Vec::new());
+
         let mut drop_log_db_mock = MockDropLogs::new();
         drop_log_db_mock.expect_new_drop_log().returning(|_, _| {
             info!("Should not be calling this function");
@@ -1289,6 +1334,7 @@ mod tests {
             clan_message,
             get_item_mapping,
             quests,
+            clogs,
             registered_guild,
             false,
             drop_log_db_mock,
@@ -1339,6 +1385,8 @@ mod tests {
         }
         let quests = Ok(Vec::new());
 
+        let clogs = Ok(Vec::new());
+
         let mut drop_log_db_mock = MockDropLogs::new();
         drop_log_db_mock.expect_new_drop_log().returning(|_, _| {
             info!("Should not be calling this function");
@@ -1350,6 +1398,7 @@ mod tests {
             clan_message,
             get_item_mapping,
             quests,
+            clogs,
             registered_guild,
             false,
             drop_log_db_mock,
@@ -1401,6 +1450,8 @@ mod tests {
         }
         let quests = Ok(Vec::new());
 
+        let clogs = Ok(Vec::new());
+
         let mut drop_log_db_mock = MockDropLogs::new();
         drop_log_db_mock.expect_new_drop_log().returning(|_, _| {
             info!("Should not be calling this function");
@@ -1412,6 +1463,7 @@ mod tests {
             clan_message,
             get_item_mapping,
             quests,
+            clogs,
             registered_guild,
             false,
             drop_log_db_mock,
@@ -1455,6 +1507,7 @@ mod tests {
             name: "The Fremennik Isles".to_string(),
             difficulty: QuestDifficulty::Intermediate,
         }]);
+        let clogs = Ok(Vec::new());
         //Saintly checker do not know how to do mock in rust yet. So this makes sure the above message
         //Is valid to trip the extractor and give the expect result
         let sanity_check = quest_completed_broadcast_extractor(clan_message.message.clone());
@@ -1474,6 +1527,7 @@ mod tests {
             clan_message,
             get_item_mapping,
             quests,
+            clogs,
             registered_guild,
             false,
             MockDropLogs::new(),
@@ -1516,6 +1570,8 @@ mod tests {
             name: "Cook's Assistant".to_string(),
             difficulty: QuestDifficulty::Novice,
         }]);
+
+        let clogs = Ok(Vec::new());
         //Saintly checker do not know how to do mock in rust yet. So this makes sure the above message
         //Is valid to trip the extractor and give the expect result
         let sanity_check = quest_completed_broadcast_extractor(clan_message.message.clone());
@@ -1535,6 +1591,7 @@ mod tests {
             clan_message,
             get_item_mapping,
             quests,
+            clogs,
             registered_guild,
             false,
             MockDropLogs::new(),
@@ -1586,12 +1643,14 @@ mod tests {
             }
         }
         let quests = Ok(Vec::new());
+        let clogs = Ok(Vec::new());
         let mock_job_queue = MockJobQueue::new();
 
         let handler = OSRSBroadcastHandler::new(
             clan_message,
             get_item_mapping,
             quests,
+            clogs,
             registered_guild,
             false,
             MockDropLogs::new(),
@@ -1631,6 +1690,7 @@ mod tests {
         let get_item_mapping = Ok(ge_item_mapping);
 
         let quests = Ok(Vec::new());
+        let clogs = Ok(Vec::new());
         //Saintly checker do not know how to do mock in rust yet. So this makes sure the above message
         //Is valid to trip the extractor and give the expect result
         let sanity_check = diary_completed_broadcast_extractor(clan_message.message.clone());
@@ -1650,6 +1710,7 @@ mod tests {
             clan_message,
             get_item_mapping,
             quests,
+            clogs,
             registered_guild,
             false,
             MockDropLogs::new(),
@@ -1688,6 +1749,7 @@ mod tests {
         let get_item_mapping = Ok(ge_item_mapping);
 
         let quests = Ok(Vec::new());
+        let clogs = Ok(Vec::new());
         //Saintly checker do not know how to do mock in rust yet. So this makes sure the above message
         //Is valid to trip the extractor and give the expect result
         let sanity_check = diary_completed_broadcast_extractor(clan_message.message.clone());
@@ -1707,6 +1769,7 @@ mod tests {
             clan_message,
             get_item_mapping,
             quests,
+            clogs,
             registered_guild,
             false,
             MockDropLogs::new(),

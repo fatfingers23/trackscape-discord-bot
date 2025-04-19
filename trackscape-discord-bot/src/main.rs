@@ -228,6 +228,15 @@ impl EventHandler for Bot {
                     )
                     .await
                 }
+                "set_clog_max_percentage" => {
+                    commands::set_clog_max_percentage::run(
+                        &command.data.options,
+                        &ctx,
+                        &self.mongo_db,
+                        command.guild_id.unwrap().get(),
+                    )
+                    .await
+                }
                 "diaries" => {
                     commands::set_diary_min_command::run(
                         &command.data.options,
@@ -368,6 +377,7 @@ fn get_commands() -> Vec<CreateCommand> {
     commands.push(commands::info::register());
     commands.push(commands::set_threshold_command::register());
     commands.push(commands::set_quest_min_command::register());
+    commands.push(commands::set_clog_max_percentage::register());
     commands.push(commands::set_diary_min_command::register());
     commands.push(commands::reset_broadcasts_thresholds::register());
     commands.push(commands::toggle_broadcasts_command::register());

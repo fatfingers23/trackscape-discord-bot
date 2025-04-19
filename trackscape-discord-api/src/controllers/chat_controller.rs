@@ -19,6 +19,7 @@ use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extracto
 use trackscape_discord_shared::osrs_broadcast_handler::OSRSBroadcastHandler;
 use trackscape_discord_shared::redis_helpers::{fetch_redis, write_to_cache_with_seconds};
 use trackscape_discord_shared::wiki_api::wiki_api::get_quests_and_difficulties;
+use trackscape_discord_shared::wiki_api::wiki_api::get_clogs_and_percentages;
 use web::Json;
 
 #[derive(Debug)]
@@ -236,6 +237,8 @@ async fn new_clan_chats(
 
         let quests_from_redis = get_quests_and_difficulties(&mut redis_connection).await;
 
+        let clogs_from_redis = get_clogs_and_percentages(&mut redis_connection).await;
+
         let cloned_celery = Arc::clone(&**celery);
         let celery_job_queue = Arc::new(CeleryJobQueue {
             celery: cloned_celery,
@@ -245,6 +248,7 @@ async fn new_clan_chats(
             chat.clone(),
             item_mapping_from_redis,
             quests_from_redis,
+            clogs_from_redis,
             registered_guild.clone(),
             league_world,
             mongodb.drop_logs.clone(),

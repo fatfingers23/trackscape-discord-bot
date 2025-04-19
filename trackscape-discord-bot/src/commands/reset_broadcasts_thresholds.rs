@@ -33,6 +33,10 @@ pub fn register() -> CreateCommand {
                 BroadcastType::Diary.to_string(),
                 BroadcastType::Diary.to_slug(),
             )
+            .add_string_choice(
+                BroadcastType::CollectionLog.to_string(),
+                BroadcastType::CollectionLog.to_slug(),
+            )
             .required(true),
         )
 }
@@ -65,6 +69,9 @@ pub async fn run(
                     }
                     BroadcastType::Diary => {
                         saved_guild.min_diary_tier = None;
+                    }
+                    BroadcastType::CollectionLog => {
+                        saved_guild.collection_log_max_percentage = None;
                     }
                     _ => {
                         return Some("Invalid broadcast type.".to_string());
