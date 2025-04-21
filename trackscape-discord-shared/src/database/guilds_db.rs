@@ -36,6 +36,7 @@ pub struct RegisteredGuildModel {
     pub created_at: Option<DateTime>,
     pub custom_drop_broadcast_filter: Option<std::collections::HashMap<BroadcastType, Vec<String>>>,
     pub collection_log_max_percentage: Option<f64>,
+    pub specific_broadcast_channels: Option<std::collections::HashMap<BroadcastType, u64>>,
 }
 
 impl RegisteredGuildModel {
@@ -61,6 +62,7 @@ impl RegisteredGuildModel {
             created_at: DateTime::now().into(),
             custom_drop_broadcast_filter: Some(std::collections::HashMap::new()),
             collection_log_max_percentage: None,
+            specific_broadcast_channels: Some(std::collections::HashMap::new()),
         }
     }
 

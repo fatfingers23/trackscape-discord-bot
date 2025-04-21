@@ -8,13 +8,14 @@ use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor};
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
 use std::sync::Arc;
+use log::error;
 use tokio::task::spawn_local;
 use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::get_item_mapping;
 use trackscape_discord_shared::helpers::hash_string;
 use trackscape_discord_shared::jobs::CeleryJobQueue;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-    get_wiki_clan_rank_image_url, ClanMessage,
+    get_wiki_clan_rank_image_url, BroadcastType, ClanMessage
 };
 use trackscape_discord_shared::osrs_broadcast_handler::OSRSBroadcastHandler;
 use trackscape_discord_shared::redis_helpers::{fetch_redis, write_to_cache_with_seconds};
@@ -121,7 +122,7 @@ async fn new_clan_chats(
         .expect("Could not connect to redis");
 
     let mut clan_chat_queue: Vec<CreateEmbed> = vec![];
-    let mut broadcast_queue: Vec<CreateEmbed> = vec![];
+    let mut broadcast_queue: Vec<(CreateEmbed, BroadcastType)> = vec![];
     let mut leagues_broadcast_queue: Vec<CreateEmbed> = vec![];
 
     for mut chat in new_chat.clone() {
@@ -309,8 +310,13 @@ async fn new_clan_chats(
                         }
                     }
                     false => {
-                        if registered_guild.broadcast_channel.is_some() {
-                            broadcast_queue.push(broadcast_embed);
+                        if registered_guild.specific_broadcast_channels.clone().unwrap().contains_key(&broadcast.type_of_broadcast) {
+                            broadcast_queue.push((broadcast_embed, broadcast.type_of_broadcast));
+
+                        } 
+                        else if registered_guild.broadcast_channel.is_some() {
+                            broadcast_queue.push((broadcast_embed, BroadcastType::Default));
+                        
                         }
                     }
                 };
@@ -344,17 +350,37 @@ async fn new_clan_chats(
     if broadcast_queue.len() > 0 {
         let broadcast_key = format!("{}:{}", redis_broadcast_stats_prefix, "broadcast");
         let broadcast_queue_length = broadcast_queue.len();
-        if let Some(channel_id) = registered_guild.broadcast_channel {
-            let result = ChannelId::new(channel_id)
+        let specific_broadcast_channels = registered_guild.specific_broadcast_channels.clone().unwrap();
+        for (embed, broadcast_type) in broadcast_queue.clone() {
+            if let Some(channel_id) = specific_broadcast_channels.get(&broadcast_type) {
+                let result = ChannelId::new(*channel_id)
                 .send_message(
-                    &*discord_http_client,
-                    CreateMessage::new().embeds(broadcast_queue),
+                    &*discord_http_client, 
+                    CreateMessage::new().embed(embed.clone()),
                 )
                 .await;
-            if let Err(_e) = result {
-                // error!("Error sending broadcast: {:?}", e);
+                if let Err(_e) = result {
+                    error!("Error sending {:?} broadcast: {:?}",broadcast_type, _e);
+                }
             }
+            else {
+                if let Some(channel_id) = registered_guild.broadcast_channel {
+                    let result = ChannelId::new(channel_id)
+                    .send_message(
+                        &*discord_http_client,
+                        CreateMessage::new().embed(embed.clone()),
+                    )
+                    .await;
+                    if let Err(_e) = result {
+                        error!("Error sending Default broadcast: {:?}", _e);
+                    }
+                }
+                else {
+                    error!("No Default broadcast channel set for guild {}", registered_guild.guild_id);
+                };
+            };
         }
+        
         let _: () = redis_connection
             .incr(broadcast_key.as_str(), broadcast_queue_length)
             .expect("failed to execute INCR for 'Broadcast'");
