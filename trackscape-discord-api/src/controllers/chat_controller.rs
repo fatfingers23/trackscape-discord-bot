@@ -8,6 +8,7 @@ use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor};
 use serenity::builder::CreateMessage;
 use serenity::http::Http;
 use std::sync::Arc;
+use log::error;
 use tokio::task::spawn_local;
 use trackscape_discord_shared::database::BotMongoDb;
 use trackscape_discord_shared::ge_api::ge_api::get_item_mapping;
@@ -350,25 +351,39 @@ async fn new_clan_chats(
         let broadcast_key = format!("{}:{}", redis_broadcast_stats_prefix, "broadcast");
         let broadcast_queue_length = broadcast_queue.len();
         let specific_broadcast_channels = registered_guild.specific_broadcast_channels.clone().unwrap();
-        let broadcast_type = broadcast_queue[0].1.clone();
-        let channel_id = specific_broadcast_channels
-                        .get(&broadcast_type)
-                        .or_else(|| {
-                            registered_guild.broadcast_channel.as_ref()
-                        })
-                        .expect("Default broadcast channel not found");
-        let result = ChannelId::new(*channel_id)
-            .send_message(
-                &*discord_http_client,
-                CreateMessage::new().embeds(broadcast_queue.clone().into_iter().map(|(embed, _)| embed).collect()),
-            )
-            .await;
-        if let Err(_e) = result {
-            // error!("Error sending broadcast: {:?}", e);
+        for (embed, broadcast_type) in broadcast_queue.clone() {
+            if let Some(channel_id) = specific_broadcast_channels.get(&broadcast_type) {
+                let result = ChannelId::new(*channel_id)
+                .send_message(
+                    &*discord_http_client, 
+                    CreateMessage::new().embed(embed.clone()),
+                )
+                .await;
+                if let Err(_e) = result {
+                    error!("Error sending {:?} broadcast: {:?}",broadcast_type, _e);
+                }
+            }
+            else {
+                if let Some(channel_id) = registered_guild.broadcast_channel {
+                    let result = ChannelId::new(channel_id)
+                    .send_message(
+                        &*discord_http_client,
+                        CreateMessage::new().embed(embed.clone()),
+                    )
+                    .await;
+                    if let Err(_e) = result {
+                        error!("Error sending Default broadcast: {:?}", _e);
+                    }
+                }
+                else {
+                    error!("No Default broadcast channel set for guild {}", registered_guild.guild_id);
+                };
+            };
         }
-    let _: () = redis_connection
-        .incr(broadcast_key.as_str(), broadcast_queue_length)
-        .expect("failed to execute INCR for 'Broadcast'");
+        
+        let _: () = redis_connection
+            .incr(broadcast_key.as_str(), broadcast_queue_length)
+            .expect("failed to execute INCR for 'Broadcast'");
     }
 
     if leagues_broadcast_queue.len() > 0 {
