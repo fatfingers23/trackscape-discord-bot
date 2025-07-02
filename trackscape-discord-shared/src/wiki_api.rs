@@ -138,7 +138,11 @@ pub mod wiki_api {
                                         cells.next();
                                         if let Some(third_cell) = cells.next() {
                                             if third_cell.text().collect::<String>().contains("%") {
-                                                let name = first_cell.text().collect::<String>().trim().to_string();
+                                                let name = first_cell
+                                                    .text()
+                                                    .collect::<String>()
+                                                    .trim()
+                                                    .to_string();
                                                 let percentage = third_cell
                                                     .text()
                                                     .collect::<String>()
@@ -191,7 +195,7 @@ pub mod wiki_api {
         pub revid: i64,
         pub text: Text,
         pub langlinks: Vec<Value>,
-        pub categories: Vec<Category>,
+        // pub categories: Vec<Category>,
         pub links: Vec<Link>,
         pub templates: Vec<Template>,
         pub images: Vec<Value>,

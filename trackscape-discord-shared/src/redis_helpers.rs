@@ -22,8 +22,14 @@ pub async fn write_to_cache_with_seconds<T: Serialize>(
     data: T,
     seconds: usize,
 ) {
-    let _: RedisResult<String> =
+    let result: RedisResult<String> =
         redis_connection.set_ex(redis_key, serde_json::to_string(&data).unwrap(), seconds);
+    match result {
+        Ok(_) => {}
+        Err(err) => {
+            error!("Error writing to redis cache: {}", err);
+        }
+    }
 }
 
 pub async fn fetch_redis_json_object<T: for<'a> Deserialize<'a>>(
