@@ -64,6 +64,11 @@ pub async fn fetch_redis<T: redis::FromRedisValue>(
     Ok(val)
 }
 
+pub async fn redis_exists(redis_connection: &mut Connection, redis_key: &str) -> bool {
+    redis_connection.exists(redis_key).unwrap_or(false)
+}
+
+#[derive(Debug)]
 pub enum RedisFetchErrors {
     FromDbError,
     ParseError,

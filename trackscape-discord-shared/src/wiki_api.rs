@@ -1,4 +1,5 @@
 pub mod wiki_api {
+    use crate::redis_helpers::redis_exists;
     use crate::{
         osrs_broadcast_extractor::osrs_broadcast_extractor::QuestDifficulty,
         redis_helpers::{fetch_redis_json_object, write_to_cache_with_seconds},
@@ -119,9 +120,7 @@ pub mod wiki_api {
             }
             Err(_) => {
                 // If we've recently failed to read from redis for clogs, don't hammer the API again
-                if let Ok(true) =
-                    fetch_redis_json_object::<bool>(redis_connection, CLOGS_FAILURE_KEY).await
-                {
+                if redis_exists(redis_connection, CLOGS_FAILURE_KEY).await {
                     return Err(anyhow!(
                         "Failed to fetch clogs from redis previously; skipping external API call for up to 24 hours"
                     ));
