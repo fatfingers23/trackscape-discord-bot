@@ -4,7 +4,7 @@ COPY ./trackscape-discord-ui /frontend-app
 RUN npm install
 RUN npm run build
 
-FROM rust:1.78-bookworm AS backend
+FROM rust:1.86-bookworm AS backend
 WORKDIR /app
 COPY . /app
 COPY --from=frontend /frontend-app/dist /app/trackscape-discord-api/ui

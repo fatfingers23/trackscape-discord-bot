@@ -7,7 +7,6 @@ edition.workspace = true
 
 [dependencies]
 tokio = { version = "1.25", features = ["full"] }
-redis = { version = "0.22", features = ["connection-manager", "tokio-comp"] }
 log = "0.4"
 celery = "0.5.5"
 env_logger = "0.10"

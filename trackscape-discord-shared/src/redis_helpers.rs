@@ -40,7 +40,7 @@ pub async fn fetch_redis_json_object<T: for<'a> Deserialize<'a>>(
         .arg(redis_key)
         .query::<String>(redis_connection)
         .map_err(|err| {
-            error!("Error fetching from redis: {}", err);
+            error!("Error fetching from redis for the key {redis_key}: {}", err);
             RedisFetchErrors::FromDbError
         })?;
 

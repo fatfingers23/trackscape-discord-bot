@@ -26,7 +26,7 @@ async-trait = "0.1.73"
 mockall = "0.11.4"
 anyhow = "1.0.75"
 celery = "0.5.5"
-redis = { version = "0.23.3", features = ["json"] }
+redis.workspace = true
 wom_rs = { git = "https://github.com/fatfingers23/wom_rs.git" }
 chrono = "0.4.33"
 once_cell = "1.20.2"
