@@ -3,6 +3,7 @@ pub mod wiki_api {
         osrs_broadcast_extractor::osrs_broadcast_extractor::QuestDifficulty,
         redis_helpers::{fetch_redis_json_object, write_to_cache_with_seconds},
     };
+    use anyhow::anyhow;
     use redis::Connection;
     use scraper::Html;
     use serde::{Deserialize, Serialize};
@@ -13,6 +14,8 @@ pub mod wiki_api {
     const QUEST_CACHE_KEY: &str = "quests";
 
     const CLOGS_CACHE_KEY: &str = "clogs";
+
+    const CLOGS_FAILURE_KEY: &str = "failure:clogs";
 
     static APP_USER_AGENT: &str = concat!(
         env!("CARGO_PKG_NAME"),
@@ -44,7 +47,7 @@ pub mod wiki_api {
 
     fn build_clogs_url() -> String {
         format!(
-            "{}?format=json&action=parse&page=Collection_log/Table&section=2",
+            "{}?format=json&action=parse&page=Collection_log/Table",
             BASE_URL
         )
     }
@@ -115,6 +118,18 @@ pub mod wiki_api {
                 return Ok(clogs_mapping);
             }
             Err(_) => {
+                // If we've recently failed to read from redis for clogs, don't hammer the API again
+                if let Ok(true) =
+                    fetch_redis_json_object::<bool>(redis_connection, CLOGS_FAILURE_KEY).await
+                {
+                    return Err(anyhow!(
+                        "Failed to fetch clogs from redis previously; skipping external API call for up to 24 hours"
+                    ));
+                }
+
+                // Mark that is has failed recently
+                write_to_cache_with_seconds(redis_connection, CLOGS_FAILURE_KEY, true, 3_600).await;
+
                 let mut clogs: Vec<WikiClogs> = Vec::new();
                 let client = reqwest::Client::builder()
                     .user_agent(APP_USER_AGENT)
@@ -227,7 +242,7 @@ pub mod wiki_api {
     #[serde(rename_all = "camelCase")]
     pub struct Link {
         pub ns: i64,
-        pub exists: String,
+        // pub exists: String,
         #[serde(rename = "*")]
         pub field: String,
     }
@@ -236,7 +251,7 @@ pub mod wiki_api {
     #[serde(rename_all = "camelCase")]
     pub struct Template {
         pub ns: i64,
-        pub exists: String,
+        // pub exists: String,
         #[serde(rename = "*")]
         pub field: String,
     }
