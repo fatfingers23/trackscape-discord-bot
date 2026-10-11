@@ -1,0 +1,185 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT r.id, r.clan_mate_id, r.activity_id, r.guild_id, r.time_in_seconds,\n                   r.created_at, r.updated_at,\n                   c.id as cm_id, c.guild_id as cm_guild_id, c.player_name as cm_player_name,\n                   c.wom_player_id as cm_wom_player_id, c.previous_names as cm_previous_names,\n                   c.\"rank\" as cm_rank, c.created_at as cm_created_at\n            FROM personal_best_records r\n            JOIN clan_mates c ON c.id = r.clan_mate_id\n            WHERE r.guild_id = $1 AND r.activity_id = $2\n            ORDER BY r.time_in_seconds ASC, r.updated_at ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "personal_best_records",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "clan_mate_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "personal_best_records",
+            "name": "clan_mate_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "activity_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "personal_best_records",
+            "name": "activity_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "personal_best_records",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "time_in_seconds",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "personal_best_records",
+            "name": "time_in_seconds"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "personal_best_records",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "personal_best_records",
+            "name": "updated_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "cm_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "cm_guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "cm_player_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "player_name"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "cm_wom_player_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "wom_player_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "cm_previous_names",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "previous_names"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "cm_rank",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "rank"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "cm_created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "66a35ac7172a1c0bd364d6d384ce183f5ec5e2acf42cadb0949679563456e820"
+}

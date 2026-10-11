@@ -28,6 +28,8 @@ jobs:
   check-backend:
     name: Check Backend
     runs-on: ubuntu-latest
+    env:
+      SQLX_OFFLINE: true
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -44,6 +46,21 @@ jobs:
   test-backend:
     name: Test Backend
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      SQLX_OFFLINE: true
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -60,6 +77,8 @@ jobs:
   clippy-backend:
     name: Clippy Backend
     runs-on: ubuntu-latest
+    env:
+      SQLX_OFFLINE: true
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4

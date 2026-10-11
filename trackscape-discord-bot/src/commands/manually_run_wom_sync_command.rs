@@ -1,4 +1,4 @@
-use crate::database::BotMongoDb;
+use crate::database::BotDb;
 use serenity::builder::CreateCommand;
 use serenity::client::Context;
 use serenity::model::prelude::Permissions;
@@ -11,7 +11,7 @@ pub fn register() -> CreateCommand {
         .default_member_permissions(Permissions::MANAGE_GUILD)
 }
 
-pub async fn run(_ctx: &Context, db: &BotMongoDb, guild_id: u64) -> Option<String> {
+pub async fn run(_ctx: &Context, db: &BotDb, guild_id: u64) -> Option<String> {
     match db.guilds.get_by_guild_id(guild_id).await {
         Ok(saved_guild) => {
             let saved_guild = saved_guild.unwrap_or(RegisteredGuildModel::new(guild_id));

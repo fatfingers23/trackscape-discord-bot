@@ -1,4 +1,4 @@
-use crate::database::BotMongoDb;
+use crate::database::BotDb;
 use serenity::all::{
     CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommand,
     CreateCommandOption, CreateMessage,
@@ -28,7 +28,7 @@ pub fn register() -> CreateCommand {
 pub async fn run(
     options: &[CommandDataOption],
     ctx: &Context,
-    db: &BotMongoDb,
+    db: &BotDb,
     guild_id: u64,
 ) -> Option<String> {
     let option = options.get(0).expect("Expected Channel Id option");

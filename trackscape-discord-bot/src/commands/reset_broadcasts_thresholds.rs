@@ -1,4 +1,4 @@
-use crate::database::BotMongoDb;
+use crate::database::BotDb;
 use serenity::all::{
     CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommandOption,
 };
@@ -19,12 +19,8 @@ pub fn register() -> CreateCommand {
                 "broadcast",
                 "Broadcast type to reset notifications back to default.",
             )
-            .add_string_choice(
-                ItemDrop.to_string(),
-                 ItemDrop.to_slug())
-            .add_string_choice(
-                BroadcastType::Pk.to_string(),
-                 BroadcastType::Pk.to_slug())
+            .add_string_choice(ItemDrop.to_string(), ItemDrop.to_slug())
+            .add_string_choice(BroadcastType::Pk.to_string(), BroadcastType::Pk.to_slug())
             .add_string_choice(
                 BroadcastType::Quest.to_string(),
                 BroadcastType::Quest.to_slug(),
@@ -44,7 +40,7 @@ pub fn register() -> CreateCommand {
 pub async fn run(
     command: &Vec<CommandDataOption>,
     _ctx: &Context,
-    db: &BotMongoDb,
+    db: &BotDb,
     guild_id: u64,
 ) -> Option<String> {
     let saved_guild_query = db.guilds.get_by_guild_id(guild_id).await;

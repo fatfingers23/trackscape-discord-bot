@@ -1,81 +1,119 @@
-use bson::serde_helpers::serialize_object_id_as_hex_string;
-use bson::DateTime;
-use futures::TryStreamExt;
-use mockall::predicate::*;
-use mongodb::bson::doc;
-use mongodb::options::FindOptions;
-use mongodb::{bson, Database};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
+use uuid::Uuid;
 
-use super::PersonalBestActivitiesDb;
+use crate::database::PersonalBestActivitiesDb;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PersonalBestActivitiesModel {
+    // The dashboard reads activities as `_id`, so the JSON key stays `_id`.
     #[serde(rename = "_id")]
-    #[serde(serialize_with = "serialize_object_id_as_hex_string")]
-    pub id: bson::oid::ObjectId,
+    pub id: Uuid,
     pub activity_name: String,
-    pub created_at: DateTime,
+    pub created_at: DateTime<Utc>,
 }
 
 impl PersonalBestActivitiesModel {
     pub const COLLECTION_NAME: &'static str = "personal_best_activities";
 }
 
+struct PersonalBestActivitiesRow {
+    id: Uuid,
+    activity_name: String,
+    created_at: DateTime<Utc>,
+}
+
+impl From<PersonalBestActivitiesRow> for PersonalBestActivitiesModel {
+    fn from(row: PersonalBestActivitiesRow) -> Self {
+        Self {
+            id: row.id,
+            activity_name: row.activity_name,
+            created_at: row.created_at,
+        }
+    }
+}
+
 impl PersonalBestActivitiesDb {
-    pub fn new_instance(mongodb: Database) -> Self {
-        Self { db: mongodb }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
     }
 
     pub async fn create_or_get_activity(
         &self,
         activity_name: String,
-    ) -> Result<PersonalBestActivitiesModel, mongodb::error::Error> {
+    ) -> Result<PersonalBestActivitiesModel, sqlx::Error> {
         let trimmed_activity_name = activity_name.trim();
-        let collection = self.db.collection::<PersonalBestActivitiesModel>(
-            PersonalBestActivitiesModel::COLLECTION_NAME,
-        );
 
-        //Matches case insensitive and exact name from start and end
-        let name_filter = format!("^{}$", trimmed_activity_name);
-        let re = mongodb::bson::Regex {
-            pattern: name_filter,
-            options: "i".to_string(),
-        };
+        // Matches case insensitively on the exact name (the unique index on
+        // lower(activity_name) backs this up).
+        let existing = sqlx::query_as!(
+            PersonalBestActivitiesRow,
+            r#"
+            SELECT id, activity_name, created_at
+            FROM personal_best_activities
+            WHERE lower(activity_name) = lower($1)
+            "#,
+            trimmed_activity_name
+        )
+        .fetch_optional(&self.pool)
+        .await?;
 
-        let filter = doc! {
-            "activity_name": re
-        };
-
-        match collection.find_one(filter.clone(), None).await? {
-            Some(activity) => {
-                return Ok(activity);
-            }
-            None => {
-                let new_activity = PersonalBestActivitiesModel {
-                    id: bson::oid::ObjectId::new(),
-                    activity_name: trimmed_activity_name.to_string(),
-                    created_at: bson::DateTime::now(),
-                };
-                collection.insert_one(new_activity.clone(), None).await?;
-                return Ok(new_activity);
-            }
+        if let Some(activity) = existing {
+            return Ok(activity.into());
         }
+
+        let new_activity = PersonalBestActivitiesModel {
+            id: Uuid::new_v4(),
+            activity_name: trimmed_activity_name.to_string(),
+            created_at: Utc::now(),
+        };
+        // ON CONFLICT DO NOTHING guards against a concurrent create racing
+        // us to the same name; the row already there is returned either way.
+        sqlx::query!(
+            r#"
+            INSERT INTO personal_best_activities (id, activity_name, created_at)
+            VALUES ($1, $2, $3)
+            ON CONFLICT DO NOTHING
+            "#,
+            new_activity.id,
+            new_activity.activity_name,
+            new_activity.created_at,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        let saved = sqlx::query_as!(
+            PersonalBestActivitiesRow,
+            r#"
+            SELECT id, activity_name, created_at
+            FROM personal_best_activities
+            WHERE lower(activity_name) = lower($1)
+            "#,
+            new_activity.activity_name
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(match saved {
+            Some(activity) => activity.into(),
+            // The insert raced and lost, but the follow up read found
+            // nothing: fall back to the model we tried to insert.
+            None => new_activity,
+        })
     }
 
-    pub async fn get_activities(
-        &self,
-    ) -> Result<Vec<PersonalBestActivitiesModel>, mongodb::error::Error> {
-        let collection = self.db.collection::<PersonalBestActivitiesModel>(
-            PersonalBestActivitiesModel::COLLECTION_NAME,
-        );
-
-        let opts = FindOptions::builder()
-            .sort(doc! { "activity_name": 1 })
-            .build();
-        let filter = doc! {"activity_name": {"$ne": ""}};
-        let cursor = collection.find(filter, opts).await?;
-        let result = cursor.try_collect().await;
-        Ok(result.unwrap())
+    pub async fn get_activities(&self) -> Result<Vec<PersonalBestActivitiesModel>, sqlx::Error> {
+        let rows = sqlx::query_as!(
+            PersonalBestActivitiesRow,
+            r#"
+            SELECT id, activity_name, created_at
+            FROM personal_best_activities
+            WHERE activity_name <> ''
+            ORDER BY activity_name ASC
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|row| row.into()).collect())
     }
 }

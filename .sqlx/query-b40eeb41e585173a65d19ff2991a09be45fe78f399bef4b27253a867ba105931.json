@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO personal_best_activities (id, activity_name, created_at)\n            VALUES ($1, $2, $3)\n            ON CONFLICT DO NOTHING\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b40eeb41e585173a65d19ff2991a09be45fe78f399bef4b27253a867ba105931"
+}

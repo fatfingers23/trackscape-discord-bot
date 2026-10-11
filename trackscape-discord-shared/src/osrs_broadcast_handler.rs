@@ -2,18 +2,18 @@ use crate::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotal
 use crate::database::clan_mates::ClanMates;
 use crate::database::drop_logs_db::DropLogs;
 use crate::database::guilds_db::RegisteredGuildModel;
-use crate::ge_api::ge_api::{get_item_value_by_id, GeItemMapping};
+use crate::ge_api::ge_api::{GeItemMapping, get_item_value_by_id};
 use crate::jobs::new_pb_job::record_new_pb;
-use crate::jobs::{remove_clanmate_job, JobQueue};
+use crate::jobs::{JobQueue, remove_clanmate_job};
 use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-    clue_item_broadcast_extractor, coffer_donation_broadcast_extractor,
-    coffer_withdrawal_broadcast_extractor, collection_log_broadcast_extractor,
-    diary_completed_broadcast_extractor, drop_broadcast_extractor,
-    expelled_from_clan_broadcast_extractor, get_broadcast_type, invite_broadcast_extractor,
-    leagues_catch_all_broadcast_extractor, left_the_clan_broadcast_extractor,
-    levelmilestone_broadcast_extractor, personal_best_broadcast_extractor, pet_broadcast_extractor,
-    pk_broadcast_extractor, quest_completed_broadcast_extractor, raid_broadcast_extractor,
-    xpmilestone_broadcast_extractor, BroadcastType, ClanMessage, LeaguesBroadCastType,
+    BroadcastType, ClanMessage, LeaguesBroadCastType, clue_item_broadcast_extractor,
+    coffer_donation_broadcast_extractor, coffer_withdrawal_broadcast_extractor,
+    collection_log_broadcast_extractor, diary_completed_broadcast_extractor,
+    drop_broadcast_extractor, expelled_from_clan_broadcast_extractor, get_broadcast_type,
+    invite_broadcast_extractor, leagues_catch_all_broadcast_extractor,
+    left_the_clan_broadcast_extractor, levelmilestone_broadcast_extractor,
+    personal_best_broadcast_extractor, pet_broadcast_extractor, pk_broadcast_extractor,
+    quest_completed_broadcast_extractor, raid_broadcast_extractor, xpmilestone_broadcast_extractor,
 };
 use crate::wiki_api::wiki_api::{WikiClogs, WikiQuest};
 use log::{error, info};
@@ -959,7 +959,9 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     if possible_percentage.unwrap().percentage > collection_log_max_percentage {
                         println!(
                             "Collection log completion percentage {} for {} is greater than the guild max of {}",
-                            possible_percentage.unwrap().percentage, collection_log_name, collection_log_max_percentage
+                            possible_percentage.unwrap().percentage,
+                            collection_log_name,
+                            collection_log_max_percentage
                         );
                         return None;
                     }
@@ -1249,7 +1251,9 @@ mod tests {
         let sanity_check = drop_broadcast_extractor(clan_message.message.clone());
         match sanity_check {
             None => {
-                info!("Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing");
+                info!(
+                    "Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing"
+                );
                 assert_eq!(true, false);
             }
             Some(_) => {}
@@ -1314,7 +1318,9 @@ mod tests {
         let sanity_check = drop_broadcast_extractor(clan_message.message.clone());
         match sanity_check {
             None => {
-                info!("Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing");
+                info!(
+                    "Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing"
+                );
                 assert_eq!(true, false);
             }
             Some(_) => {}
@@ -1378,7 +1384,9 @@ mod tests {
         let sanity_check = drop_broadcast_extractor(clan_message.message.clone());
         match sanity_check {
             None => {
-                info!("Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing");
+                info!(
+                    "Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing"
+                );
                 assert_eq!(true, false);
             }
             Some(_) => {}
@@ -1443,7 +1451,9 @@ mod tests {
         let sanity_check = drop_broadcast_extractor(clan_message.message.clone());
         match sanity_check {
             None => {
-                info!("Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing");
+                info!(
+                    "Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing"
+                );
                 assert_eq!(true, false);
             }
             Some(_) => {}
@@ -1513,7 +1523,9 @@ mod tests {
         let sanity_check = quest_completed_broadcast_extractor(clan_message.message.clone());
         match sanity_check {
             None => {
-                info!("Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing");
+                info!(
+                    "Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing"
+                );
                 assert_eq!(true, false);
             }
             Some(_) => {
@@ -1577,7 +1589,9 @@ mod tests {
         let sanity_check = quest_completed_broadcast_extractor(clan_message.message.clone());
         match sanity_check {
             None => {
-                info!("Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing");
+                info!(
+                    "Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing"
+                );
                 assert_eq!(true, false);
             }
             Some(_) => {
@@ -1635,7 +1649,9 @@ mod tests {
         let sanity_check = pk_broadcast_extractor(clan_message.message.clone());
         match sanity_check {
             None => {
-                println!("Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing");
+                println!(
+                    "Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing"
+                );
                 assert_eq!(true, false);
             }
             Some(_) => {
@@ -1696,7 +1712,9 @@ mod tests {
         let sanity_check = diary_completed_broadcast_extractor(clan_message.message.clone());
         match sanity_check {
             None => {
-                info!("Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing");
+                info!(
+                    "Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing"
+                );
                 assert_eq!(true, false);
             }
             Some(_) => {
@@ -1755,7 +1773,9 @@ mod tests {
         let sanity_check = diary_completed_broadcast_extractor(clan_message.message.clone());
         match sanity_check {
             None => {
-                info!("Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing");
+                info!(
+                    "Sanity check failed. The message is not valid or the extractor is broken and that unit test should also be failing"
+                );
                 assert_eq!(true, false);
             }
             Some(_) => {

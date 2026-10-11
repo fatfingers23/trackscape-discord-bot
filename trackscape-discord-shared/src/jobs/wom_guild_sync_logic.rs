@@ -1,12 +1,12 @@
-use crate::database::clan_mates::{name_compare, ClanMateModel, ClanMates};
+use crate::database::BotDb;
+use crate::database::clan_mates::{ClanMateModel, ClanMates, name_compare};
 use crate::database::guilds_db::RegisteredGuildModel;
-use crate::database::BotMongoDb;
-use crate::wom::{get_wom_client, ApiLimiter};
+use crate::wom::{ApiLimiter, get_wom_client};
 use log::{error, info};
-use wom_rs::models::name::NameChangeStatus;
 use wom_rs::Pagination;
+use wom_rs::models::name::NameChangeStatus;
 
-pub async fn sync_wom_by_guild(guild: &RegisteredGuildModel, mongodb: &BotMongoDb) {
+pub async fn sync_wom_by_guild(guild: &RegisteredGuildModel, db: &BotDb) {
     info!("Syncing guild: {:?}", guild.clan_name);
     let wom_id = guild.wom_id.unwrap();
     let wom_client = get_wom_client();
@@ -41,7 +41,7 @@ pub async fn sync_wom_by_guild(guild: &RegisteredGuildModel, mongodb: &BotMongoD
         return;
     }
 
-    let guild_clan_mates = mongodb
+    let guild_clan_mates = db
         .clan_mates
         .get_clan_mates_by_guild_id(guild.guild_id)
         .await
@@ -58,7 +58,7 @@ pub async fn sync_wom_by_guild(guild: &RegisteredGuildModel, mongodb: &BotMongoD
         if player_in_db_check.is_some() {
             let mut found_player = player_in_db_check.unwrap().clone();
             found_player.wom_player_id = Some(member.player.id as u64);
-            let update_clan_mate = mongodb.clan_mates.update_clan_mate(found_player).await;
+            let update_clan_mate = db.clan_mates.update_clan_mate(found_player).await;
             if update_clan_mate.is_err() {
                 error!("Failed to update clan mate: {:?}", update_clan_mate.err());
             }
@@ -108,7 +108,7 @@ pub async fn sync_wom_by_guild(guild: &RegisteredGuildModel, mongodb: &BotMongoD
                         "Changing name: {:?} to: {:?}",
                         name_change.old_name, member.player.username
                     );
-                    let name_change = mongodb
+                    let name_change = db
                         .clan_mates
                         .change_name(
                             guild.guild_id,
@@ -130,7 +130,7 @@ pub async fn sync_wom_by_guild(guild: &RegisteredGuildModel, mongodb: &BotMongoD
         }
         info!("Creating new clan mate: {:?}", member.player.username);
 
-        let create_new_clan_mate = mongodb
+        let create_new_clan_mate = db
             .clan_mates
             .create_new_clan_mate(
                 guild.guild_id,
@@ -147,7 +147,7 @@ pub async fn sync_wom_by_guild(guild: &RegisteredGuildModel, mongodb: &BotMongoD
     }
 
     //Grabs a new list with fresh entries from name chanegs and new clanmates
-    let fresh_guild_clan_mates = mongodb
+    let fresh_guild_clan_mates = db
         .clan_mates
         .get_clan_mates_by_guild_id(guild.guild_id)
         .await
@@ -162,7 +162,7 @@ pub async fn sync_wom_by_guild(guild: &RegisteredGuildModel, mongodb: &BotMongoD
             .find(|x| name_compare(&x.player.username, &db_member.player_name));
         if member.is_none() {
             info!("Removing clan mate: {:?}", db_member.player_name);
-            let remove_clan_mate = mongodb
+            let remove_clan_mate = db
                 .clan_mates
                 .remove_clan_mate(guild.guild_id, db_member.player_name.clone())
                 .await;

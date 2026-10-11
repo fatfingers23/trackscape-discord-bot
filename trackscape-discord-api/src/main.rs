@@ -8,16 +8,16 @@ use crate::controllers::bot_info_controller::info_controller;
 use crate::controllers::chat_controller::chat_controller;
 use actix_cors::Cors;
 use actix_web::web::Data;
-use actix_web::{guard, web, App, Error, HttpServer};
+use actix_web::{App, Error, HttpServer, guard, web};
 use controllers::application_data_controller::application_data_controller;
 use dotenv::dotenv;
 use env_logger::Env;
 use serenity::http::HttpBuilder;
 use std::env;
-use std::sync::atomic::AtomicI64;
 use std::sync::Mutex;
+use std::sync::atomic::AtomicI64;
 use tokio::spawn;
-use trackscape_discord_shared::database::{BotMongoDb, MongoDb};
+use trackscape_discord_shared::database::{BotDb, run_migrations};
 use trackscape_discord_shared::ge_api::ge_api::get_item_mapping;
 use trackscape_discord_shared::jobs::job_helpers::get_redis_client;
 use uuid::Uuid;
@@ -28,8 +28,8 @@ use crate::controllers::drop_log_controller::drop_log_controller;
 use actix_files::{Files, NamedFile};
 use log::{error, info};
 use trackscape_discord_shared::jobs::get_celery_caller;
-use trackscape_discord_shared::wiki_api::wiki_api::get_quests_and_difficulties;
 use trackscape_discord_shared::wiki_api::wiki_api::get_clogs_and_percentages;
+use trackscape_discord_shared::wiki_api::wiki_api::get_quests_and_difficulties;
 
 /// Connection ID.
 pub type ConnId = Uuid;
@@ -51,7 +51,7 @@ async fn main() -> std::io::Result<()> {
 
     let _ = env::var("MANAGEMENT_API_KEY").expect("MANAGEMENT_API_KEY not set!");
     let discord_token = env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN not set!");
-    let mongodb_url = env::var("MONGO_DB_URL").expect("MONGO_DB_URL not set!");
+    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL not set!");
     let production_env = env::var("PRODUCTION");
     let mut _is_production = false;
     match production_env {
@@ -59,7 +59,12 @@ async fn main() -> std::io::Result<()> {
         Err(_) => {}
     }
 
-    let db = BotMongoDb::new_db_instance(mongodb_url).await;
+    let db = BotDb::new_db_instance(db_url)
+        .await
+        .expect("Could not connect to the Postgres database");
+    if let Err(e) = run_migrations(db.pool()).await {
+        panic!("Failed to run database migrations: {:?}", e);
+    }
     let redis_client = get_redis_client();
     let mut redis_conn = redis_client
         .get_connection()

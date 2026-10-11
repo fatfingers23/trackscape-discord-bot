@@ -1,34 +1,37 @@
 # This is the production docker-compose and what powers TrackScape.app. Can also be used to host your own TrackScape instance.
+# Note: production now runs on Postgres (and is moving to Railway); DATABASE_URL points at the postgres service.
 services:
-  mongo:
-    image: mongo:5.0.10
+  postgres:
+    image: postgres:17-alpine
     restart: always
     ports:
-      - '27017:27017'
+      - '5432:5432'
     environment:
-      MONGO_INITDB_ROOT_USERNAME: '${MONGO_USERNAME}'
-      MONGO_INITDB_ROOT_PASSWORD: '${MONGO_PASSWORD}'
-      MONGO_INITDB_DATABASE: "TrackScapeDB"
+      POSTGRES_USER: '${POSTGRES_USER:-trackscape}'
+      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD}'
+      POSTGRES_DB: '${POSTGRES_DB:-trackscape}'
     volumes:
-      - trackscape-db:/data/db
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - trackscape-pg:/var/lib/postgresql/data
     networks:
       - trackscape-network
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "${POSTGRES_USER:-trackscape}" ]
+      retries: 3
+      timeout: 5s
   api:
     image: fatfingers23/trackscape-api:latest
     restart: always
     ports:
       - '80:8000'
     environment:
-      MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017'
+      DATABASE_URL: 'postgresql://${POSTGRES_USER:-trackscape}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-trackscape}'
       DISCORD_TOKEN: '${DISCORD_TOKEN}'
       TRACKSCAPE_API_BASE: '${TRACKSCAPE_API_BASE}'
       REDIS_ADDR: '${REDIS_ADDR}'
       WOM_API_KEY: '${WOM_API_KEY}'
       MANAGEMENT_API_KEY: '${MANAGEMENT_API_KEY}'
     depends_on:
-      - mongo
+      - postgres
       - redis
     networks:
       - trackscape-network
@@ -38,14 +41,14 @@ services:
     image: fatfingers23/trackscape-bot:latest
     restart: always
     environment:
-      MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017'
+      DATABASE_URL: 'postgresql://${POSTGRES_USER:-trackscape}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-trackscape}'
       DISCORD_TOKEN: '${DISCORD_TOKEN}'
       TRACKSCAPE_API_BASE: '${TRACKSCAPE_API_BASE}'
       REDIS_ADDR: '${REDIS_ADDR}'
       WOM_API_KEY: '${WOM_API_KEY}'
       MANAGEMENT_API_KEY: '${MANAGEMENT_API_KEY}'
     depends_on:
-      - mongo
+      - postgres
       - redis
       - api
     networks:
@@ -56,13 +59,13 @@ services:
     image: fatfingers23/trackscape-worker:latest
     restart: always
     environment:
-      MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017'
+      DATABASE_URL: 'postgresql://${POSTGRES_USER:-trackscape}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-trackscape}'
       DISCORD_TOKEN: '${DISCORD_TOKEN}'
       TRACKSCAPE_API_BASE: '${TRACKSCAPE_API_BASE}'
       REDIS_ADDR: '${REDIS_ADDR}'
       WOM_API_KEY: '${WOM_API_KEY}'
     depends_on:
-      - mongo
+      - postgres
       - redis
     networks:
       - trackscape-network
@@ -73,12 +76,12 @@ services:
     image: fatfingers23/trackscape-cron-worker:latest
     restart: always
     environment:
-      MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017'
+      DATABASE_URL: 'postgresql://${POSTGRES_USER:-trackscape}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-trackscape}'
       TRACKSCAPE_API_BASE: '${TRACKSCAPE_API_BASE}'
       REDIS_ADDR: '${REDIS_ADDR}'
       WOM_API_KEY: '${WOM_API_KEY}'
     depends_on:
-      - mongo
+      - postgres
       - redis
     networks:
       - trackscape-network
@@ -99,7 +102,7 @@ services:
       retries: 3
       timeout: 5s
 volumes:
-  trackscape-db:
+  trackscape-pg:
     driver: local
   trackscape-redis:
     driver: local

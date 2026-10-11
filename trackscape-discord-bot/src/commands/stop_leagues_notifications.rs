@@ -1,6 +1,6 @@
 use serenity::all::{CommandDataOption, CreateCommand};
 use serenity::client::Context;
-use trackscape_discord_shared::database::BotMongoDb;
+use trackscape_discord_shared::database::BotDb;
 
 pub fn register() -> CreateCommand {
     CreateCommand::new("stop_leagues_notifications")
@@ -10,7 +10,7 @@ pub fn register() -> CreateCommand {
 pub async fn run(
     _options: &[CommandDataOption],
     _ctx: &Context,
-    db: &BotMongoDb,
+    db: &BotDb,
     guild_id: u64,
 ) -> Option<String> {
     let saved_guild_query = db.guilds.get_by_guild_id(guild_id).await;

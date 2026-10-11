@@ -1,10 +1,10 @@
-use actix_web::{get, web, Error, HttpResponse, Scope};
+use actix_web::{Error, HttpResponse, Scope, get, web};
 use log::{error, info};
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
+use trackscape_discord_shared::database::BotDb;
 use trackscape_discord_shared::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotals;
 use trackscape_discord_shared::database::clan_mates::{ClanMateModel, ClanMates};
-use trackscape_discord_shared::database::BotMongoDb;
+use uuid::Uuid;
 use web::Data;
 
 #[derive(Deserialize, Serialize)]
@@ -24,7 +24,7 @@ struct ClanDetail {
 }
 
 #[get("/list")]
-async fn list_clans(mongodb: Data<BotMongoDb>) -> Result<HttpResponse, Error> {
+async fn list_clans(mongodb: Data<BotDb>) -> Result<HttpResponse, Error> {
     let result = mongodb.guilds.list_clans().await;
 
     match result {
@@ -52,13 +52,10 @@ async fn list_clans(mongodb: Data<BotMongoDb>) -> Result<HttpResponse, Error> {
 }
 
 #[get("/{id}/detail")]
-async fn detail(
-    mongodb: Data<BotMongoDb>,
-    path: web::Path<(String,)>,
-) -> Result<HttpResponse, Error> {
+async fn detail(mongodb: Data<BotDb>, path: web::Path<(String,)>) -> Result<HttpResponse, Error> {
     info!("{:?}", path);
     let id = path.into_inner().0;
-    let possible_parsed_id = bson::oid::ObjectId::from_str(id.as_str());
+    let possible_parsed_id = Uuid::parse_str(id.as_str());
     let id = match possible_parsed_id {
         Ok(parsed_id) => parsed_id,
         Err(_) => {
@@ -102,11 +99,11 @@ async fn detail(
 
 #[get("/{id}/collection-log")]
 async fn collection_log(
-    mongodb: Data<BotMongoDb>,
+    mongodb: Data<BotDb>,
     path: web::Path<(String,)>,
 ) -> Result<HttpResponse, Error> {
     let id = path.into_inner().0;
-    let possible_parsed_id = bson::oid::ObjectId::from_str(id.as_str());
+    let possible_parsed_id = Uuid::parse_str(id.as_str());
     let id = match possible_parsed_id {
         Ok(parsed_id) => parsed_id,
         Err(_) => {
@@ -154,10 +151,10 @@ struct BroadcastRequest {
 
 #[get("/{id}/broadcasts/{limit}")]
 async fn broadcasts(
-    mongodb: Data<BotMongoDb>,
+    mongodb: Data<BotDb>,
     path: web::Path<BroadcastRequest>,
 ) -> Result<HttpResponse, Error> {
-    let possible_parsed_id = bson::oid::ObjectId::from_str(path.id.as_str());
+    let possible_parsed_id = Uuid::parse_str(path.id.as_str());
     let id = match possible_parsed_id {
         Ok(parsed_id) => parsed_id,
         Err(_) => {
@@ -192,12 +189,12 @@ async fn broadcasts(
 
 #[get("/{guild_id}/{activity_id}/personal-bests")]
 async fn personal_bests(
-    mongodb: Data<BotMongoDb>,
+    mongodb: Data<BotDb>,
     path: web::Path<(String, String)>,
 ) -> Result<HttpResponse, Error> {
     let get_variables = path.into_inner();
     let guild_id = get_variables.0;
-    let possible_parsed_guild_id = bson::oid::ObjectId::from_str(guild_id.as_str());
+    let possible_parsed_guild_id = Uuid::parse_str(guild_id.as_str());
     let guild_id = match possible_parsed_guild_id {
         Ok(parsed_id) => parsed_id,
         Err(_) => {
@@ -206,7 +203,7 @@ async fn personal_bests(
     };
 
     let activity_id = get_variables.1;
-    let possible_parsed_activity_id = bson::oid::ObjectId::from_str(activity_id.as_str());
+    let possible_parsed_activity_id = Uuid::parse_str(activity_id.as_str());
     let activity_id = match possible_parsed_activity_id {
         Ok(parsed_id) => parsed_id,
         Err(_) => {

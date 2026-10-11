@@ -1,7 +1,7 @@
-use actix_web::{get, web, Error, HttpResponse, Scope};
+use actix_web::{Error, HttpResponse, Scope, get, web};
 use serde::{Deserialize, Serialize};
+use trackscape_discord_shared::database::BotDb;
 use trackscape_discord_shared::database::clan_mates::ClanMateModel;
-use trackscape_discord_shared::database::BotMongoDb;
 use web::Data;
 
 #[derive(Deserialize, Serialize)]
@@ -21,7 +21,7 @@ struct ClanDetail {
 }
 
 #[get("/activities")]
-async fn get_pb_activities(mongodb: Data<BotMongoDb>) -> Result<HttpResponse, Error> {
+async fn get_pb_activities(mongodb: Data<BotDb>) -> Result<HttpResponse, Error> {
     let result = mongodb.pb_activities.get_activities().await;
 
     match result {

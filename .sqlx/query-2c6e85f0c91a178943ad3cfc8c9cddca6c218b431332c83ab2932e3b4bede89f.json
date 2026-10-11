@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO clan_mate_collection_log_totals (guild_id, player_id, total, created_at)\n            VALUES ($1, $2, $3, now())\n            ON CONFLICT (guild_id, player_id) DO UPDATE SET total = EXCLUDED.total\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2c6e85f0c91a178943ad3cfc8c9cddca6c218b431332c83ab2932e3b4bede89f"
+}

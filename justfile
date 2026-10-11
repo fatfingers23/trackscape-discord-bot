@@ -29,3 +29,20 @@ newRelease:
     docker build --platform linux/amd64 -t {{cronWorker}} -f dockerfiles/CronWorker.Dockerfile .
     docker tag {{cronWorker}}:{{tag}} {{dockerRepo}}/{{cronWorker}}:{{tag}}
     docker push {{dockerRepo}}/{{cronWorker}}:{{tag}}
+
+# Regenerate the .sqlx offline query metadata after changing migrations or queries.
+# Needs docker compose up -d (Postgres running) and DATABASE_URL set in .env
+sqlx-prepare:
+    #!/usr/bin/env bash
+    set -a
+    source .env 2>/dev/null || true
+    set +a
+    cargo sqlx prepare --workspace
+
+# Apply the embedded migrations to the local Postgres (docker compose up -d first)
+migrate:
+    #!/usr/bin/env bash
+    set -a
+    source .env 2>/dev/null || true
+    set +a
+    sqlx migrate run --source trackscape-discord-shared/migrations

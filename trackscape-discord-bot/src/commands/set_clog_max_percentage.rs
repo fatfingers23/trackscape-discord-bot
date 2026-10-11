@@ -1,4 +1,4 @@
-use crate::database::BotMongoDb;
+use crate::database::BotDb;
 use serenity::all::{
     CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommandOption,
 };
@@ -26,7 +26,7 @@ pub fn register() -> CreateCommand {
 pub async fn run(
     command: &Vec<CommandDataOption>,
     _ctx: &Context,
-    db: &BotMongoDb,
+    db: &BotDb,
     guild_id: u64,
 ) -> Option<String> {
     let saved_guild_query = db.guilds.get_by_guild_id(guild_id).await;
@@ -41,7 +41,11 @@ pub async fn run(
                 saved_guild.collection_log_max_percentage = match percentage.parse::<f64>() {
                     Ok(value) if value <= 100.0 && value >= 0.0 => Some(value),
                     Ok(_) => return Some("Percentage must be between 0 and 100.".to_string()),
-                    Err(_) => return Some("Invalid percentage value. Please provide a valid number.".to_string()),
+                    Err(_) => {
+                        return Some(
+                            "Invalid percentage value. Please provide a valid number.".to_string(),
+                        );
+                    }
                 };
                 db.guilds.update_guild(saved_guild).await;
                 Some("Successfully updated the Collection Log max percentage.".to_string())

@@ -7,7 +7,7 @@ use serenity::client::Context;
 use serenity::model::channel::ChannelType;
 use serenity::model::prelude::Permissions;
 use tracing::info;
-use trackscape_discord_shared::database::BotMongoDb;
+use trackscape_discord_shared::database::BotDb;
 
 pub fn register() -> CreateCommand {
     CreateCommand::new("set_leagues_channel")
@@ -26,7 +26,7 @@ pub fn register() -> CreateCommand {
 pub async fn run(
     options: &[CommandDataOption],
     ctx: &Context,
-    db: &BotMongoDb,
+    db: &BotDb,
     guild_id: u64,
 ) -> Option<String> {
     let option = options.get(0).expect("Expected Channel Id option");

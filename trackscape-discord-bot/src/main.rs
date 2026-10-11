@@ -14,15 +14,15 @@ use serenity::model::id::GuildId;
 use serenity::prelude::*;
 use std::collections::HashMap;
 use std::env;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use tracing::{error, info};
 use trackscape_discord_shared::api_web_client::ApiWebClient;
 use trackscape_discord_shared::database;
-use trackscape_discord_shared::database::{BotMongoDb, MongoDb};
+use trackscape_discord_shared::database::BotDb;
 
 struct Bot {
-    mongo_db: BotMongoDb,
+    db: BotDb,
     trackscape_base_api: String,
     trackscape_api_web_client: ApiWebClient,
     dev_guild_id: Option<u64>,
@@ -38,10 +38,7 @@ impl TypeMapKey for ServerCount {
 impl EventHandler for Bot {
     async fn guild_create(&self, ctx: Context, guild: Guild, is_new: Option<bool>) {
         info!("Guild: {}", guild.name);
-        self.mongo_db
-            .guilds
-            .create_if_new_guild(guild.id.get())
-            .await;
+        self.db.guilds.create_if_new_guild(guild.id.get()).await;
         let server_count = {
             let data_read = ctx.data.read().await;
             data_read
@@ -78,7 +75,7 @@ impl EventHandler for Bot {
         }
 
         if !incomplete.unavailable {
-            self.mongo_db.guilds.delete_guild(incomplete.id.get()).await;
+            self.db.guilds.delete_guild(incomplete.id.get()).await;
             info!("The guild mention has been deleted when removed.");
         }
 
@@ -106,7 +103,7 @@ impl EventHandler for Bot {
             None => {}
             Some(guild_id) => {
                 let guild_id = guild_id.get();
-                let guild = self.mongo_db.guilds.get_by_guild_id(guild_id).await;
+                let guild = self.db.guilds.get_by_guild_id(guild_id).await;
                 match guild {
                     Ok(guild) => {
                         if guild.is_none() {
@@ -184,7 +181,7 @@ impl EventHandler for Bot {
                     commands::set_clan_chat_channel::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -193,7 +190,7 @@ impl EventHandler for Bot {
                     commands::set_broadcast_channel::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -202,7 +199,7 @@ impl EventHandler for Bot {
                     commands::get_verification_code::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -214,7 +211,7 @@ impl EventHandler for Bot {
                     commands::set_threshold_command::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -223,7 +220,7 @@ impl EventHandler for Bot {
                     commands::set_quest_min_command::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -232,7 +229,7 @@ impl EventHandler for Bot {
                     commands::set_clog_max_percentage::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -241,7 +238,7 @@ impl EventHandler for Bot {
                     commands::set_diary_min_command::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -250,7 +247,7 @@ impl EventHandler for Bot {
                     commands::reset_broadcasts_thresholds::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -259,7 +256,7 @@ impl EventHandler for Bot {
                     commands::toggle_broadcasts_command::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -268,7 +265,7 @@ impl EventHandler for Bot {
                     commands::set_wom_id_command::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -277,7 +274,7 @@ impl EventHandler for Bot {
                     commands::set_leagues_broadcast_channel::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -286,7 +283,7 @@ impl EventHandler for Bot {
                     commands::expel_clanmate_command::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -295,7 +292,7 @@ impl EventHandler for Bot {
                     commands::name_change_command::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -303,7 +300,7 @@ impl EventHandler for Bot {
                 "sync" => {
                     commands::manually_run_wom_sync_command::run(
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -312,7 +309,7 @@ impl EventHandler for Bot {
                     commands::stop_leagues_notifications::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -321,7 +318,7 @@ impl EventHandler for Bot {
                     commands::reset_verification_code::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -330,7 +327,7 @@ impl EventHandler for Bot {
                     commands::set_custom_drop_broadcast_filter::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -339,7 +336,7 @@ impl EventHandler for Bot {
                     commands::get_custom_drop_broadcast_filter::run(
                         &command.data.options,
                         &ctx,
-                        &self.mongo_db,
+                        &self.db,
                         command.guild_id.unwrap().get(),
                     )
                     .await
@@ -416,21 +413,23 @@ async fn main() -> anyhow::Result<()> {
 
     let token = env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN not set!");
     let api_base = env::var("TRACKSCAPE_API_BASE").expect("TRACKSCAPE_API_BASE not set!");
-    let mongodb_url = env::var("MONGO_DB_URL").expect("MONGO_DB_URL not set!");
+    let db_url = env::var("DATABASE_URL").expect("DATABASE_URL not set!");
     let trackscape_api_token = env::var("MANAGEMENT_API_KEY").expect("MANAGEMENT_API_KEY not set!");
     let dev_guild_id = match env::var("DEV_GUILD_ID") {
         Ok(id) => Some(id.parse::<u64>().expect("DEV_GUILD_ID is not a number")),
         Err(_) => None,
     };
 
-    let db = BotMongoDb::new_db_instance(mongodb_url).await;
+    let db = BotDb::new_db_instance(db_url)
+        .await
+        .expect("Could not connect to the Postgres database");
     // Set gateway intents, which decides what events the bot will be notified about
     let intents =
         GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT | GatewayIntents::GUILDS;
     let api_client = ApiWebClient::new(api_base.clone(), trackscape_api_token);
     let mut client = serenity::Client::builder(&token, intents)
         .event_handler(Bot {
-            mongo_db: db,
+            db,
             trackscape_base_api: api_base,
             trackscape_api_web_client: api_client,
             dev_guild_id,

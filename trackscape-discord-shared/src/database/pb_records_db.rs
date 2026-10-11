@@ -1,137 +1,125 @@
-use super::clan_mates::ClanMateModel;
 use super::PersonalBestRecordsDb;
-use bson::DateTime;
-use futures::TryStreamExt;
-use mockall::predicate::*;
-use mongodb::bson::doc;
-use mongodb::{bson, Database};
+use super::clan_mates::ClanMateModel;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PersonalBestRecordsModel {
-    #[serde(rename = "_id")]
-    pub id: bson::oid::ObjectId,
-    pub clan_mate_id: bson::oid::ObjectId,
-    pub activity_id: bson::oid::ObjectId,
+    pub id: Uuid,
+    pub clan_mate_id: Uuid,
+    pub activity_id: Uuid,
     pub guild_id: u64,
     pub time_in_seconds: f64,
-    pub created_at: DateTime,
-    pub updated_at: DateTime,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub clan_mate: Option<ClanMateModel>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct PersonalBestRecordsViewModel {
-    pub player_name: String,
-    pub time_in_seconds: f64,
 }
 
 impl PersonalBestRecordsModel {
     pub const COLLECTION_NAME: &'static str = "personal_best_records";
 }
 
+/// Row for the leaderboard query that joins clan mates in.
+struct PersonalBestRecordsLeaderboardRow {
+    id: Uuid,
+    clan_mate_id: Uuid,
+    activity_id: Uuid,
+    guild_id: i64,
+    time_in_seconds: f64,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+    cm_id: Uuid,
+    cm_guild_id: i64,
+    cm_player_name: String,
+    cm_wom_player_id: Option<i64>,
+    cm_previous_names: Vec<String>,
+    cm_rank: Option<String>,
+    cm_created_at: DateTime<Utc>,
+}
+
+impl From<PersonalBestRecordsLeaderboardRow> for PersonalBestRecordsModel {
+    fn from(row: PersonalBestRecordsLeaderboardRow) -> Self {
+        let clan_mate = ClanMateModel {
+            id: row.cm_id,
+            guild_id: row.cm_guild_id as u64,
+            player_name: row.cm_player_name,
+            wom_player_id: row.cm_wom_player_id.map(|id| id as u64),
+            previous_names: row.cm_previous_names,
+            rank: row.cm_rank,
+            created_at: row.cm_created_at,
+        };
+        Self {
+            id: row.id,
+            clan_mate_id: row.clan_mate_id,
+            activity_id: row.activity_id,
+            guild_id: row.guild_id as u64,
+            time_in_seconds: row.time_in_seconds,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            clan_mate: Some(clan_mate),
+        }
+    }
+}
+
 impl PersonalBestRecordsDb {
-    pub fn new_instance(mongodb: Database) -> Self {
-        Self { db: mongodb }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
     }
 
     pub async fn create_or_update_pb_record(
         &self,
-        clan_mate_id: bson::oid::ObjectId,
-        activity_id: bson::oid::ObjectId,
+        clan_mate_id: Uuid,
+        activity_id: Uuid,
         guild_id: u64,
         time_in_seconds: f64,
     ) -> Result<(), anyhow::Error> {
-        let collection = self
-            .db
-            .collection::<PersonalBestRecordsModel>(PersonalBestRecordsModel::COLLECTION_NAME);
-
-        let filter = doc! {
-            "clan_mate_id": clan_mate_id.clone(),
-            "activity_id": activity_id
-        };
-        match collection.find_one(filter.clone(), None).await? {
-            Some(recorded_record) => {
-                if time_in_seconds < recorded_record.time_in_seconds {
-                    let update = doc! {
-                        "$set": {
-                            "time_in_seconds": time_in_seconds,
-                            "updated_at": bson::DateTime::now()
-                        }
-                    };
-                    collection.update_one(filter, update, None).await?;
-                }
-                Ok(())
-            }
-            None => {
-                let new_pb = PersonalBestRecordsModel {
-                    id: bson::oid::ObjectId::new(),
-                    clan_mate_id: clan_mate_id.clone(),
-                    activity_id: activity_id.clone(),
-                    guild_id,
-                    time_in_seconds: time_in_seconds.clone(),
-                    created_at: bson::DateTime::now(),
-                    updated_at: bson::DateTime::now(),
-                    clan_mate: None,
-                };
-                collection.insert_one(new_pb, None).await?;
-                Ok(())
-            }
-        }
+        // Upserts the record, but only overwrites the stored time when the
+        // new time is better (lower). Ties keep the existing row.
+        sqlx::query!(
+            r#"
+            INSERT INTO personal_best_records
+                (id, clan_mate_id, activity_id, guild_id, time_in_seconds, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, now(), now())
+            ON CONFLICT (clan_mate_id, activity_id) DO UPDATE
+                SET time_in_seconds = EXCLUDED.time_in_seconds, updated_at = now()
+                WHERE personal_best_records.time_in_seconds > EXCLUDED.time_in_seconds
+            "#,
+            Uuid::new_v4(),
+            clan_mate_id,
+            activity_id,
+            guild_id as i64,
+            time_in_seconds,
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
     }
 
     pub async fn get_pb_records_leaderboard(
         &self,
-        activity_id: bson::oid::ObjectId,
+        activity_id: Uuid,
         guild_id: u64,
     ) -> Result<Vec<PersonalBestRecordsModel>, anyhow::Error> {
-        let collection = self
-            .db
-            .collection::<PersonalBestRecordsModel>(PersonalBestRecordsModel::COLLECTION_NAME);
-
-        let filter = doc! {
-            "guild_id": bson::to_bson(&guild_id).unwrap(),
-            "activity_id": activity_id
-        };
-
-        let mut cursor = collection
-            .aggregate(
-                vec![
-                    doc! {
-                        "$match": filter
-                    },
-                    doc! {
-                        "$lookup": {
-                            "from": "clan_mates",
-                            "localField": "clan_mate_id",
-                            "foreignField": "_id",
-                            "as": "clan_mate"
-                        }
-                    },
-                    doc! {
-                        "$unwind": "$clan_mate"
-                    },
-                    doc! {
-                        "$sort": {
-                            "time_in_seconds": 1,
-                            "updated_at": 1
-                        }
-                    },
-                ],
-                None,
-            )
-            .await?;
-
-        let mut results: Vec<PersonalBestRecordsModel> = Vec::new();
-        // Iterate through the results and map them to the struct
-
-        while let Some(result) = cursor.try_next().await? {
-            if let Ok(view) =
-                bson::from_bson::<PersonalBestRecordsModel>(bson::Bson::Document(result))
-            {
-                results.push(view);
-            }
-        }
-        Ok(results)
+        let rows = sqlx::query_as!(
+            PersonalBestRecordsLeaderboardRow,
+            r#"
+            SELECT r.id, r.clan_mate_id, r.activity_id, r.guild_id, r.time_in_seconds,
+                   r.created_at, r.updated_at,
+                   c.id as cm_id, c.guild_id as cm_guild_id, c.player_name as cm_player_name,
+                   c.wom_player_id as cm_wom_player_id, c.previous_names as cm_previous_names,
+                   c."rank" as cm_rank, c.created_at as cm_created_at
+            FROM personal_best_records r
+            JOIN clan_mates c ON c.id = r.clan_mate_id
+            WHERE r.guild_id = $1 AND r.activity_id = $2
+            ORDER BY r.time_in_seconds ASC, r.updated_at ASC
+            "#,
+            guild_id as i64,
+            activity_id
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|row| row.into()).collect())
     }
 }

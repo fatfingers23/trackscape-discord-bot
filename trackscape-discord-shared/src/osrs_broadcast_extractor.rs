@@ -1,27 +1,69 @@
 pub mod osrs_broadcast_extractor {
-    use regex::Regex;
     use once_cell::sync::Lazy;
+    use regex::Regex;
     use serde::{Deserialize, Serialize};
 
-    static RAID_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) received special loot from a raid: (?P<item>.*?)([.]|$)"#,).unwrap());
-    static DROP_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) received a drop: (?:((?P<quantity>[,\d]+) x )?)(?P<item>.*?)(?: \((?P<value>[,\d]+) coins\))?(?: from .*?)?[.]?$"#).unwrap());
-    static CLUE_ITEM_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) received a clue item: (?P<item>.*?)(?: \((?P<value>[,\d]+) coins\))?[.]?$"#).unwrap());
-    static PET_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) (?:has a funny feeling.*?|feels something weird sneaking into (?P<pronoun>her|his) backpack): (?P<pet_name>.*?) at (?P<count>[,\d]+) (?P<count_type>.*?)[.]$"#).unwrap());
-    static QUEST_COMPLETED_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) has completed a quest: (?P<quest_name>.+)$"#,).unwrap());
-    static DIARY_COMPLETED_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player_name>.*?) has completed the (?P<diary_tier>Easy|Medium|Hard|Elite) (?P<diary_name>.*?).$"#).unwrap());
-    static PK_BROADCAST_EXTRACTOR_WINNER: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<winner_name>.*?) has defeated (?P<loser_name>.*?) and received \((?P<gp_value>[0-9,]+) coins\) worth of loot!"#).unwrap());
-    static PK_BROADCAST_EXTRACTOR_LOSER: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<loser_name>.*?) has been defeated by (?P<winner_name>.*?)(?: in (?P<location>The Wilderness))?(?: and lost \((?P<gp_value>[0-9,]+) coins\) worth of loot)?[!.]"#).unwrap());
-    static INVITE_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<clan_joiner>.*?) has been invited into the clan by (?P<clan_inviter>.*?).$"#,).unwrap());
-    static LEVELMILESTONE_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<clan_mate>.*?) has reached (?:a )?(?:the highest possible )?(?P<skill>.*?) level(?: of)? (?P<level>.*?)[!.]"#).unwrap());
-    static XPMILESTONE_BROADCAST_EXTRACTOR: Lazy<Regex>  =  Lazy::new(|| Regex::new(r#"^(?P<clan_member>.*?) has reached (?P<xp>.*?) XP in (?P<skill>.*?)[!.]"#,).unwrap());
-    static COLLECTION_LOG_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(?P<name>[\w\s]+) received a new collection log item: (?P<item>.+?) \((?P<number>\d+)/\d+\)").unwrap());
-    static LEFT_THE_CLAN_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(?P<player>[\w\s]+) has left the clan.$").unwrap());
-    static EXPELLED_FROM_CLAN_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(?P<mod>[\w\s]+) has expelled (?P<player>[\w\s]+) from the clan.$").unwrap());
-    static COFFER_DONATION_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?P<player>[\w\s]+) has (withdrawn|deposited) (?P<gp>[0-9,]+) coins (from|into) the coffer.").unwrap());
-    static COFFER_WITHDRAWAL_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?P<player>[\w\s]+) has (withdrawn|deposited) (?P<gp>[0-9,]+) coins (from|into) the coffer.").unwrap());
+    static RAID_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(
+            r#"^(?P<player_name>.*?) received special loot from a raid: (?P<item>.*?)([.]|$)"#,
+        )
+        .unwrap()
+    });
+    static DROP_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"^(?P<player_name>.*?) received a drop: (?:((?P<quantity>[,\d]+) x )?)(?P<item>.*?)(?: \((?P<value>[,\d]+) coins\))?(?: from .*?)?[.]?$"#).unwrap()
+    });
+    static CLUE_ITEM_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"^(?P<player_name>.*?) received a clue item: (?P<item>.*?)(?: \((?P<value>[,\d]+) coins\))?[.]?$"#).unwrap()
+    });
+    static PET_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"^(?P<player_name>.*?) (?:has a funny feeling.*?|feels something weird sneaking into (?P<pronoun>her|his) backpack): (?P<pet_name>.*?) at (?P<count>[,\d]+) (?P<count_type>.*?)[.]$"#).unwrap()
+    });
+    static QUEST_COMPLETED_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"^(?P<player_name>.*?) has completed a quest: (?P<quest_name>.+)$"#).unwrap()
+    });
+    static DIARY_COMPLETED_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"^(?P<player_name>.*?) has completed the (?P<diary_tier>Easy|Medium|Hard|Elite) (?P<diary_name>.*?).$"#).unwrap()
+    });
+    static PK_BROADCAST_EXTRACTOR_WINNER: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"^(?P<winner_name>.*?) has defeated (?P<loser_name>.*?) and received \((?P<gp_value>[0-9,]+) coins\) worth of loot!"#).unwrap()
+    });
+    static PK_BROADCAST_EXTRACTOR_LOSER: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"^(?P<loser_name>.*?) has been defeated by (?P<winner_name>.*?)(?: in (?P<location>The Wilderness))?(?: and lost \((?P<gp_value>[0-9,]+) coins\) worth of loot)?[!.]"#).unwrap()
+    });
+    static INVITE_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(
+            r#"^(?P<clan_joiner>.*?) has been invited into the clan by (?P<clan_inviter>.*?).$"#,
+        )
+        .unwrap()
+    });
+    static LEVELMILESTONE_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"^(?P<clan_mate>.*?) has reached (?:a )?(?:the highest possible )?(?P<skill>.*?) level(?: of)? (?P<level>.*?)[!.]"#).unwrap()
+    });
+    static XPMILESTONE_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"^(?P<clan_member>.*?) has reached (?P<xp>.*?) XP in (?P<skill>.*?)[!.]"#)
+            .unwrap()
+    });
+    static COLLECTION_LOG_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r"^(?P<name>[\w\s]+) received a new collection log item: (?P<item>.+?) \((?P<number>\d+)/\d+\)").unwrap()
+    });
+    static LEFT_THE_CLAN_BROADCAST_EXTRACTOR: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"^(?P<player>[\w\s]+) has left the clan.$").unwrap());
+    static EXPELLED_FROM_CLAN_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r"^(?P<mod>[\w\s]+) has expelled (?P<player>[\w\s]+) from the clan.$").unwrap()
+    });
+    static COFFER_DONATION_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r"(?P<player>[\w\s]+) has (withdrawn|deposited) (?P<gp>[0-9,]+) coins (from|into) the coffer.").unwrap()
+    });
+    static COFFER_WITHDRAWAL_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r"(?P<player>[\w\s]+) has (withdrawn|deposited) (?P<gp>[0-9,]+) coins (from|into) the coffer.").unwrap()
+    });
     // RuneScape Player has achieved a new Vorkath personal best: 2:28
-    static PERSONAL_BEST_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player>[\w\s]+) has achieved a new (?P<activity>[\w\s\-'\.]+) personal best: (?<time>[\d:]+)"#,).unwrap());
-    static PERSONAL_BEST_BROADCAST_EXTRACTOR_RAID: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^(?P<player>[\w\s]+) has achieved a new (?P<raid>[\w\s]+(?:\: [\w\s]+)?) \([Tt]eam [Ss]ize: (?P<team_size>[\w\s]+)\)(?:(?P<variant>[\w\s]+)?) personal best: (?<time>[\d:]+(?:\.\d{2})?)"#,).unwrap());
+    static PERSONAL_BEST_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"^(?P<player>[\w\s]+) has achieved a new (?P<activity>[\w\s\-'\.]+) personal best: (?<time>[\d:]+)"#,).unwrap()
+    });
+    static PERSONAL_BEST_BROADCAST_EXTRACTOR_RAID: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"^(?P<player>[\w\s]+) has achieved a new (?P<raid>[\w\s]+(?:\: [\w\s]+)?) \([Tt]eam [Ss]ize: (?P<team_size>[\w\s]+)\)(?:(?P<variant>[\w\s]+)?) personal best: (?<time>[\d:]+(?:\.\d{2})?)"#,).unwrap()
+    });
 
     #[derive(Deserialize, Serialize, Clone, Debug)]
     pub struct ClanMessage {
@@ -286,7 +328,7 @@ pub mod osrs_broadcast_extractor {
     //     pub combat_mastery: String,
     //     pub rank: i64,
     // }
-    
+
     #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
     pub enum LeaguesBroadCastType {
         AreaUnlock,
@@ -294,7 +336,7 @@ pub mod osrs_broadcast_extractor {
         CombatMasteries,
         RelicTier,
         //Normal broadcast but for leagues, like drops
-        NormalBroadCast
+        NormalBroadCast,
     }
 
     impl LeaguesBroadCastType {
@@ -326,14 +368,14 @@ pub mod osrs_broadcast_extractor {
         ExpelledFromClan,
         CofferDonation,
         CofferWithdrawal,
-        PersonalBest,        
-        //Leagues Broadcasts        
+        PersonalBest,
+        //Leagues Broadcasts
         AreaUnlock,
         LeaguesRank,
         CombatMasteries,
         RelicTier,
         Unknown,
-        ClueItem
+        ClueItem,
     }
 
     impl BroadcastType {
@@ -355,7 +397,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::ExpelledFromClan => "Expelled From Clan".to_string(),
                 BroadcastType::CofferDonation => "Coffer Donation".to_string(),
                 BroadcastType::CofferWithdrawal => "Coffer Withdrawal".to_string(),
-                BroadcastType::PersonalBest => "Personal Best".to_string(),                
+                BroadcastType::PersonalBest => "Personal Best".to_string(),
                 //Leagues Broadcasts
                 BroadcastType::AreaUnlock => "Area Unlock".to_string(),
                 BroadcastType::LeaguesRank => "Leagues Rank".to_string(),
@@ -648,9 +690,9 @@ pub mod osrs_broadcast_extractor {
             let name = captures.name("player").unwrap().as_str();
 
             Some(name.to_string())
-        } else{
+        } else {
             None
-        } 
+        }
     }
 
     pub fn coffer_donation_broadcast_extractor(
@@ -707,20 +749,20 @@ pub mod osrs_broadcast_extractor {
 
             return Some(PersonalBestBroadcast {
                 player: player.to_string(),
-                activity: activity.to_string(),            
+                activity: activity.to_string(),
                 time_in_seconds: osrs_time_parser(time),
                 //Will prob need to look at hallow sepulchre and other activities that have variants here
                 variant: None,
-            })
+            });
         }
 
         if let Some(captures) = PERSONAL_BEST_BROADCAST_EXTRACTOR_RAID.captures(message.as_str()) {
             let player = captures.name("player").unwrap().as_str();
-            let raid = captures.name("raid").unwrap().as_str();            
+            let raid = captures.name("raid").unwrap().as_str();
             let time = captures.name("time").unwrap().as_str();
             let team_size = captures.name("team_size").map_or("", |m| m.as_str());
             let variant = captures.name("variant").map_or("", |m| m.as_str());
-            
+
             let full_raid: String;
             if variant.is_empty() {
                 full_raid = raid.to_string();
@@ -739,16 +781,14 @@ pub mod osrs_broadcast_extractor {
                 player: player.to_string(),
                 activity: raid_name.to_string(),
                 time_in_seconds: osrs_time_parser(time),
-                variant: raid_name_standardize(full_raid, team_size)
+                variant: raid_name_standardize(full_raid, team_size),
             })
         } else {
             None
         }
     }
 
-    pub fn leagues_catch_all_broadcast_extractor(
-        message: String,
-    ) -> Option<LeaguesBroadCastType> {
+    pub fn leagues_catch_all_broadcast_extractor(message: String) -> Option<LeaguesBroadCastType> {
         if message.contains("has earned") && message.contains("Combat mastery") {
             return Some(LeaguesBroadCastType::CombatMasteries);
         }
@@ -787,28 +827,28 @@ pub mod osrs_broadcast_extractor {
         0.0
     }
 
-    
     /// Takes the OSRS in game broadcast and makes it a bit more standard between raids for easier parsing with RL
     fn raid_name_standardize(raid_from_chat: String, team_size: &str) -> Option<String> {
-  
-
-        if raid_from_chat.contains("Chambers of Xeric Challenge Mode") {    
+        if raid_from_chat.contains("Chambers of Xeric Challenge Mode") {
             return Some(format!("Chambers of Xeric Challenge Mode {}", team_size));
         }
 
-        if raid_from_chat.contains("Chambers of Xeric") {    
+        if raid_from_chat.contains("Chambers of Xeric") {
             return Some(format!("Chambers of Xeric {}", team_size));
         }
 
         let team_size_with_players = if team_size == "1" {
             "Solo".to_string()
-        }else{
+        } else {
             format!("{} players", team_size)
         };
 
         if raid_from_chat.contains("Theatre of Blood") && raid_from_chat.contains("Hard mode") {
-            return Some(format!("Theatre of Blood Hard Mode {}", team_size_with_players));
-        }         
+            return Some(format!(
+                "Theatre of Blood Hard Mode {}",
+                team_size_with_players
+            ));
+        }
 
         if raid_from_chat.contains("Theatre of Blood") && raid_from_chat.contains("Entry mode") {
             return Some("Theatre of Blood Entry Mode".to_string());
@@ -818,12 +858,18 @@ pub mod osrs_broadcast_extractor {
             return Some(format!("Theatre of Blood {}", team_size_with_players));
         }
 
-        if raid_from_chat.contains("Tombs of Amascut") && raid_from_chat.contains("Entry mode"){
-            return Some(format!("Tombs of Amascut Entry Mode {}", team_size_with_players));
+        if raid_from_chat.contains("Tombs of Amascut") && raid_from_chat.contains("Entry mode") {
+            return Some(format!(
+                "Tombs of Amascut Entry Mode {}",
+                team_size_with_players
+            ));
         }
 
         if raid_from_chat.contains("Tombs of Amascut") && raid_from_chat.contains("Expert mode") {
-            return Some(format!("Tombs of Amascut Expert Mode {}", team_size_with_players));
+            return Some(format!(
+                "Tombs of Amascut Expert Mode {}",
+                team_size_with_players
+            ));
         }
 
         if raid_from_chat.contains("Tombs of Amascut") {
@@ -937,10 +983,10 @@ pub mod osrs_broadcast_extractor {
 mod tests {
     use super::*;
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-        get_wiki_clan_rank_image_url, CofferTransaction, CofferTransactionBroadcast,
-        CollectionLogBroadcast, DiaryCompletedBroadcast, DiaryTier, InviteBroadcast,
-        LevelMilestoneBroadcast, PersonalBestBroadcast, PetDropBroadcast, PkBroadcast,
-        QuestCompletedBroadcast, XPMilestoneBroadcast,
+        CofferTransaction, CofferTransactionBroadcast, CollectionLogBroadcast,
+        DiaryCompletedBroadcast, DiaryTier, InviteBroadcast, LevelMilestoneBroadcast,
+        PersonalBestBroadcast, PetDropBroadcast, PkBroadcast, QuestCompletedBroadcast,
+        XPMilestoneBroadcast, get_wiki_clan_rank_image_url,
     };
     use osrs_broadcast_extractor::LeaguesBroadCastType;
     use rstest::rstest;
@@ -1212,8 +1258,9 @@ mod tests {
         let possible_clue_item_broadcasts = get_clue_item_messages();
         for possible_clue_item_broadcast in possible_clue_item_broadcasts {
             let message = possible_clue_item_broadcast.message.clone();
-            let possible_clue_item =
-                osrs_broadcast_extractor::clue_item_broadcast_extractor(possible_clue_item_broadcast.message);
+            let possible_clue_item = osrs_broadcast_extractor::clue_item_broadcast_extractor(
+                possible_clue_item_broadcast.message,
+            );
             match possible_clue_item {
                 None => {
                     info!("Failed to extract clue item from message: {}", message);
@@ -1225,7 +1272,10 @@ mod tests {
                         clue_item.item_quantity,
                         possible_clue_item_broadcast.item_quantity
                     );
-                    assert_eq!(clue_item.item_value, possible_clue_item_broadcast.item_value);
+                    assert_eq!(
+                        clue_item.item_value,
+                        possible_clue_item_broadcast.item_value
+                    );
                     assert_eq!(
                         clue_item.player_it_happened_to,
                         possible_clue_item_broadcast.player_it_happened_to
@@ -1505,7 +1555,6 @@ mod tests {
             get_wiki_clan_rank_image_url(goblin_rank.to_string()),
             "https://oldschool.runescape.wiki/images/Clan_icon_-_Goblin.png".to_string()
         );
-
     }
 
     #[test]
@@ -1612,7 +1661,6 @@ mod tests {
             assert_eq!(leagues_catch_all, test_leagues_catch_all.broadcast);
         }
     }
-
 
     #[rstest]
     #[case("0:56.40", 56.40)]
@@ -1888,25 +1936,28 @@ mod tests {
             item_quantity: 1,
             item_value: Some(136_662),
             item_icon: Some(
-                "https://oldschool.runescape.wiki/images/Saradomin_d%27hide_body_detail.png".to_string(),
+                "https://oldschool.runescape.wiki/images/Saradomin_d%27hide_body_detail.png"
+                    .to_string(),
             ),
             _discord_message:
-                "RuneScape Player received a clue item: Saradomin d'hide body (136,662 coins).".to_string(),
+                "RuneScape Player received a clue item: Saradomin d'hide body (136,662 coins)."
+                    .to_string(),
         });
 
         possible_clue_item_broadcasts.push(ItemMessageTest {
-            message:
-                "RuneScape Player received a clue item: Blue wizard robe (g) (105,162 coins)."
-                    .to_string(),
+            message: "RuneScape Player received a clue item: Blue wizard robe (g) (105,162 coins)."
+                .to_string(),
             player_it_happened_to: "RuneScape Player".to_string(),
             item_name: "Blue wizard robe (g)".to_string(),
             item_quantity: 1,
             item_value: Some(105_162),
             item_icon: Some(
-                "https://oldschool.runescape.wiki/images/Blue_wizard_robe_%28g%29_detail.png".to_string(),
+                "https://oldschool.runescape.wiki/images/Blue_wizard_robe_%28g%29_detail.png"
+                    .to_string(),
             ),
             _discord_message:
-                "RuneScape Player received a clue item: Blue wizard robe (g) (105,162 coins).".to_string(),
+                "RuneScape Player received a clue item: Blue wizard robe (g) (105,162 coins)."
+                    .to_string(),
         });
 
         possible_clue_item_broadcasts.push(ItemMessageTest {
@@ -1918,16 +1969,17 @@ mod tests {
             item_quantity: 1,
             item_value: Some(200_472),
             item_icon: Some(
-                "https://oldschool.runescape.wiki/images/Master_scroll_book_%28empty%29_detail.png".to_string(),
+                "https://oldschool.runescape.wiki/images/Master_scroll_book_%28empty%29_detail.png"
+                    .to_string(),
             ),
             _discord_message:
-                "RuneScape Player received a clue item: Master scroll book (empty) (200,472 coins).".to_string(),
+                "RuneScape Player received a clue item: Master scroll book (empty) (200,472 coins)."
+                    .to_string(),
         });
 
         possible_clue_item_broadcasts.push(ItemMessageTest {
-            message:
-                "RuneScape Player received a clue item: Ranger boots (36,460,467 coins)."
-                    .to_string(),
+            message: "RuneScape Player received a clue item: Ranger boots (36,460,467 coins)."
+                .to_string(),
             player_it_happened_to: "RuneScape Player".to_string(),
             item_name: "Ranger boots".to_string(),
             item_quantity: 1,
@@ -1936,7 +1988,8 @@ mod tests {
                 "https://oldschool.runescape.wiki/images/Ranger_boots_detail.png".to_string(),
             ),
             _discord_message:
-                "RuneScape Player received a clue item: Ranger boots (36,460,467 coins).".to_string(),
+                "RuneScape Player received a clue item: Ranger boots (36,460,467 coins)."
+                    .to_string(),
         });
 
         return possible_clue_item_broadcasts;
@@ -2385,8 +2438,8 @@ mod tests {
         test_clan_coffer_broadcast_messages
     }
 
-    fn get_clan_coffer_withdraw_broadcast_messages(
-    ) -> Vec<TestBroadcast<CofferTransactionBroadcast>> {
+    fn get_clan_coffer_withdraw_broadcast_messages()
+    -> Vec<TestBroadcast<CofferTransactionBroadcast>> {
         let mut test_clan_coffer_broadcast_messages: Vec<
             TestBroadcast<CofferTransactionBroadcast>,
         > = Vec::new();
@@ -2418,7 +2471,7 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 148.00,
-                activity: "Vorkath".to_string(),                
+                activity: "Vorkath".to_string(),
                 variant: None,
             },
         });
@@ -2429,7 +2482,7 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 365.00,
-                activity: "Tempoross".to_string(),                
+                activity: "Tempoross".to_string(),
                 variant: None,
             },
         });
@@ -2440,7 +2493,7 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 4_192.00,
-                activity: "Chambers of Xeric".to_string(),                
+                activity: "Chambers of Xeric".to_string(),
                 variant: Some("Chambers of Xeric Solo".to_string()),
             },
         });
@@ -2450,7 +2503,7 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 2_798.40,
-                activity: "Chambers of Xeric".to_string(),                
+                activity: "Chambers of Xeric".to_string(),
                 variant: Some("Chambers of Xeric Challenge Mode 2 players".to_string()),
             },
         });
@@ -2460,7 +2513,7 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 2_197.80,
-                activity: "Tombs of Amascut".to_string(),                
+                activity: "Tombs of Amascut".to_string(),
                 variant: Some("Tombs of Amascut Expert Mode 5 players".to_string()),
             },
         });
@@ -2470,10 +2523,10 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 2_435.00,
-                activity: "Tombs of Amascut".to_string(),                
+                activity: "Tombs of Amascut".to_string(),
                 variant: Some("Tombs of Amascut Entry Mode 2 players".to_string()),
             },
-            
+
         });
 
         messages.push(TestBroadcast {
@@ -2481,7 +2534,7 @@ mod tests {
             broadcast: PersonalBestBroadcast {
                 player: "RuneScape Player".to_string(),
                 time_in_seconds: 1_820.00,
-                activity: "Tombs of Amascut".to_string(),                
+                activity: "Tombs of Amascut".to_string(),
                 variant: Some("Tombs of Amascut Solo".to_string())
             },
         });

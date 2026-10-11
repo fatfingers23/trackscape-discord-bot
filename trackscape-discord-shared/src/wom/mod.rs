@@ -1,8 +1,8 @@
 use log::info;
 use std::env;
 use std::future::Future;
-use wom_rs::models::name::{NameChange, NameChangeStatus};
 use wom_rs::WomClient;
+use wom_rs::models::name::{NameChange, NameChangeStatus};
 
 pub fn get_wom_client() -> WomClient {
     let api_key = env::var("WOM_API_KEY").expect("WOM_API_KEY not set!");

@@ -1,28 +1,32 @@
-use crate::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotals;
-use crate::database::clan_mates::ClanMates;
-use crate::database::drop_logs_db::DropLogs;
-use async_trait::async_trait;
-use mockall::automock;
-use mongodb::bson::doc;
-use mongodb::options::ClientOptions;
-use mongodb::Database;
+use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 
 pub mod broadcasts;
 pub mod clan_mate_collection_log_totals;
 pub mod clan_mates;
 pub mod drop_logs_db;
+pub mod enum_serde;
 pub mod guilds_db;
+#[cfg(feature = "legacy-mongo")]
+pub mod legacy_mongo;
 pub mod pb_activities_db;
 pub mod pb_records_db;
 
-#[automock]
-#[async_trait]
-pub trait MongoDb {
-    async fn new_db_instance(db_url: String) -> Self;
+/// Embedded sqlx migrations (`trackscape-discord-shared/migrations/`).
+/// Exported so tests and binaries can run them with `MIGRATOR.run(&pool)`.
+pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
+
+/// Runs the embedded migrations against the given pool. sqlx takes a
+/// Postgres advisory lock while migrating, so it is safe for several
+/// services to call this at startup at the same time.
+pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateError> {
+    MIGRATOR.run(pool).await
 }
 
+/// The database facade used by every binary. Holds one cheap-to-clone
+/// `PgPool` per sub-database (a `PgPool` is an `Arc` internally).
 #[derive(Clone)]
-pub struct BotMongoDb {
+pub struct BotDb {
     pub guilds: GuildsDb,
     pub drop_logs: DropLogsDb,
     pub clan_mates: ClanMatesDb,
@@ -30,63 +34,70 @@ pub struct BotMongoDb {
     pub broadcasts: BroadcastsDb,
     pub pb_activities: PersonalBestActivitiesDb,
     pub pb_records: PersonalBestRecordsDb,
+    pool: PgPool,
+}
+
+impl BotDb {
+    /// Connects to Postgres and builds the facade. Pools are kept small on
+    /// purpose: four services run against one database (api, bot, worker,
+    /// cron worker), and Postgres only allows so many connections.
+    pub async fn new_db_instance(db_url: String) -> anyhow::Result<Self> {
+        let pool = PgPoolOptions::new()
+            .max_connections(10)
+            .connect(db_url.as_str())
+            .await?;
+        Ok(Self::new(pool))
+    }
+
+    pub fn new(pool: PgPool) -> Self {
+        Self {
+            guilds: GuildsDb::new(pool.clone()),
+            drop_logs: DropLogsDb::new(pool.clone()),
+            clan_mates: ClanMatesDb::new(pool.clone()),
+            clan_mate_collection_log_totals: ClanMateCollectionLogTotalsDb::new(pool.clone()),
+            broadcasts: BroadcastsDb::new(pool.clone()),
+            pb_activities: PersonalBestActivitiesDb::new(pool.clone()),
+            pb_records: PersonalBestRecordsDb::new(pool.clone()),
+            pool,
+        }
+    }
+
+    pub fn pool(&self) -> &PgPool {
+        &self.pool
+    }
 }
 
 #[derive(Clone)]
 pub struct GuildsDb {
-    db: Database,
+    pool: PgPool,
 }
 
 #[derive(Clone)]
 pub struct DropLogsDb {
-    db: Database,
+    pool: PgPool,
 }
 
 #[derive(Clone)]
 pub struct ClanMatesDb {
-    db: Database,
+    pool: PgPool,
 }
 
 #[derive(Clone)]
 pub struct ClanMateCollectionLogTotalsDb {
-    db: Database,
+    pool: PgPool,
 }
 
 #[derive(Clone)]
 pub struct BroadcastsDb {
-    db: Database,
+    pool: PgPool,
 }
 
 #[derive(Clone)]
 pub struct PersonalBestActivitiesDb {
-    db: Database,
+    pool: PgPool,
 }
 
 #[derive(Clone)]
 pub struct PersonalBestRecordsDb {
-    db: Database,
-}
-
-#[async_trait]
-impl MongoDb for BotMongoDb {
-    async fn new_db_instance(db_url: String) -> Self {
-        let client_options = ClientOptions::parse(db_url.as_str())
-            .await
-            .expect("Could not connect to the mongo db");
-        let client = mongodb::Client::with_options(client_options)
-            .expect("Could not parse the mongod db url");
-
-        let db = client.database("TrackScapeDB");
-        Self {
-            guilds: GuildsDb::new(db.clone()),
-            drop_logs: DropLogsDb::new_instance(db.clone()),
-            clan_mates: ClanMatesDb::new_instance(db.clone()),
-            clan_mate_collection_log_totals: ClanMateCollectionLogTotalsDb::new_instance(
-                db.clone(),
-            ),
-            broadcasts: BroadcastsDb::new_instance(db.clone()),
-            pb_activities: PersonalBestActivitiesDb::new_instance(db.clone()),
-            pb_records: PersonalBestRecordsDb::new_instance(db),
-        }
-    }
+    pool: PgPool,
 }

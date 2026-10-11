@@ -2,8 +2,7 @@
 
 OSRS clan-chat Discord bot: Rust workspace + Vue 3 dashboard. The RuneLite
 "TrackScape Connector" plugin connects to the API over a websocket; in-game
-broadcasts are parsed into jobs that post to Discord. State lives in MongoDB;
-background jobs are celery-style tasks brokered over Redis.
+broadcasts are parsed into jobs that post to Discord. State lives in PostgreSQL (sqlx, compile-time checked queries with committed `.sqlx` offline metadata; schema migrations live in `trackscape-discord-shared/migrations/` and run automatically at API startup); background jobs are celery-style tasks brokered over Redis.
 
 ## Workspace layout
 
@@ -13,10 +12,7 @@ background jobs are celery-style tasks brokered over Redis.
 - `trackscape-discord-bot` — serenity Discord gateway bot. Slash
   commands live in `src/commands/`; a new command must be added to BOTH
   `get_commands()` and the `interaction_create` match in `src/main.rs`.
-- `trackscape-discord-shared` — shared library used by everything: Mongo
-  database layer (no migrations — collections are created on demand), DTOs,
-  OSRS broadcast parsing (`osrs_broadcast_extractor.rs`), celery job
-  definitions, external API clients. Most tests live here.
+- `trackscape-discord-shared` — shared library used by everything: Postgres/sqlx database layer (migrations in `migrations/`, embedded and exported as `database::MIGRATOR`), DTOs, OSRS broadcast parsing (`osrs_broadcast_extractor.rs`), celery job definitions, external API clients. Most tests live here. The `legacy-mongo` cargo feature exposes the old Mongo document shapes for the one-off migrator only.
 - `trackscape-discord-job-worker` / `trackscape-discord-cron-job-worker` —
   plain binaries: job worker consumes Redis queues `celery` and
   `cron_job_queue`; cron worker enqueues scheduled jobs (e.g. WOM sync).
@@ -28,7 +24,7 @@ background jobs are celery-style tasks brokered over Redis.
 
 Prereqs: Rust stable, Docker, Node 20.
 
-    docker compose up -d        # mongo :27017 + redis :6379 — must be running
+    docker compose up -d        # postgres :5432 + redis :6379 — must be running
     cp .env.save .env           # fill in DISCORD_TOKEN, DEV_GUILD_ID (numeric), ...
 
 - The API and bot are separate binaries. Run each from the repo ROOT in its own
@@ -69,6 +65,8 @@ Prereqs: Rust stable, Docker, Node 20.
   Discord's side).
 - PR expectations (`.github/CONTRIBUTING.md`): run check/build/test first, and
   create/link an issue for bugs and features before the PR.
+- sqlx queries are compile-time checked. Building with a live DB requires `DATABASE_URL` and the schema applied (`just migrate`); CI and Docker builds use the committed `.sqlx` offline metadata (`SQLX_OFFLINE=true`). After changing any query or migration, run `just sqlx-prepare` and commit the `.sqlx` directory.
+- `trackscape-discord-migrator` is a one-off binary that copies the legacy MongoDB data into Postgres (`MONGO_DB_URL` + `DATABASE_URL`, `--truncate-first` for a clean re-run). It is the cutover path from the old VPS database.
 
 ## Release (maintainers)
 

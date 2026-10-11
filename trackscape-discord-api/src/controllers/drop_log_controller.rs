@@ -1,10 +1,10 @@
-use actix_web::{get, web, Error, HttpResponse, Scope};
+use actix_web::{Error, HttpResponse, Scope, get, web};
 use chrono::Utc;
 use csv::Writer;
 use dateparser::parse_with_timezone;
 use serde::{Deserialize, Serialize};
+use trackscape_discord_shared::database::BotDb;
 use trackscape_discord_shared::database::drop_logs_db::DropLogs;
-use trackscape_discord_shared::database::BotMongoDb;
 
 #[derive(Deserialize, Serialize)]
 struct ListDropsRequest {
@@ -32,7 +32,7 @@ struct DropRow<'a> {
 #[get("/list/{confirmation_code}/{start_date}/{end_date}")]
 async fn get_drops(
     list_drop_request: web::Path<ListDropsRequest>,
-    mongodb: web::Data<BotMongoDb>,
+    mongodb: web::Data<BotDb>,
 ) -> Result<HttpResponse, Error> {
     let possible_registered_guild = mongodb
         .guilds
@@ -50,8 +50,8 @@ async fn get_drops(
                 if parsed_end_date.is_err() {
                     return Ok(HttpResponse::BadRequest().body("Invalid End Date"));
                 }
-                let start = bson::datetime::DateTime::from_chrono(parsed_start_date.unwrap());
-                let end = bson::datetime::DateTime::from_chrono(parsed_end_date.unwrap());
+                let start = parsed_start_date.unwrap();
+                let end = parsed_end_date.unwrap();
                 let possible_drop_logs = mongodb
                     .drop_logs
                     .get_drops_between_dates(registered_guild.guild_id.clone(), start, end)
@@ -69,7 +69,7 @@ async fn get_drops(
                                 item_name: drop_log.drop_item.item_name.as_str(),
                                 quantity: drop_log.drop_item.item_quantity,
                                 price: drop_log.drop_item.item_value,
-                                date: drop_log.created_at.to_chrono(),
+                                date: drop_log.created_at,
                             };
                             wtr.serialize(drop_row).unwrap();
                         }

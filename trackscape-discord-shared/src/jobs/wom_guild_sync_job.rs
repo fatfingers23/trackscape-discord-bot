@@ -1,4 +1,4 @@
-use crate::jobs::job_helpers::get_mongodb;
+use crate::jobs::job_helpers::get_db;
 use crate::jobs::wom_guild_sync_logic::sync_wom_by_guild;
 use celery::task::TaskResult;
 use log::info;
@@ -9,9 +9,9 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
     //So since it does not see that it makes a new clanmate. Probably just need to check
     // name changes for in db and combine after the loop and before remove?
 
-    let mongodb = get_mongodb().await;
+    let db = get_db().await;
 
-    let guilds = mongodb
+    let guilds = db
         .guilds
         .list_clans()
         .await
@@ -22,7 +22,7 @@ pub async fn wom_guild_sync() -> TaskResult<()> {
             info!("No wom id found for guild: {:?}", guild.clan_name);
             continue;
         }
-        sync_wom_by_guild(&guild, &mongodb).await;
+        sync_wom_by_guild(&guild, &db).await;
     }
 
     Ok(())

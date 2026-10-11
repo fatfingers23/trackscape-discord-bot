@@ -1,13 +1,13 @@
 use actix_web::http::StatusCode;
 use actix_web::web::Data;
-use actix_web::{get, post, web, Error, HttpRequest, HttpResponse, Scope};
+use actix_web::{Error, HttpRequest, HttpResponse, Scope, get, post, web};
 use bot_info_dto::DiscordServerCount;
 use dto::bot_info_dto;
 use redis::{Commands, RedisResult};
 use serde::{Deserialize, Serialize};
 
-use std::sync::atomic::AtomicI64;
 use std::sync::Mutex;
+use std::sync::atomic::AtomicI64;
 use trackscape_discord_shared::dto;
 use web::Json;
 
@@ -56,7 +56,9 @@ async fn set_discord_server_count(
     connected_discord_servers: Data<AtomicI64>,
 ) -> Result<HttpResponse, Error> {
     let Ok(server_api_key) = std::env::var("MANAGEMENT_API_KEY") else {
-        println!("MANAGEMENT_API_KEY isn't set! This should never error out as it is checked in startup.");
+        println!(
+            "MANAGEMENT_API_KEY isn't set! This should never error out as it is checked in startup."
+        );
         return Ok(HttpResponse::InternalServerError().body("Internal server error :("));
     };
 

@@ -8,7 +8,7 @@ rust-version.workspace = true
 
 [dependencies]
 async-recursion = "1.0.5"
-bson = { version = "2.10.0", features = ["chrono-0_4"] }
+bson = { version = "2.10.0", features = ["chrono-0_4"], optional = true }
 capitalize = "0.3.3"
 tracing = "0.1.37"
 num-format = "0.4.4"
@@ -19,9 +19,9 @@ reqwest = { version = "0.11.20", features = ["json"] }
 xxhash-rust = { version = "0.8.6", features = ["xxh3", "const_xxh3"] }
 serde = { version = "1.0.188", features = ["derive"] }
 serde_json = "1.0.105"
-mongodb = "2.4.0"
+mongodb = { version = "2.4.0", optional = true }
 urlencoding = "2.1.3"
-tokio = "1.26.0"
+tokio = { version = "1.26.0", features = ["sync", "macros", "rt"] }
 log = "0.4.20"
 async-trait = "0.1.73"
 mockall = "0.11.4"
@@ -29,9 +29,25 @@ anyhow = "1.0.75"
 celery = "0.5.5"
 redis.workspace = true
 wom_rs = { git = "https://github.com/fatfingers23/wom_rs.git" }
-chrono = "0.4.33"
+chrono = { version = "0.4.33", features = ["serde"] }
 once_cell = "1.20.2"
 scraper = "0.23.1"
+sqlx = { version = "0.9.0", default-features = false, features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+    "chrono",
+    "uuid",
+    "json",
+    "migrate",
+    "macros",
+] }
+uuid = { version = "1.4.1", features = ["v4", "serde"] }
+
+[features]
+# Compiles the legacy MongoDB document shapes used by the one-off
+# trackscape-discord-migrator binary. Nothing else needs this.
+legacy-mongo = ["dep:mongodb", "dep:bson"]
 
 [dev-dependencies]
 rstest = "0.19.0"

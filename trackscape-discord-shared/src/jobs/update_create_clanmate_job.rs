@@ -1,5 +1,5 @@
 use crate::database::clan_mates::{ClanMateModel, ClanMates};
-use crate::jobs::job_helpers::{get_mongodb, get_redis_connection, write_to_cache};
+use crate::jobs::job_helpers::{get_db, get_redis_connection, write_to_cache};
 use crate::wom::{get_latest_name_change, get_wom_client};
 use celery::prelude::*;
 use redis::{Commands, RedisResult};
@@ -23,7 +23,7 @@ pub async fn update_create_clanmate(
             return Ok(0);
         }
     };
-    let mongodb = get_mongodb().await;
+    let db = get_db().await;
 
     match does_key_exist {
         true => {
@@ -43,8 +43,7 @@ pub async fn update_create_clanmate(
                     }
 
                     serialized_player.rank = Some(rank.clone());
-                    mongodb
-                        .clan_mates
+                    db.clan_mates
                         .update_clan_mate(serialized_player.clone())
                         .await
                         .unwrap();
@@ -57,7 +56,7 @@ pub async fn update_create_clanmate(
         }
         false => {
             //Checks to see if they had a name change
-            let possible_saved_player = mongodb
+            let possible_saved_player = db
                 .clan_mates
                 .find_by_current_name(player_name.clone())
                 .await;
@@ -80,7 +79,7 @@ pub async fn update_create_clanmate(
                                 match possible_name_change {
                                     None => {
                                         //No name change found, must be a new clan mate
-                                        let _ = mongodb
+                                        let _ = db
                                             .clan_mates
                                             .create_new_clan_mate(
                                                 guild_id,
@@ -90,13 +89,13 @@ pub async fn update_create_clanmate(
                                             .await;
                                     }
                                     Some(name_change) => {
-                                        let check_by_old_name = mongodb
+                                        let check_by_old_name = db
                                             .clan_mates
                                             .find_by_current_name(name_change.old_name.clone())
                                             .await;
                                         if check_by_old_name.is_err() {
                                             if check_by_old_name.unwrap().is_none() {
-                                                let _ = mongodb
+                                                let _ = db
                                                     .clan_mates
                                                     .create_new_clan_mate(
                                                         guild_id,
@@ -107,7 +106,7 @@ pub async fn update_create_clanmate(
                                             }
                                         } else {
                                             if check_by_old_name.unwrap().is_some() {
-                                                let _ = mongodb
+                                                let _ = db
                                                     .clan_mates
                                                     .change_name(
                                                         guild_id,
@@ -116,7 +115,7 @@ pub async fn update_create_clanmate(
                                                     )
                                                     .await;
                                             } else {
-                                                let _ = mongodb
+                                                let _ = db
                                                     .clan_mates
                                                     .create_new_clan_mate(
                                                         guild_id,
@@ -134,8 +133,7 @@ pub async fn update_create_clanmate(
                             if player.rank.is_none() {
                                 player.rank = Some(rank.clone());
 
-                                mongodb
-                                    .clan_mates
+                                db.clan_mates
                                     .update_clan_mate(player.clone())
                                     .await
                                     .unwrap();
@@ -150,7 +148,7 @@ pub async fn update_create_clanmate(
                             }
 
                             player.rank = Some(rank.clone());
-                            mongodb.clan_mates.update_clan_mate(player).await.unwrap();
+                            db.clan_mates.update_clan_mate(player).await.unwrap();
                         }
                     }
                 }

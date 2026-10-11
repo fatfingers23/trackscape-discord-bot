@@ -5,6 +5,7 @@ RUN npm install
 RUN npm run build
 
 FROM rust:1.99-bookworm AS api-builder
+ENV SQLX_OFFLINE=true
 WORKDIR /app
 COPY . /app
 RUN cargo build --bin trackscape-discord-api --release --locked

@@ -1,0 +1,148 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT t.guild_id, t.player_id, t.total, t.created_at,\n                   c.id as cm_id, c.guild_id as cm_guild_id, c.player_name as cm_player_name,\n                   c.wom_player_id as cm_wom_player_id, c.previous_names as cm_previous_names,\n                   c.\"rank\" as cm_rank, c.created_at as cm_created_at\n            FROM clan_mate_collection_log_totals t\n            JOIN clan_mates c ON c.id = t.player_id\n            WHERE t.guild_id = $1\n            ORDER BY t.total DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "clan_mate_collection_log_totals",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "player_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "clan_mate_collection_log_totals",
+            "name": "player_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "total",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "clan_mate_collection_log_totals",
+            "name": "total"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "clan_mate_collection_log_totals",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "cm_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "cm_guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "cm_player_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "player_name"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "cm_wom_player_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "wom_player_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "cm_previous_names",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "previous_names"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "cm_rank",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "rank"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "cm_created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "3153766c0d2186076ab0bc8c92169f968b309e080f1b720c612bec3adbe95b49"
+}

@@ -1,0 +1,220 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id, guild_id, clan_name, broadcast_channel, clan_chat_channel,\n                   leagues_broadcast_channel, drop_price_threshold,\n                   disallowed_broadcast_types, verification_code, hashed_verification_code,\n                   min_quest_difficulty, min_diary_tier, pk_value_threshold, wom_id, created_at,\n                   custom_drop_broadcast_filter,\n                   collection_log_max_percentage\n            FROM guilds\n            WHERE hashed_verification_code = $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "clan_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "clan_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "broadcast_channel",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "broadcast_channel"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "clan_chat_channel",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "clan_chat_channel"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "leagues_broadcast_channel",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "leagues_broadcast_channel"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "drop_price_threshold",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "drop_price_threshold"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "disallowed_broadcast_types",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "disallowed_broadcast_types"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "verification_code",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "verification_code"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "hashed_verification_code",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "hashed_verification_code"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "min_quest_difficulty",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "min_quest_difficulty"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "min_diary_tier",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "min_diary_tier"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "pk_value_threshold",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "pk_value_threshold"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "wom_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "wom_id"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "custom_drop_broadcast_filter",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "custom_drop_broadcast_filter"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "collection_log_max_percentage",
+        "type_info": "Float8",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "collection_log_max_percentage"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "6f9ed91fc0df25a220059fe78c0380a577034924dccd234fb7386d58700f7d3c"
+}

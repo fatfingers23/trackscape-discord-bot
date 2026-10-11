@@ -1,7 +1,7 @@
 use crate::websocket_server::DiscordToClanChatMessage;
-use crate::{handler, ChatServerHandle};
+use crate::{ChatServerHandle, handler};
 use actix_web::web::Data;
-use actix_web::{error, post, web, Error, HttpRequest, HttpResponse, Scope};
+use actix_web::{Error, HttpRequest, HttpResponse, Scope, error, post, web};
 use celery::Celery;
 use redis::Commands;
 use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor};
@@ -9,17 +9,17 @@ use serenity::builder::CreateMessage;
 use serenity::http::Http;
 use std::sync::Arc;
 use tokio::task::spawn_local;
-use trackscape_discord_shared::database::BotMongoDb;
+use trackscape_discord_shared::database::BotDb;
 use trackscape_discord_shared::ge_api::ge_api::get_item_mapping;
 use trackscape_discord_shared::helpers::hash_string;
 use trackscape_discord_shared::jobs::CeleryJobQueue;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-    get_wiki_clan_rank_image_url, ClanMessage,
+    ClanMessage, get_wiki_clan_rank_image_url,
 };
 use trackscape_discord_shared::osrs_broadcast_handler::OSRSBroadcastHandler;
 use trackscape_discord_shared::redis_helpers::{fetch_redis, write_to_cache_with_seconds};
-use trackscape_discord_shared::wiki_api::wiki_api::get_quests_and_difficulties;
 use trackscape_discord_shared::wiki_api::wiki_api::get_clogs_and_percentages;
+use trackscape_discord_shared::wiki_api::wiki_api::get_quests_and_difficulties;
 use web::Json;
 
 #[derive(Debug)]
@@ -34,7 +34,7 @@ async fn new_discord_message(
     req: HttpRequest,
     chat_server: web::Data<ChatServerHandle>,
     new_chat: Json<DiscordToClanChatMessage>,
-    mongodb: web::Data<BotMongoDb>,
+    mongodb: web::Data<BotDb>,
 ) -> actix_web::Result<String> {
     let possible_verification_code = req.headers().get("verification-code");
 
@@ -83,7 +83,7 @@ async fn new_clan_chats(
     discord_http_client: Data<Http>,
     redis_client: Data<redis::Client>,
     new_chat: Json<Vec<ClanMessage>>,
-    mongodb: Data<BotMongoDb>,
+    mongodb: Data<BotDb>,
     celery: Data<Arc<Celery>>,
 ) -> actix_web::Result<String> {
     let possible_verification_code = req.headers().get("verification-code");
@@ -391,7 +391,7 @@ async fn chat_ws(
     req: HttpRequest,
     stream: web::Payload,
     chat_server: web::Data<ChatServerHandle>,
-    mongodb: web::Data<BotMongoDb>,
+    mongodb: web::Data<BotDb>,
 ) -> Result<HttpResponse, Error> {
     let (res, session, msg_stream) = actix_ws::handle(&req, stream).expect("Failed to start WS");
     let possible_verification_code = req.headers().get("verification-code");

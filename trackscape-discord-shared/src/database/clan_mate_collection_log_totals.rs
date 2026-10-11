@@ -1,52 +1,86 @@
 use crate::database::ClanMateCollectionLogTotalsDb;
 use anyhow::Error;
 use async_trait::async_trait;
-use futures::TryStreamExt;
+use chrono::{DateTime, Utc};
 use log::info;
 use mockall::automock;
-use mongodb::bson::{doc, DateTime};
-use mongodb::{bson, Database};
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
+use uuid::Uuid;
 
 use super::clan_mates::ClanMateModel;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ClanMateCollectionLogTotalModel {
     pub guild_id: u64,
-    pub player_id: bson::oid::ObjectId,
+    pub player_id: Uuid,
     pub total: i64,
-    pub created_at: DateTime,
+    pub created_at: DateTime<Utc>,
     pub clan_mate: Option<ClanMateModel>,
 }
 
 impl ClanMateCollectionLogTotalModel {
     pub const COLLECTION_NAME: &'static str = "clan_mate_collection_log_totals";
-    pub fn new(guild_id: u64, player_id: bson::oid::ObjectId, total: i64) -> Self {
+    pub fn new(guild_id: u64, player_id: Uuid, total: i64) -> Self {
         Self {
             guild_id,
             player_id,
             total,
-            created_at: DateTime::now(),
+            created_at: Utc::now(),
             clan_mate: None,
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct ClanMateCollectionLogTotalsView {
-    pub player_name: String,
-    pub total: i64,
+/// Row for the guild totals query that joins clan mates in.
+struct GuildTotalsRow {
+    guild_id: i64,
+    player_id: Uuid,
+    total: i64,
+    created_at: DateTime<Utc>,
+    cm_id: Uuid,
+    cm_guild_id: i64,
+    cm_player_name: String,
+    cm_wom_player_id: Option<i64>,
+    cm_previous_names: Vec<String>,
+    cm_rank: Option<String>,
+    cm_created_at: DateTime<Utc>,
+}
+
+impl From<GuildTotalsRow> for ClanMateCollectionLogTotalModel {
+    fn from(row: GuildTotalsRow) -> Self {
+        let clan_mate = ClanMateModel {
+            id: row.cm_id,
+            guild_id: row.cm_guild_id as u64,
+            player_name: row.cm_player_name,
+            wom_player_id: row.cm_wom_player_id.map(|id| id as u64),
+            previous_names: row.cm_previous_names,
+            rank: row.cm_rank,
+            created_at: row.cm_created_at,
+        };
+        Self {
+            guild_id: row.guild_id as u64,
+            player_id: row.player_id,
+            total: row.total,
+            created_at: row.created_at,
+            clan_mate: Some(clan_mate),
+        }
+    }
+}
+
+impl ClanMateCollectionLogTotalsDb {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
 }
 
 #[automock]
 #[async_trait]
 pub trait ClanMateCollectionLogTotals {
-    fn new_instance(mongodb: Database) -> Self;
-
     async fn update_or_create(
         &self,
         guild_id: u64,
-        player_id: bson::oid::ObjectId,
+        player_id: Uuid,
         total: i64,
     ) -> Result<(), anyhow::Error>;
 
@@ -58,45 +92,25 @@ pub trait ClanMateCollectionLogTotals {
 
 #[async_trait]
 impl ClanMateCollectionLogTotals for ClanMateCollectionLogTotalsDb {
-    fn new_instance(mongodb: Database) -> Self {
-        Self { db: mongodb }
-    }
-
     async fn update_or_create(
         &self,
         guild_id: u64,
-        player_id: bson::oid::ObjectId,
+        player_id: Uuid,
         total: i64,
     ) -> Result<(), Error> {
-        let collection = self.db.collection::<ClanMateCollectionLogTotalModel>(
-            ClanMateCollectionLogTotalModel::COLLECTION_NAME,
-        );
-
-        let filter = doc! {
-            "guild_id": bson::to_bson(&guild_id).unwrap(),
-            "player_id": player_id.clone(),
-        };
-
-        let update_result = collection
-            .update_one(
-                filter,
-                doc! {
-                    "$set": {
-                        "total": bson::to_bson(&total).unwrap()
-                    }
-                },
-                None,
-            )
-            .await?;
-        info!("Update result: {:?}", update_result);
-        if update_result.matched_count > 0 {
-            return Ok(());
-        }
-        let new_total = ClanMateCollectionLogTotalModel::new(guild_id, player_id, total);
-        let _ = collection
-            .insert_one(new_total, None)
-            .await
-            .expect("Error inserting new collection log total.");
+        let result = sqlx::query!(
+            r#"
+            INSERT INTO clan_mate_collection_log_totals (guild_id, player_id, total, created_at)
+            VALUES ($1, $2, $3, now())
+            ON CONFLICT (guild_id, player_id) DO UPDATE SET total = EXCLUDED.total
+            "#,
+            guild_id as i64,
+            player_id,
+            total,
+        )
+        .execute(&self.pool)
+        .await?;
+        info!("Upserted collection log total, rows affected: {:?}", result);
         Ok(())
     }
 
@@ -104,52 +118,22 @@ impl ClanMateCollectionLogTotals for ClanMateCollectionLogTotalsDb {
         &self,
         guild_id: u64,
     ) -> Result<Vec<ClanMateCollectionLogTotalModel>, anyhow::Error> {
-        let collection = self.db.collection::<ClanMateCollectionLogTotalModel>(
-            ClanMateCollectionLogTotalModel::COLLECTION_NAME,
-        );
-
-        let filter = doc! {
-            "guild_id": bson::to_bson(&guild_id).unwrap(),
-        };
-
-        let mut cursor = collection
-            .aggregate(
-                vec![
-                    doc! {
-                        "$match": filter
-                    },
-                    doc! {
-                        "$lookup": {
-                            "from": "clan_mates",
-                            "localField": "player_id",
-                            "foreignField": "_id",
-                            "as": "clan_mate"
-                        }
-                    },
-                    doc! {
-                        "$unwind": "$clan_mate"
-                    },
-                    doc! {
-                        "$sort": {
-                            "total": -1
-                        }
-                    },
-                ],
-                None,
-            )
-            .await?;
-
-        let mut results: Vec<ClanMateCollectionLogTotalModel> = Vec::new();
-
-        // Iterate through the results and map them to the struct
-        while let Some(result) = cursor.try_next().await? {
-            if let Ok(view) =
-                bson::from_bson::<ClanMateCollectionLogTotalModel>(bson::Bson::Document(result))
-            {
-                results.push(view);
-            }
-        }
-
-        return Ok(results);
+        let rows = sqlx::query_as!(
+            GuildTotalsRow,
+            r#"
+            SELECT t.guild_id, t.player_id, t.total, t.created_at,
+                   c.id as cm_id, c.guild_id as cm_guild_id, c.player_name as cm_player_name,
+                   c.wom_player_id as cm_wom_player_id, c.previous_names as cm_previous_names,
+                   c."rank" as cm_rank, c.created_at as cm_created_at
+            FROM clan_mate_collection_log_totals t
+            JOIN clan_mates c ON c.id = t.player_id
+            WHERE t.guild_id = $1
+            ORDER BY t.total DESC
+            "#,
+            guild_id as i64
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|row| row.into()).collect())
     }
 }

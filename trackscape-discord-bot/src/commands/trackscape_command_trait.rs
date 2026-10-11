@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use serenity::all::{CommandDataOption, CreateCommand};
-use trackscape_discord_shared::database::BotMongoDb;
+use trackscape_discord_shared::database::BotDb;
 
 #[async_trait]
 pub trait _TrackscapeCommand {
@@ -9,7 +9,7 @@ pub trait _TrackscapeCommand {
     async fn run(
         options: &[CommandDataOption],
         ctx: &serenity::all::Context,
-        db: &BotMongoDb,
+        db: &BotDb,
         guild_id: u64,
     ) -> Option<String>;
 }

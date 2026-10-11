@@ -1,25 +1,21 @@
-use super::pb_records_db::PersonalBestRecordsModel;
-use crate::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotalModel;
 use crate::database::ClanMatesDb;
 use anyhow::Error;
 use async_trait::async_trait;
-use futures::TryStreamExt;
-use mockall::predicate::*;
-use mockall::*;
-use mongodb::bson::{doc, DateTime};
-use mongodb::{bson, Database};
+use chrono::{DateTime, Utc};
+use mockall::automock;
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ClanMateModel {
-    #[serde(rename = "_id")]
-    pub id: bson::oid::ObjectId,
+    pub id: Uuid,
     pub guild_id: u64,
     pub player_name: String,
     pub wom_player_id: Option<u64>,
     pub previous_names: Vec<String>,
     pub rank: Option<String>,
-    pub created_at: DateTime,
+    pub created_at: DateTime<Utc>,
 }
 
 impl ClanMateModel {
@@ -27,22 +23,52 @@ impl ClanMateModel {
 
     pub fn new(guild_id: u64, player_name: String, wom_player_id: Option<u64>) -> Self {
         Self {
-            id: bson::oid::ObjectId::new(),
+            id: Uuid::new_v4(),
             guild_id,
             wom_player_id,
             previous_names: Vec::new(),
             player_name,
             rank: None,
-            created_at: DateTime::now(),
+            created_at: Utc::now(),
         }
+    }
+}
+
+/// Private row struct matching the Postgres column types exactly
+/// (Discord snowflakes are bigint).
+struct ClanMateRow {
+    id: Uuid,
+    guild_id: i64,
+    player_name: String,
+    wom_player_id: Option<i64>,
+    previous_names: Vec<String>,
+    rank: Option<String>,
+    created_at: DateTime<Utc>,
+}
+
+impl From<ClanMateRow> for ClanMateModel {
+    fn from(row: ClanMateRow) -> Self {
+        Self {
+            id: row.id,
+            guild_id: row.guild_id as u64,
+            player_name: row.player_name,
+            wom_player_id: row.wom_player_id.map(|id| id as u64),
+            previous_names: row.previous_names,
+            rank: row.rank,
+            created_at: row.created_at,
+        }
+    }
+}
+
+impl ClanMatesDb {
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
     }
 }
 
 #[automock]
 #[async_trait]
 pub trait ClanMates {
-    fn new_instance(mongodb: Database) -> Self;
-
     async fn find_or_create_clan_mate(
         &self,
         guild_id: u64,
@@ -57,11 +83,6 @@ pub trait ClanMates {
     ) -> Result<ClanMateModel, anyhow::Error>;
 
     async fn find_by_current_name(
-        &self,
-        player_name: String,
-    ) -> Result<Option<ClanMateModel>, anyhow::Error>;
-
-    async fn find_by_previous_name(
         &self,
         player_name: String,
     ) -> Result<Option<ClanMateModel>, anyhow::Error>;
@@ -84,10 +105,6 @@ pub trait ClanMates {
 
 #[async_trait]
 impl ClanMates for ClanMatesDb {
-    fn new_instance(mongodb: Database) -> Self {
-        Self { db: mongodb }
-    }
-
     async fn find_or_create_clan_mate(
         &self,
         guild_id: u64,
@@ -109,12 +126,23 @@ impl ClanMates for ClanMatesDb {
         player_name: String,
         wom_player_id: Option<u64>,
     ) -> Result<ClanMateModel, anyhow::Error> {
-        let collection = self
-            .db
-            .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
         let clan_mate =
             ClanMateModel::new(guild_id, player_name.replace(" ", "\u{a0}"), wom_player_id);
-        let _ = collection.insert_one(clan_mate.clone(), None).await?;
+        sqlx::query!(
+            r#"
+            INSERT INTO clan_mates (id, guild_id, player_name, wom_player_id, previous_names, "rank", created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            "#,
+            clan_mate.id,
+            clan_mate.guild_id as i64,
+            clan_mate.player_name,
+            clan_mate.wom_player_id.map(|id| id as i64),
+            &clan_mate.previous_names,
+            clan_mate.rank,
+            clan_mate.created_at,
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(clan_mate)
     }
 
@@ -122,88 +150,67 @@ impl ClanMates for ClanMatesDb {
         &self,
         player_name: String,
     ) -> Result<Option<ClanMateModel>, anyhow::Error> {
-        let collection = self
-            .db
-            .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
-        let filter = doc! {
-            "player_name": bson::to_bson(&player_name.replace(" ", "\u{a0}")).unwrap(),
-        };
-        //TODO possible lower case look up
-        // let agg = vec![doc! {
-        //     "$match": doc!{
-        //         "$expr": doc!{
-        //             "$eq": doc!{
-        //                 "$toLower": doc! {"player_name": bson::to_bson(&player_name.to_lowercase().replace(" ", "\u{a0}")).unwrap()}
-        //             }
-        //         }
-        //     }
-        // }];
-        // let mut multi_results = collection.aggregate(agg, None).await?;
-        // while let Some(result) = multi_results.try_next().await? {
-        //     let doc = bson::from_document(result)?;
-        //     // println!("* {}", doc);
-        // }
-        let result = collection.find_one(filter, None).await?;
-        Ok(result)
-    }
-
-    async fn find_by_previous_name(
-        &self,
-        player_name: String,
-    ) -> Result<Option<ClanMateModel>, anyhow::Error> {
-        let collection = self
-            .db
-            .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
-        let filter = doc! {
-            "previous_names": bson::to_bson(&player_name.replace(" ", "\u{a0}")).unwrap(),
-        };
-        let result = collection.find_one(filter, None).await?;
-        Ok(result)
+        let row = sqlx::query_as!(
+            ClanMateRow,
+            r#"
+            SELECT id, guild_id, player_name, wom_player_id, previous_names, "rank", created_at
+            FROM clan_mates
+            WHERE player_name = $1
+            "#,
+            player_name.replace(" ", "\u{a0}")
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|row| row.into()))
     }
 
     async fn update_clan_mate(&self, mut model: ClanMateModel) -> Result<ClanMateModel, Error> {
-        let collection = self
-            .db
-            .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
         model.player_name = model.player_name.replace(" ", "\u{a0}");
-        let filter = doc! {
-            "_id": bson::to_bson(&model.id).unwrap(),
-        };
-        let _ = collection.replace_one(filter, model.clone(), None).await?;
+        sqlx::query!(
+            r#"
+            UPDATE clan_mates
+            SET player_name = $2, wom_player_id = $3, previous_names = $4, "rank" = $5, created_at = $6
+            WHERE id = $1
+            "#,
+            model.id,
+            model.player_name,
+            model.wom_player_id.map(|id| id as i64),
+            &model.previous_names,
+            model.rank,
+            model.created_at,
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(model)
     }
 
     async fn get_clan_member_count(&self, guild_id: u64) -> Result<u64, Error> {
-        let collection = self
-            .db
-            .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
-        let filter = doc! {
-            "guild_id": bson::to_bson(&guild_id).unwrap(),
-        };
-        let result = collection.count_documents(filter, None).await?;
-        Ok(result)
+        let count = sqlx::query_scalar!(
+            "SELECT COUNT(*) as count FROM clan_mates WHERE guild_id = $1",
+            guild_id as i64
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(count.unwrap_or(0) as u64)
     }
 
     async fn get_clan_mates_by_guild_id(&self, guild_id: u64) -> Result<Vec<ClanMateModel>, Error> {
-        let collection = self
-            .db
-            .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
-        let filter = doc! {
-            "guild_id": bson::to_bson(&guild_id).unwrap(),
-        };
-        let result = collection.find(filter, None).await?;
-        let clan_mates = result.try_collect().await?;
-        Ok(clan_mates)
+        let rows = sqlx::query_as!(
+            ClanMateRow,
+            r#"
+            SELECT id, guild_id, player_name, wom_player_id, previous_names, "rank", created_at
+            FROM clan_mates
+            WHERE guild_id = $1
+            ORDER BY created_at ASC
+            "#,
+            guild_id as i64
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|row| row.into()).collect())
     }
 
     async fn remove_clan_mate(&self, guild_id: u64, player_name: String) -> Result<(), Error> {
-        //TODO add a bit to clean up other collections too
-
-        //TODO dont forget to remove PBs
-        let collection = self
-            .db
-            .collection::<ClanMateModel>(ClanMateModel::COLLECTION_NAME);
-
         let possible_player = self.find_by_current_name(player_name.clone()).await?;
         if possible_player.is_none() {
             return Err(anyhow::anyhow!(format!(
@@ -211,48 +218,20 @@ impl ClanMates for ClanMatesDb {
                 player_name
             )));
         }
-        let player = possible_player.unwrap();
 
-        //Removes other data from db may move else where
-        let delete_filter = doc! {
-            "guild_id": bson::to_bson(&guild_id).unwrap(),
-            "player_id": player.id.clone(),
-        };
-
-        let collection_log_collection = self.db.collection::<ClanMateCollectionLogTotalModel>(
-            ClanMateCollectionLogTotalModel::COLLECTION_NAME,
-        );
-
-        let collection_log_result = collection_log_collection
-            .delete_many(delete_filter.clone(), None)
-            .await;
-        if collection_log_result.is_err() {
-            println!(
-                "Failed to remove collection log totals for clan mate: {}",
-                player_name
-            );
-            println!("Error: {:?}", collection_log_result.err());
-        }
-
-        let pb_collection = self
-            .db
-            .collection::<PersonalBestRecordsModel>(PersonalBestRecordsModel::COLLECTION_NAME);
-        let pb_records_result = pb_collection.delete_many(delete_filter, None).await;
-        if pb_records_result.is_err() {
-            println!(
-                "Failed to remove personal best records for clan mate: {}",
-                player_name
-            );
-            println!("Error: {:?}", pb_records_result.err());
-        }
-        //End of removing from other collections
-
-        let filter = doc! {
-                "guild_id":bson::to_bson(&guild_id).unwrap(),
-                "player_name": bson::to_bson(&player_name.replace(" ", "\u{a0}")).unwrap()
-        };
-        let result = collection.delete_one(filter, None).await?;
-        if result.deleted_count == 0 {
+        // The personal best records and collection log totals for this clan
+        // mate are removed by the foreign keys' ON DELETE CASCADE.
+        let result = sqlx::query!(
+            r#"
+            DELETE FROM clan_mates
+            WHERE guild_id = $1 AND player_name = $2
+            "#,
+            guild_id as i64,
+            player_name.replace(" ", "\u{a0}")
+        )
+        .execute(&self.pool)
+        .await?;
+        if result.rows_affected() == 0 {
             return Err(anyhow::anyhow!("Failed to remove clan mate"));
         }
         Ok(())

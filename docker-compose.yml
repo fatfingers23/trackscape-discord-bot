@@ -1,16 +1,20 @@
 services:
-  mongo:
-    image: mongo:5.0.10
+  postgres:
+    image: postgres:17-alpine
     ports:
-      - '27017:27017'
+      - '5432:5432'
     environment:
-      MONGO_INITDB_ROOT_USERNAME: '${MONGO_USERNAME}'
-      MONGO_INITDB_ROOT_PASSWORD: '${MONGO_PASSWORD}'
-      MONGO_INITDB_DATABASE: "TrackScapeDB"
+      POSTGRES_USER: '${POSTGRES_USER:-trackscape}'
+      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD:-trackscape}'
+      POSTGRES_DB: '${POSTGRES_DB:-trackscape}'
     volumes:
-      - trackscape-db:/data/db
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - trackscape-pg:/var/lib/postgresql/data
+    networks:
+      - trackscape-network
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "${POSTGRES_USER:-trackscape}" ]
+      retries: 3
+      timeout: 5s
   redis:
     image: 'redis:alpine'
     ports:
@@ -24,7 +28,7 @@ services:
       retries: 3
       timeout: 5s
 volumes:
-  trackscape-db:
+  trackscape-pg:
     driver: local
   trackscape-redis:
     driver: local

@@ -1,6 +1,6 @@
 use super::get_runelite_api_url;
-use crate::{database::clan_mates::ClanMates, jobs::job_helpers::get_mongodb};
-use anyhow::{anyhow, Ok};
+use crate::{database::clan_mates::ClanMates, jobs::job_helpers::get_db};
+use anyhow::{Ok, anyhow};
 use capitalize::Capitalize;
 use reqwest::StatusCode;
 use tokio::time::sleep;
@@ -46,7 +46,7 @@ async fn log_pb(
     guild_id: u64,
     pb_time: f64,
 ) -> Result<(), anyhow::Error> {
-    let db = get_mongodb().await;
+    let db = get_db().await;
     let activity = db
         .pb_activities
         .create_or_get_activity(boss.to_string())

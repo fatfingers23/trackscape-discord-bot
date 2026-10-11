@@ -1,13 +1,24 @@
-use crate::database::{BotMongoDb, MongoDb};
+use crate::database::BotDb;
 use redis::{Client, Connection, RedisResult};
 use serde::Serialize;
 use std::env;
+use tokio::sync::OnceCell;
 
 use redis::Commands;
 
-pub async fn get_mongodb() -> BotMongoDb {
-    let mongodb_url = env::var("MONGO_DB_URL").expect("MONGO_DB_URL not set!");
-    BotMongoDb::new_db_instance(mongodb_url).await
+/// A process-wide database facade for celery tasks. The old Mongo code built
+/// a brand new client for every task invocation; with Postgres that would
+/// open real connections each time, so the pool is built once and reused.
+static DB: OnceCell<BotDb> = OnceCell::const_new();
+
+pub async fn get_db() -> &'static BotDb {
+    DB.get_or_init(|| async {
+        let db_url = env::var("DATABASE_URL").expect("DATABASE_URL not set!");
+        BotDb::new_db_instance(db_url)
+            .await
+            .expect("Could not connect to the Postgres database")
+    })
+    .await
 }
 
 pub fn get_redis_connection() -> RedisResult<Connection> {

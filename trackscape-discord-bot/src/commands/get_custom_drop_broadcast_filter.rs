@@ -1,5 +1,8 @@
-use crate::database::BotMongoDb;
-use serenity::all::{CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommand, CreateCommandOption};
+use crate::database::BotDb;
+use serenity::all::{
+    CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommand,
+    CreateCommandOption,
+};
 use serenity::client::Context;
 use serenity::model::prelude::Permissions;
 use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
@@ -7,7 +10,9 @@ use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extracto
 
 pub fn register() -> CreateCommand {
     CreateCommand::new("get_custom_drop_broadcast_filter")
-        .description("Gets the filter list being used to filter broadcasts for the selected broadcast type.")
+        .description(
+            "Gets the filter list being used to filter broadcasts for the selected broadcast type.",
+        )
         .default_member_permissions(Permissions::MANAGE_GUILD)
         .add_option(
             CreateCommandOption::new(
@@ -16,7 +21,7 @@ pub fn register() -> CreateCommand {
                 "Broadcast type to return the filter list for.",
             )
             .add_string_choice(
-                BroadcastType::ItemDrop.to_string(), 
+                BroadcastType::ItemDrop.to_string(),
                 BroadcastType::ItemDrop.to_slug(),
             )
             .add_string_choice(
@@ -42,7 +47,7 @@ pub fn register() -> CreateCommand {
 pub async fn run(
     _options: &[CommandDataOption],
     _ctx: &Context,
-    db: &BotMongoDb,
+    db: &BotDb,
     guild_id: u64,
 ) -> Option<String> {
     let saved_guild_query = db.guilds.get_by_guild_id(guild_id).await;
@@ -51,10 +56,11 @@ pub async fn run(
         Ok(saved_guild) => {
             let saved_guild = saved_guild.unwrap_or(RegisteredGuildModel::new(guild_id));
             let broadcast_type = _options.get(0).expect("Expected a broadcast type option");
-            return if let CommandDataOptionValue::String(broadcast_type) = broadcast_type.clone().value{
-                let broadcast_type = 
-                BroadcastType::from_string(broadcast_type.replace("_", " "));
-            
+            return if let CommandDataOptionValue::String(broadcast_type) =
+                broadcast_type.clone().value
+            {
+                let broadcast_type = BroadcastType::from_string(broadcast_type.replace("_", " "));
+
                 if let Some(ref filter_map) = saved_guild.custom_drop_broadcast_filter {
                     if let Some(filter_list) = filter_map.get(&broadcast_type) {
                         Some(format!(
@@ -76,9 +82,7 @@ pub async fn run(
             };
         }
         Err(_) => {
-            return Some("There was a technical error. Please try again later.".to_string(),
-            );
+            return Some("There was a technical error. Please try again later.".to_string());
         }
-            
     }
 }

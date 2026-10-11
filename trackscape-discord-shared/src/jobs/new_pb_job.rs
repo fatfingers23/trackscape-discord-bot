@@ -1,14 +1,14 @@
 use celery::prelude::*;
 
 use crate::{
-    database::clan_mates::ClanMates, jobs::job_helpers::get_mongodb,
+    database::clan_mates::ClanMates, jobs::job_helpers::get_db,
     osrs_broadcast_extractor::osrs_broadcast_extractor::PersonalBestBroadcast,
 };
 
 #[celery::task]
 pub async fn record_new_pb(pb: PersonalBestBroadcast, guild_id: u64) -> TaskResult<i32> {
     println!("Recording new PB: {:?}", pb);
-    let db = get_mongodb().await;
+    let db = get_db().await;
 
     let activity_name = match pb.variant {
         Some(variant) => variant,

@@ -1,4 +1,5 @@
 FROM rust:1.99-bookworm AS bot-builder
+ENV SQLX_OFFLINE=true
 WORKDIR /app
 COPY . /app
 RUN cargo build --bin trackscape-discord-bot --release --locked

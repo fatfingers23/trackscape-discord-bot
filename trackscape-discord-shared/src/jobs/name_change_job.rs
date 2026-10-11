@@ -1,6 +1,6 @@
-use crate::database::clan_mates::{name_compare, ClanMates};
-use crate::jobs::job_helpers::{get_mongodb, get_redis_connection};
-use crate::wom::{get_latest_name_change, get_wom_client, ApiLimiter};
+use crate::database::clan_mates::{ClanMates, name_compare};
+use crate::jobs::job_helpers::{get_db, get_redis_connection};
+use crate::wom::{ApiLimiter, get_latest_name_change, get_wom_client};
 use celery::prelude::*;
 use log::info;
 use redis::Commands;
@@ -9,19 +9,19 @@ use redis::Commands;
 pub async fn name_change() -> TaskResult<()> {
     info!("Running name change job");
     let wom_client = get_wom_client();
-    let mongodb = get_mongodb().await;
+    let db = get_db().await;
     let mut redis_connection = get_redis_connection().expect("Failed to get redis client.");
 
     let mut limiter = ApiLimiter::new();
 
-    let guilds = mongodb
+    let guilds = db
         .guilds
         .list_clans()
         .await
         .expect("Failed to get all guilds");
 
     for guild in guilds {
-        let players = mongodb
+        let players = db
             .clan_mates
             .get_clan_mates_by_guild_id(guild.guild_id)
             .await
@@ -48,8 +48,7 @@ pub async fn name_change() -> TaskResult<()> {
                             info!("No new name changes found for player: {}", player_name);
                             continue;
                         }
-                        mongodb
-                            .clan_mates
+                        db.clan_mates
                             .change_name(guild.guild_id, player_name.clone(), latest_name.clone())
                             .await
                             .expect("Failed to change name");

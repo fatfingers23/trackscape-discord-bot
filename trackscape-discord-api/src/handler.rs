@@ -1,7 +1,7 @@
 use actix_ws::Message;
 use futures_util::{
-    future::{select, Either},
     StreamExt as _,
+    future::{Either, select},
 };
 use log::{debug, error};
 use serde_json::Value;
