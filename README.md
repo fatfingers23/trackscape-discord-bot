@@ -65,11 +65,13 @@ Coming soon! Everything needed is in the [.env.save](.env.save) and [production-
     * `DISCORD_TOKEN` This is the discord token created from setting up a discord bot
     * `MANAGEMENT_API_KEY` can be set to w/e. It is used to password protect some endpoints of the API for communication between the bot and the api
     * `DEV_GUILD_ID` is the id of your discord server that is hosting your TrackScape discord bot
-  * The bot and api are ran via [shuttle](https://github.com/shuttle-hq/shuttle) via `cargo-shuttle v0.48.1`. If you are using an earlier version, it is recommended to upgrade.
 
 ## Running the Discord bot and API
-1. Make sure docker desktop is running and run `docker compose up -d` in the root of the project. Or make sure your monogodb and redis services are running
-2. Run the project with `cargo shuttle run`. And that's it! The API and bot should be running.
+1. Make sure docker desktop is running and run `docker compose up -d` in the root of the project. Or make sure your mongodb and redis services are running
+2. From the root of the project, start the API with `cargo run --bin trackscape-discord-api`
+3. In another terminal, start the bot with `cargo run --bin trackscape-discord-bot`
+
+The API serves the built dashboard and listens on port 8000 by default (override with the `HOST`/`PORT` environment variables). It must be started from the repo root so it can find the UI. Log verbosity is controlled with the `RUST_LOG` environment variable (defaults to `info`).
 
 ## Setup for TrackScape Plugin
 Coming soon!

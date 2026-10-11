@@ -1,7 +1,8 @@
 #Just file to build and release the docker image for production
 
 #Image names
-shuttle := "trackscape"
+api := "trackscape-api"
+bot := "trackscape-bot"
 worker := "trackscape-worker"
 cronWorker := "trackscape-cron-worker"
 dockerRepo := "fatfingers23"
@@ -9,10 +10,15 @@ tag := "latest"
 
 #Build and release
 newRelease:
-    #Shuttle
-    docker build --platform linux/amd64 -t {{shuttle}} -f dockerfiles/Shuttle.Dockerfile .
-    docker tag {{shuttle}}:{{tag}} {{dockerRepo}}/{{shuttle}}:{{tag}}
-    docker push {{dockerRepo}}/{{shuttle}}:{{tag}}
+    #API
+    docker build --platform linux/amd64 -t {{api}} -f dockerfiles/Api.Dockerfile .
+    docker tag {{api}}:{{tag}} {{dockerRepo}}/{{api}}:{{tag}}
+    docker push {{dockerRepo}}/{{api}}:{{tag}}
+
+    #Bot
+    docker build --platform linux/amd64 -t {{bot}} -f dockerfiles/Bot.Dockerfile .
+    docker tag {{bot}}:{{tag}} {{dockerRepo}}/{{bot}}:{{tag}}
+    docker push {{dockerRepo}}/{{bot}}:{{tag}}
 
     #Worker
     docker build --platform linux/amd64 -t {{worker}} -f dockerfiles/Worker.Dockerfile .

@@ -8,11 +8,11 @@ use crate::controllers::bot_info_controller::info_controller;
 use crate::controllers::chat_controller::chat_controller;
 use actix_cors::Cors;
 use actix_web::web::Data;
-use actix_web::{guard, web, web::ServiceConfig, Error};
+use actix_web::{guard, web, App, Error, HttpServer};
 use controllers::application_data_controller::application_data_controller;
 use dotenv::dotenv;
+use env_logger::Env;
 use serenity::http::HttpBuilder;
-use shuttle_actix_web::ShuttleActixWeb;
 use std::env;
 use std::sync::atomic::AtomicI64;
 use std::sync::Mutex;
@@ -44,9 +44,10 @@ async fn index() -> Result<NamedFile, Error> {
     Ok(NamedFile::open("./trackscape-discord-api/ui/index.html")?)
 }
 
-#[shuttle_runtime::main]
-async fn actix_web() -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
     dotenv().ok();
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
     let _ = env::var("MANAGEMENT_API_KEY").expect("MANAGEMENT_API_KEY not set!");
     let discord_token = env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN not set!");
@@ -103,31 +104,47 @@ async fn actix_web() -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send +
 
     let _ = spawn(chat_server.run());
     let celery = get_celery_caller().await;
-    let config = move |cfg: &mut ServiceConfig| {
-        cfg.service(
-            web::scope("/api")
-                .service(chat_controller())
-                .service(info_controller())
-                .service(drop_log_controller())
-                .service(clan_controller())
-                .service(application_data_controller())
-                .wrap(
-                    Cors::default()
-                        .allow_any_origin()
-                        .allow_any_method()
-                        .allow_any_header(),
-                ),
-        )
-        .service(Files::new("/", "./trackscape-discord-api/ui/").index_file("index.html"))
-        .app_data(web::Data::new(server_tx.clone()))
-        .app_data(connected_websockets_counter)
-        .app_data(connected_discord_servers)
-        .app_data(web::Data::new(HttpBuilder::new(discord_token).build()))
-        .app_data(web::Data::new(db))
-        .app_data(web::Data::new(celery.clone()))
-        .app_data(web::Data::new(redis_client.clone()))
-        .default_service(web::route().guard(guard::Not(guard::Get())).to(index));
-    };
 
-    Ok(config.into())
+    // Wrap shared state in `Data` here so the per-worker config closure below can be
+    // `Fn + Send + Clone + 'static`, which `HttpServer::new` requires.
+    let db = Data::new(db);
+    let discord_http = Data::new(HttpBuilder::new(discord_token).build());
+    let celery = Data::new(celery);
+    let redis_client = Data::new(redis_client);
+
+    let host = env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
+    let port: u16 = env::var("PORT")
+        .unwrap_or_else(|_| "8000".to_string())
+        .parse()
+        .expect("PORT is not a number");
+
+    HttpServer::new(move || {
+        App::new()
+            .service(
+                web::scope("/api")
+                    .service(chat_controller())
+                    .service(info_controller())
+                    .service(drop_log_controller())
+                    .service(clan_controller())
+                    .service(application_data_controller())
+                    .wrap(
+                        Cors::default()
+                            .allow_any_origin()
+                            .allow_any_method()
+                            .allow_any_header(),
+                    ),
+            )
+            .service(Files::new("/", "./trackscape-discord-api/ui/").index_file("index.html"))
+            .app_data(web::Data::new(server_tx.clone()))
+            .app_data(connected_websockets_counter.clone())
+            .app_data(connected_discord_servers.clone())
+            .app_data(discord_http.clone())
+            .app_data(db.clone())
+            .app_data(celery.clone())
+            .app_data(redis_client.clone())
+            .default_service(web::route().guard(guard::Not(guard::Get())).to(index))
+    })
+    .bind((host.as_str(), port))?
+    .run()
+    .await
 }

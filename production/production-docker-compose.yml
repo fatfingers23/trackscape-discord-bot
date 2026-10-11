@@ -15,12 +15,11 @@ services:
       - "host.docker.internal:host-gateway"
     networks:
       - trackscape-network
-  shuttle:
-    image: fatfingers23/trackscape:latest
+  api:
+    image: fatfingers23/trackscape-api:latest
     restart: always
     ports:
       - '80:8000'
-      - '8001:8001'
     environment:
       MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017'
       DISCORD_TOKEN: '${DISCORD_TOKEN}'
@@ -33,7 +32,24 @@ services:
       - redis
     networks:
       - trackscape-network
-    command: "cargo shuttle run --release --external --working-directory /app"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  bot:
+    image: fatfingers23/trackscape-bot:latest
+    restart: always
+    environment:
+      MONGO_DB_URL: 'mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongo:27017'
+      DISCORD_TOKEN: '${DISCORD_TOKEN}'
+      TRACKSCAPE_API_BASE: '${TRACKSCAPE_API_BASE}'
+      REDIS_ADDR: '${REDIS_ADDR}'
+      WOM_API_KEY: '${WOM_API_KEY}'
+      MANAGEMENT_API_KEY: '${MANAGEMENT_API_KEY}'
+    depends_on:
+      - mongo
+      - redis
+      - api
+    networks:
+      - trackscape-network
     extra_hosts:
       - "host.docker.internal:host-gateway"
   worker:

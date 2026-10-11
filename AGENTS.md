@@ -7,10 +7,10 @@ background jobs are celery-style tasks brokered over Redis.
 
 ## Workspace layout
 
-- `trackscape-discord-api` — actix-web service (shuttle). REST under `/api/*`,
+- `trackscape-discord-api` — actix-web service. REST under `/api/*`,
   RuneLite plugin websocket at `/api/chat/ws`, and it serves the built
   dashboard from `./trackscape-discord-api/ui/` (path relative to repo root).
-- `trackscape-discord-bot` — serenity Discord gateway bot (shuttle). Slash
+- `trackscape-discord-bot` — serenity Discord gateway bot. Slash
   commands live in `src/commands/`; a new command must be added to BOTH
   `get_commands()` and the `interaction_create` match in `src/main.rs`.
 - `trackscape-discord-shared` — shared library used by everything: Mongo
@@ -18,7 +18,7 @@ background jobs are celery-style tasks brokered over Redis.
   OSRS broadcast parsing (`osrs_broadcast_extractor.rs`), celery job
   definitions, external API clients. Most tests live here.
 - `trackscape-discord-job-worker` / `trackscape-discord-cron-job-worker` —
-  plain binaries (not shuttle): job worker consumes Redis queues `celery` and
+  plain binaries: job worker consumes Redis queues `celery` and
   `cron_job_queue`; cron worker enqueues scheduled jobs (e.g. WOM sync).
 - `trackscape-discord-ui` — Vue 3 + Vite + Tailwind/daisyUI dashboard, NOT a
   cargo workspace member. Talks to the API via `VITE_API_BASE_URL`
@@ -26,19 +26,21 @@ background jobs are celery-style tasks brokered over Redis.
 
 ## Dev commands
 
-Prereqs: Rust stable, Docker, `cargo-shuttle` v0.48.1, Node 20.
+Prereqs: Rust stable, Docker, Node 20.
 
     docker compose up -d        # mongo :27017 + redis :6379 — must be running
     cp .env.save .env           # fill in DISCORD_TOKEN, DEV_GUILD_ID (numeric), ...
-    cargo shuttle run           # from repo ROOT
 
-- `cargo shuttle run` from the workspace root starts BOTH shuttle services:
-  API on :8000, bot on :8001. Run it from the root — the API resolves its UI
-  path relative to the root.
+- The API and bot are separate binaries. Run each from the repo ROOT in its own
+  terminal: `cargo run --bin trackscape-discord-api` (serves the dashboard on
+  :8000 by default; override with `HOST`/`PORT` — the API resolves its UI path
+  relative to the root) and `cargo run --bin trackscape-discord-bot` (serenity
+  gateway bot, no inbound port).
 - Background jobs need the workers too (separate terminals):
   `cargo run --bin trackscape-discord-job-worker`,
   `cargo run --bin trackscape-discord-cron-job-worker`. All processes read the
-  root `.env` via dotenv.
+  root `.env` via dotenv. Log verbosity is controlled with `RUST_LOG`
+  (defaults to `info`); the API uses `env_logger`, the bot `tracing-subscriber`.
 - Most features need api + bot + redis + a worker running together — the bot
   and api call each other, and Discord posting happens inside jobs.
 
@@ -55,16 +57,13 @@ Prereqs: Rust stable, Docker, `cargo-shuttle` v0.48.1, Node 20.
 ## Gotchas
 
 - Serving the dashboard locally requires building the UI and placing it where
-  actix expects (mirroring `dockerfiles/Shuttle.Dockerfile`): copy
+  actix expects (mirroring `dockerfiles/Api.Dockerfile`): copy
   `trackscape-discord-ui/dist/` to `trackscape-discord-api/ui/`. The API still
   boots without it. That directory is NOT gitignored — don't commit build
   output.
 - `toolchain.toml` is malformed (`stable=cargo bu2024-06-10`, committed).
   rustup ignores it; builds use your default stable toolchain. Don't try to
   install that "channel".
-- Stale per-crate `Cargo.lock` files in `trackscape-discord-api/` and
-  `trackscape-discord-bot/` are leftovers — the workspace root `Cargo.lock`
-  governs dependency resolution.
 - Slash commands register on startup. With `DEV_GUILD_ID` set they register to
   that guild instantly; unset, they register globally (slow to propagate on
   Discord's side).
@@ -73,6 +72,6 @@ Prereqs: Rust stable, Docker, `cargo-shuttle` v0.48.1, Node 20.
 
 ## Release (maintainers)
 
-`just newRelease` builds the 3 production images (linux/amd64) and pushes to
-Docker Hub (`fatfingers23/trackscape`, `-worker`, `-cron-worker`). Production
-runs `production/production-docker-compose.yml`.
+`just newRelease` builds the 4 production images (linux/amd64) and pushes to
+Docker Hub (`fatfingers23/trackscape-api`, `-bot`, `-worker`, `-cron-worker`).
+Production runs `production/production-docker-compose.yml`.

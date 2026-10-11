@@ -404,9 +404,16 @@ pub async fn create_commands_for_guild(guild_id: &GuildId, ctx: Context) {
     }
 }
 
-#[shuttle_runtime::main]
-async fn serenity() -> shuttle_serenity::ShuttleSerenity {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     dotenv().ok();
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
+
     let token = env::var("DISCORD_TOKEN").expect("DISCORD_TOKEN not set!");
     let api_base = env::var("TRACKSCAPE_API_BASE").expect("TRACKSCAPE_API_BASE not set!");
     let mongodb_url = env::var("MONGO_DB_URL").expect("MONGO_DB_URL not set!");
@@ -421,7 +428,7 @@ async fn serenity() -> shuttle_serenity::ShuttleSerenity {
     let intents =
         GatewayIntents::GUILD_MESSAGES | GatewayIntents::MESSAGE_CONTENT | GatewayIntents::GUILDS;
     let api_client = ApiWebClient::new(api_base.clone(), trackscape_api_token);
-    let client = serenity::Client::builder(&token, intents)
+    let mut client = serenity::Client::builder(&token, intents)
         .event_handler(Bot {
             mongo_db: db,
             trackscape_base_api: api_base,
@@ -436,5 +443,8 @@ async fn serenity() -> shuttle_serenity::ShuttleSerenity {
 
         data.insert::<ServerCount>(Arc::new(AtomicUsize::new(0)));
     }
-    Ok(client.into())
+
+    client.start().await?;
+
+    Ok(())
 }
