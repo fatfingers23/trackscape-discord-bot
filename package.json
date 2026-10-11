@@ -1,0 +1,7 @@
+{
+  "name": "trackscape-discord-railway",
+  "private": true,
+  "devDependencies": {
+    "railway": "^3.13.1"
+  }
+}

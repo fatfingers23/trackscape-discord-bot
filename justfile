@@ -30,6 +30,12 @@ newRelease:
     docker tag {{cronWorker}}:{{tag}} {{dockerRepo}}/{{cronWorker}}:{{tag}}
     docker push {{dockerRepo}}/{{cronWorker}}:{{tag}}
 
+# Build the one-off MongoDB -> Postgres migrator as a fully static
+# linux/amd64 binary and drop it in ./dist. Static musl, so it runs on any
+# Ubuntu LTS regardless of the host's glibc, with no runtime deps.
+buildMigrator:
+    docker buildx build --platform linux/amd64 --target export --output type=local,dest=./dist -f dockerfiles/Migrator.Dockerfile .
+
 # Regenerate the .sqlx offline query metadata after changing migrations or queries.
 # Needs docker compose up -d (Postgres running) and DATABASE_URL set in .env
 sqlx-prepare:

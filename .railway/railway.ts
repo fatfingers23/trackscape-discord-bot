@@ -1,7 +1,7 @@
 import { defineRailway, github, postgres, project, redis, service, volume } from "railway/iac";
 
 export default defineRailway(() => {
-  const trackscapeDiscordBot = github("Aid55/trackscape-discord-bot");
+  const trackscapeDiscordBot = github("fatfingers23/trackscape-discord-bot");
 
   const Postgres = postgres("Postgres", { region: "us-east4-eqdc4a" });
   Postgres.networking = { privateNetworkEndpoint: "postgres" };
@@ -14,18 +14,22 @@ export default defineRailway(() => {
     source: trackscapeDiscordBot,
     replicas: { "us-east4-eqdc4a": 1 },
   });
+  cronWorker.build = { builder: "DOCKERFILE", dockerfilePath: "dockerfiles/CronWorker.Dockerfile" };
   const worker = service("worker", {
     source: trackscapeDiscordBot,
     replicas: { "us-east4-eqdc4a": 1 },
   });
+  worker.build = { builder: "DOCKERFILE", dockerfilePath: "dockerfiles/Worker.Dockerfile" };
   const api = service("api", {
     source: trackscapeDiscordBot,
     replicas: { "us-east4-eqdc4a": 1 },
   });
+  api.build = { builder: "DOCKERFILE", dockerfilePath: "dockerfiles/Api.Dockerfile" };
   const bot = service("bot", {
     source: trackscapeDiscordBot,
     replicas: { "us-east4-eqdc4a": 1 },
   });
+  bot.build = { builder: "DOCKERFILE", dockerfilePath: "dockerfiles/Bot.Dockerfile" };
 
   return project("trackscape", {
     variables: { managed: false },
