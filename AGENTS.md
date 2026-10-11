@@ -61,9 +61,9 @@ Prereqs: Rust stable, Docker, Node 20.
   `trackscape-discord-ui/dist/` to `trackscape-discord-api/ui/`. The API still
   boots without it. That directory is NOT gitignored — don't commit build
   output.
-- `toolchain.toml` is malformed (`stable=cargo bu2024-06-10`, committed).
-  rustup ignores it; builds use your default stable toolchain. Don't try to
-  install that "channel".
+- `rust-toolchain.toml` pins Rust 1.99.0; rustup auto-installs it when building in the
+  repo. When bumping Rust, keep it in sync with CI (`dtolnay/rust-toolchain@…`) and the
+  Docker builder images (`rust:<version>-bookworm`).
 - Slash commands register on startup. With `DEV_GUILD_ID` set they register to
   that guild instantly; unset, they register globally (slow to propagate on
   Discord's side).

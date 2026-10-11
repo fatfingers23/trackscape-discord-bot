@@ -6,10 +6,11 @@ members = [
     "trackscape-discord-job-worker",
     "trackscape-discord-cron-job-worker"
 ]
-resolver = "2"
+resolver = "3"
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
+rust-version = "1.99.0"
 
 [workspace.dependencies]
 redis = { version = "0.23.3", features = ["json"] }
