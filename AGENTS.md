@@ -66,7 +66,7 @@ Prereqs: Rust stable, Docker, Node 20.
 - PR expectations (`.github/CONTRIBUTING.md`): run check/build/test first, and
   create/link an issue for bugs and features before the PR.
 - sqlx queries are compile-time checked. Building with a live DB requires `DATABASE_URL` and the schema applied (`just migrate`); CI and Docker builds use the committed `.sqlx` offline metadata (`SQLX_OFFLINE=true`). After changing any query or migration, run `just sqlx-prepare` and commit the `.sqlx` directory.
-- `trackscape-discord-migrator` is a one-off binary that copies the legacy MongoDB data into Postgres (`MONGO_DB_URL` + `DATABASE_URL`, `--truncate-first` for a clean re-run). It is the cutover path from the old VPS database.
+- `trackscape-discord-migrator` copies the legacy MongoDB data into Postgres (`MONGO_DB_URL` + `DATABASE_URL`). Safe to re-run BEFORE the Postgres stack goes live: without `--truncate-first` it refreshes in place (updates changed rows, restores missing ones, never duplicates); with `--truncate-first` it rebuilds an exact mirror. Row ids are derived deterministically from the old ObjectIds, which is what makes re-runs idempotent. NEVER run it after cutover — Postgres is the source of truth then, and a run would overwrite live data (truncate would wipe it).
 
 ## Release (maintainers)
 

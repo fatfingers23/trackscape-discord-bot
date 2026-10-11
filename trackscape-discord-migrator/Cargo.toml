@@ -23,7 +23,7 @@ sqlx = { version = "0.9.0", default-features = false, features = [
 tokio = { version = "1.26.0", features = ["full"] }
 anyhow = "1.0.75"
 chrono = { version = "0.4.33", features = ["serde"] }
-uuid = { version = "1.4.1", features = ["v4", "serde"] }
+uuid = { version = "1.4.1", features = ["v4", "v5", "serde"] }
 serde_json = "1.0.105"
 log = "0.4.20"
 env_logger = "0.10"

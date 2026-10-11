@@ -1,4 +1,4 @@
-//! One-off MongoDB -> Postgres migrator.
+//! MongoDB -> Postgres migrator (safe to re-run).
 //!
 //! Reads every collection from the legacy Mongo database (MONGO_DB_URL,
 //! database name MONGO_DB_NAME, defaults to "TrackScapeDB") and copies the
@@ -14,15 +14,31 @@
 //!               mates or activities are skipped
 //! * clan_mate_collection_log_totals: deduped on `(guild, player)`, keeping
 //!               the latest created_at
-//! * drop_logs / broadcasts: copied as-is (new UUIDs), skipping rows whose
-//!               guild does not exist
+//! * drop_logs / broadcasts: copied as-is, skipping rows whose guild does
+//!               not exist
 //!
-//! All old ObjectIds are remapped to fresh UUIDs and every child row is
-//! re-pointed at the winner of its dedupe group, so references survive the
-//! dedupes. Old row ids are NOT preserved.
+//! New UUIDs are derived deterministically from the old ObjectIds, so every
+//! run maps the same old document to the same Postgres row. Child rows are
+//! re-pointed at the winner of their dedupe group, so references survive the
+//! dedupes.
 //!
-//! Re-running the migrator without `--truncate-first` is safe (conflicts are
-//! skipped), but a clean re-run should use `--truncate-first`.
+//! # Re-running
+//!
+//! The migrator is safe to run as many times as you want BEFORE the
+//! Postgres-backed services go live:
+//!
+//! * Without `--truncate-first`: an incremental refresh. Existing rows are
+//!   updated in place from Mongo (guild settings, ranks, totals, best
+//!   times), new rows are inserted, and nothing is duplicated. Rows that
+//!   were deleted from Mongo since the last run are NOT removed from
+//!   Postgres.
+//! * With `--truncate-first`: an exact mirror. All tables are emptied and
+//!   repopulated from Mongo, so deletions in Mongo are reflected too.
+//!
+//! AFTER the cutover (once the Railway stack is live and taking writes)
+//! Postgres is the source of truth: never run the migrator again, because
+//! it would overwrite live data with stale Mongo data (`--truncate-first`
+//! would even wipe live rows entirely).
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
@@ -42,6 +58,13 @@ use trackscape_discord_shared::database::run_migrations;
 use uuid::Uuid;
 
 const BATCH_SIZE: usize = 500;
+
+/// Derives the Postgres row id deterministically from the old Mongo
+/// ObjectId. Running the migrator again maps the same old document to the
+/// same Postgres row, so re-runs update in place instead of duplicating.
+fn uuid_from_object_id(object_id: &ObjectId) -> Uuid {
+    Uuid::new_v5(&Uuid::NAMESPACE_OID, &object_id.bytes())
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -172,7 +195,7 @@ async fn migrate_guilds(
 
     while let Some(guild) = cursor.try_next().await? {
         let guild_id = guild.guild_id as i64;
-        let new_id = Uuid::new_v4();
+        let new_id = uuid_from_object_id(&guild.id);
 
         if seen_guild_ids.insert(guild_id) {
             rows.push(GuildRow {
@@ -238,7 +261,23 @@ async fn migrate_guilds(
                 .push_bind(custom_drop_broadcast_filter)
                 .push_bind(legacy.collection_log_max_percentage);
         });
-        builder.push(" ON CONFLICT DO NOTHING");
+        // Upsert so re-runs refresh guild settings in place from Mongo.
+        builder.push(
+            r#" ON CONFLICT (guild_id) DO UPDATE SET
+                clan_name = EXCLUDED.clan_name, broadcast_channel = EXCLUDED.broadcast_channel,
+                clan_chat_channel = EXCLUDED.clan_chat_channel,
+                leagues_broadcast_channel = EXCLUDED.leagues_broadcast_channel,
+                drop_price_threshold = EXCLUDED.drop_price_threshold,
+                disallowed_broadcast_types = EXCLUDED.disallowed_broadcast_types,
+                verification_code = EXCLUDED.verification_code,
+                hashed_verification_code = EXCLUDED.hashed_verification_code,
+                min_quest_difficulty = EXCLUDED.min_quest_difficulty,
+                min_diary_tier = EXCLUDED.min_diary_tier,
+                pk_value_threshold = EXCLUDED.pk_value_threshold, wom_id = EXCLUDED.wom_id,
+                created_at = EXCLUDED.created_at,
+                custom_drop_broadcast_filter = EXCLUDED.custom_drop_broadcast_filter,
+                collection_log_max_percentage = EXCLUDED.collection_log_max_percentage"#,
+        );
         builder.build().execute(pg).await?;
     }
     info!(
@@ -283,7 +322,7 @@ async fn migrate_clan_mates(
             continue;
         }
 
-        let new_id = Uuid::new_v4();
+        let new_id = uuid_from_object_id(&clan_mate.id);
         if seen.insert((guild_id, clan_mate.player_name.clone())) {
             id_map.insert(clan_mate.id, new_id);
             rows.push(ClanMateRow {
@@ -321,7 +360,16 @@ async fn migrate_clan_mates(
                 .push_bind(legacy.rank.clone())
                 .push_bind(bson_time_to_chrono(legacy.created_at));
         });
-        builder.push(" ON CONFLICT DO NOTHING");
+        // Upsert keyed on the row's own id (stable, derived from the Mongo
+        // ObjectId) so re-runs refresh ranks and name changes in place from
+        // Mongo. Keying on the name would break when a player is renamed.
+        builder.push(
+            r#" ON CONFLICT (id) DO UPDATE SET
+                guild_id = EXCLUDED.guild_id, player_name = EXCLUDED.player_name,
+                wom_player_id = EXCLUDED.wom_player_id,
+                previous_names = EXCLUDED.previous_names, "rank" = EXCLUDED."rank",
+                created_at = EXCLUDED.created_at"#,
+        );
         builder.build().execute(pg).await?;
     }
     info!(
@@ -358,7 +406,7 @@ async fn migrate_pb_activities(
     while let Some(activity) = cursor.try_next().await? {
         let trimmed_name = activity.activity_name.trim();
         let key = trimmed_name.to_lowercase();
-        let new_id = Uuid::new_v4();
+        let new_id = uuid_from_object_id(&activity.id);
         if seen.insert(key) {
             id_map.insert(activity.id, new_id);
             rows.push(ActivityRow {
@@ -412,6 +460,7 @@ async fn migrate_pb_records(
     let mut cursor = collection.find(None, None).await?;
 
     struct PbRecordRow {
+        id: Uuid,
         clan_mate_id: Uuid,
         activity_id: Uuid,
         guild_id: i64,
@@ -431,6 +480,7 @@ async fn migrate_pb_records(
         };
         let key = (clan_mate_id, activity_id);
         let candidate = PbRecordRow {
+            id: uuid_from_object_id(&record.id),
             clan_mate_id,
             activity_id,
             guild_id: record.guild_id as i64,
@@ -457,13 +507,17 @@ async fn migrate_pb_records(
             "INSERT INTO personal_best_records (id, clan_mate_id, activity_id, guild_id, time_in_seconds) ",
         );
         builder.push_values(chunk, |mut b, row| {
-            b.push_bind(Uuid::new_v4())
+            b.push_bind(row.id)
                 .push_bind(row.clan_mate_id)
                 .push_bind(row.activity_id)
                 .push_bind(row.guild_id)
                 .push_bind(row.time_in_seconds);
         });
-        builder.push(" ON CONFLICT DO NOTHING");
+        // Upsert so re-runs refresh times when Mongo recorded a new best.
+        builder.push(
+            r#" ON CONFLICT (clan_mate_id, activity_id) DO UPDATE SET
+                time_in_seconds = EXCLUDED.time_in_seconds, updated_at = now()"#,
+        );
         builder.build().execute(pg).await?;
     }
     info!(
@@ -535,7 +589,11 @@ async fn migrate_clog_totals(
                 .push_bind(row.total)
                 .push_bind(row.created_at);
         });
-        builder.push(" ON CONFLICT DO NOTHING");
+        // Upsert so re-runs refresh totals when players gained slots.
+        builder.push(
+            " ON CONFLICT (guild_id, player_id) DO UPDATE SET
+                total = EXCLUDED.total, created_at = EXCLUDED.created_at",
+        );
         builder.build().execute(pg).await?;
     }
     info!(
@@ -550,6 +608,7 @@ async fn migrate_clog_totals(
 
 /// A guild-scoped jsonb row (drop logs and broadcasts share this shape).
 struct GuildJsonRow {
+    id: Uuid,
     guild_id: i64,
     payload: sqlx::types::Json<serde_json::Value>,
     created_at: DateTime<Utc>,
@@ -557,7 +616,8 @@ struct GuildJsonRow {
 
 /// Flushes a batch of guild-scoped jsonb rows into the given table and
 /// jsonb column. `table` and `column` are only ever the compile-time
-/// constants passed by this file.
+/// constants passed by this file. The ids are derived from the old Mongo
+/// ObjectIds, so re-runs skip rows that were already copied.
 async fn flush_guild_json_batch(
     pg: &PgPool,
     table: &'static str,
@@ -575,12 +635,12 @@ async fn flush_guild_json_batch(
     };
     let mut builder = sqlx::QueryBuilder::new(sql);
     builder.push_values(batch, |mut b, row| {
-        b.push_bind(Uuid::new_v4())
+        b.push_bind(row.id)
             .push_bind(row.guild_id)
             .push_bind(&row.payload)
             .push_bind(row.created_at);
     });
-    builder.push(" ON CONFLICT DO NOTHING");
+    builder.push(" ON CONFLICT (id) DO NOTHING");
     builder.build().execute(pg).await?;
     Ok(())
 }
@@ -607,6 +667,7 @@ async fn migrate_drop_logs(
         }
         report.drop_logs.note_inserted();
         batch.push(GuildJsonRow {
+            id: uuid_from_object_id(&drop_log.id),
             guild_id,
             payload: sqlx::types::Json(serde_json::to_value(&drop_log.drop_item)?),
             created_at: bson_time_to_chrono(drop_log.created_at),
@@ -648,6 +709,7 @@ async fn migrate_broadcasts(
         }
         report.broadcasts.note_inserted();
         batch.push(GuildJsonRow {
+            id: uuid_from_object_id(&broadcast.id),
             guild_id,
             payload: sqlx::types::Json(serde_json::to_value(&broadcast.broadcast)?),
             created_at: broadcast.created_at.to_chrono(),
