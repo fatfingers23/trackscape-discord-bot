@@ -1,21 +1,19 @@
 use crate::jobs::job_helpers::get_db;
 use crate::jobs::wom_guild_sync_logic::sync_wom_by_guild;
 use celery::task::TaskResult;
-use log::info;
+use log::{error, info};
 
 #[celery::task]
 pub async fn wom_guild_sync() -> TaskResult<()> {
-    //TODO need to look into the edge case of a name change may not be submitted yet to WOM,
-    //So since it does not see that it makes a new clanmate. Probably just need to check
-    // name changes for in db and combine after the loop and before remove?
-
     let db = get_db().await;
 
-    let guilds = db
-        .guilds
-        .list_clans()
-        .await
-        .expect("Failed to get all guilds");
+    let guilds = match db.guilds.list_clans().await {
+        Ok(guilds) => guilds,
+        Err(e) => {
+            error!("Failed to get all guilds for WOM sync: {:?}", e);
+            return Ok(());
+        }
+    };
 
     for guild in guilds {
         if guild.wom_id.is_none() {

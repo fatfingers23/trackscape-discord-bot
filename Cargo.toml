@@ -5,7 +5,9 @@ members = [
     "trackscape-discord-shared",
     "trackscape-discord-job-worker",
     "trackscape-discord-cron-job-worker",
-    "trackscape-discord-migrator"
+    "trackscape-discord-migrator",
+    "trackscape-discord-wom-audit",
+    "wom-rs"
 ]
 resolver = "3"
 

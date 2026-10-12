@@ -1,0 +1,32 @@
+[
+  {
+    "id": 3578,
+    "name": "Lead The Pack",
+    "clanChat": "LTP",
+    "description": "A 110+ PvM/Social clan",
+    "homeworld": 320,
+    "verified": true,
+    "patron": false,
+    "profileImage": null,
+    "bannerImage": null,
+    "score": 440,
+    "createdAt": "2022-10-12T17:32:05.593Z",
+    "updatedAt": "2022-10-26T08:02:52.979Z",
+    "memberCount": 507
+  },
+  {
+    "id": 730,
+    "name": "The Garage",
+    "clanChat": "Astray",
+    "description": "Clan: The Garage",
+    "homeworld": 482,
+    "verified": true,
+    "patron": false,
+    "profileImage": null,
+    "bannerImage": null,
+    "score": 390,
+    "createdAt": "2021-02-19T18:35:35.143Z",
+    "updatedAt": "2022-10-27T13:11:36.147Z",
+    "memberCount": 497
+  }
+]

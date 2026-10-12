@@ -1,0 +1,72 @@
+[
+  {
+    "playerId": 139108,
+    "competitionId": 16406,
+    "teamName": null,
+    "createdAt": "2022-10-19T20:10:14.609Z",
+    "updatedAt": "2022-10-24T00:19:46.865Z",
+    "competition": {
+      "id": 16406,
+      "title": "DCC KOS Smithing",
+      "metric": "smithing",
+      "type": "classic",
+      "startsAt": "2022-10-24T00:00:00.000Z",
+      "endsAt": "2022-10-31T00:00:00.000Z",
+      "groupId": 603,
+      "score": 448,
+      "createdAt": "2022-10-19T20:10:14.609Z",
+      "updatedAt": "2022-10-28T04:28:26.094Z",
+      "group": {
+        "id": 603,
+        "name": "DemocraCC",
+        "clanChat": "Democracc",
+        "description": "A social clan chat.",
+        "homeworld": 524,
+        "verified": true,
+        "patron": false,
+        "profileImage": null,
+        "bannerImage": null,
+        "score": 470,
+        "createdAt": "2021-01-16T17:52:13.417Z",
+        "updatedAt": "2022-10-27T04:43:44.694Z",
+        "memberCount": 131
+      },
+      "participantCount": 131
+    }
+  },
+  {
+    "playerId": 139108,
+    "competitionId": 16405,
+    "teamName": null,
+    "createdAt": "2022-10-19T20:07:46.767Z",
+    "updatedAt": "2022-10-24T00:19:46.865Z",
+    "competition": {
+      "id": 16405,
+      "title": "DCC Smithing",
+      "metric": "clue_scrolls_master",
+      "type": "classic",
+      "startsAt": "2022-10-24T00:00:00.000Z",
+      "endsAt": "2022-10-31T01:00:00.000Z",
+      "groupId": 603,
+      "score": 448,
+      "createdAt": "2022-10-19T20:07:46.767Z",
+      "updatedAt": "2022-10-28T04:18:39.033Z",
+      "group": {
+        "id": 603,
+        "name": "DemocraCC",
+        "clanChat": "Democracc",
+        "description": "A social clan chat.",
+        "homeworld": 524,
+        "verified": true,
+        "patron": false,
+        "profileImage": null,
+        "bannerImage": null,
+        "score": 470,
+        "createdAt": "2021-01-16T17:52:13.417Z",
+        "updatedAt": "2022-10-27T04:43:44.694Z",
+        "memberCount": 131
+      },
+      "participantCount": 131
+    }
+  }
+]

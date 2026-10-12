@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT t.guild_id, t.player_id, t.total, t.created_at,\n                   c.id as cm_id, c.guild_id as cm_guild_id, c.player_name as cm_player_name,\n                   c.wom_player_id as cm_wom_player_id, c.previous_names as cm_previous_names,\n                   c.\"rank\" as cm_rank, c.created_at as cm_created_at\n            FROM clan_mate_collection_log_totals t\n            JOIN clan_mates c ON c.id = t.player_id\n            WHERE t.guild_id = $1\n            ORDER BY t.total DESC\n            ",
+  "query": "\n            SELECT t.guild_id, t.player_id, t.total, t.created_at,\n                   c.id as cm_id, c.guild_id as cm_guild_id, c.player_name as cm_player_name,\n                   c.wom_player_id as cm_wom_player_id, c.previous_names as cm_previous_names,\n                   c.\"rank\" as cm_rank, c.created_at as cm_created_at,\n                   c.in_wom as cm_in_wom, c.wom_left_at as cm_wom_left_at,\n                   c.last_seen_in_chat_at as cm_last_seen_in_chat_at\n            FROM clan_mate_collection_log_totals t\n            JOIN clan_mates c ON c.id = t.player_id\n            WHERE t.guild_id = $1\n            ORDER BY t.total DESC\n            ",
   "describe": {
     "columns": [
       {
@@ -123,6 +123,39 @@
             "name": "created_at"
           }
         }
+      },
+      {
+        "ordinal": 11,
+        "name": "cm_in_wom",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "in_wom"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "cm_wom_left_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "wom_left_at"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "cm_last_seen_in_chat_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "last_seen_in_chat_at"
+          }
+        }
       }
     ],
     "parameters": {
@@ -141,8 +174,11 @@
       true,
       false,
       true,
-      false
+      false,
+      false,
+      true,
+      true
     ]
   },
-  "hash": "3153766c0d2186076ab0bc8c92169f968b309e080f1b720c612bec3adbe95b49"
+  "hash": "979687bfe158db470a3bdfaba4c94c05fa4155da775dea1142344bafdc2ee763"
 }

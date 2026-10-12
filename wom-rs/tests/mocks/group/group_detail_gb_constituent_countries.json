@@ -1,0 +1,233 @@
+{
+  "id": 82,
+  "name": "KnightSlayer",
+  "clanChat": "KnightSlayer",
+  "description": "All are welcome! Husband & Wife owned + Jacob! New Friends Chat: DaySlayers",
+  "homeworld": 494,
+  "verified": true,
+  "patron": true,
+  "visible": true,
+  "profileImage": "https://img.wiseoldman.net/images/1759904179775.webp",
+  "bannerImage": "https://img.wiseoldman.net/images/1784837687315.png",
+  "score": 550,
+  "createdAt": "2020-05-23T22:08:03.285Z",
+  "updatedAt": "2026-10-12T18:04:51.744Z",
+  "memberCount": 3,
+  "socialLinks": {
+    "website": null,
+    "discord": "https://discord.gg/knightslayer",
+    "twitter": null,
+    "youtube": null,
+    "twitch": null
+  },
+  "roleOrders": [
+    {
+      "groupId": 82,
+      "role": "owner",
+      "index": 0
+    },
+    {
+      "groupId": 82,
+      "role": "deputy_owner",
+      "index": 1
+    },
+    {
+      "groupId": 82,
+      "role": "coordinator",
+      "index": 2
+    },
+    {
+      "groupId": 82,
+      "role": "moderator",
+      "index": 3
+    },
+    {
+      "groupId": 82,
+      "role": "teacher",
+      "index": 4
+    },
+    {
+      "groupId": 82,
+      "role": "scribe",
+      "index": 6
+    },
+    {
+      "groupId": 82,
+      "role": "enforcer",
+      "index": 7
+    },
+    {
+      "groupId": 82,
+      "role": "marshal",
+      "index": 8
+    },
+    {
+      "groupId": 82,
+      "role": "admiral",
+      "index": 9
+    },
+    {
+      "groupId": 82,
+      "role": "brigadier",
+      "index": 10
+    },
+    {
+      "groupId": 82,
+      "role": "diamond",
+      "index": 12
+    },
+    {
+      "groupId": 82,
+      "role": "colonel",
+      "index": 13
+    },
+    {
+      "groupId": 82,
+      "role": "slayer",
+      "index": 14
+    },
+    {
+      "groupId": 82,
+      "role": "skiller",
+      "index": 15
+    },
+    {
+      "groupId": 82,
+      "role": "gold",
+      "index": 16
+    },
+    {
+      "groupId": 82,
+      "role": "commander",
+      "index": 17
+    },
+    {
+      "groupId": 82,
+      "role": "officer",
+      "index": 18
+    },
+    {
+      "groupId": 82,
+      "role": "dragonstone",
+      "index": 19
+    },
+    {
+      "groupId": 82,
+      "role": "general",
+      "index": 20
+    },
+    {
+      "groupId": 82,
+      "role": "captain",
+      "index": 21
+    },
+    {
+      "groupId": 82,
+      "role": "lieutenant",
+      "index": 22
+    },
+    {
+      "groupId": 82,
+      "role": "sergeant",
+      "index": 23
+    },
+    {
+      "groupId": 82,
+      "role": "corporal",
+      "index": 24
+    },
+    {
+      "groupId": 82,
+      "role": "recruit",
+      "index": 25
+    },
+    {
+      "groupId": 82,
+      "role": "gnome_child",
+      "index": 26
+    }
+  ],
+  "memberships": [
+    {
+      "playerId": 2771332,
+      "groupId": 82,
+      "role": "enforcer",
+      "clientSyncJoinedAt": "2025-11-10T00:00:00.000Z",
+      "createdAt": "2025-11-10T12:37:33.287Z",
+      "updatedAt": "2026-09-22T21:01:00.696Z",
+      "player": {
+        "id": 2771332,
+        "username": "sir theomar",
+        "displayName": "Sir Theomar",
+        "type": "regular",
+        "build": "main",
+        "status": "active",
+        "country": "GB_SCT",
+        "patron": false,
+        "exp": 101423825,
+        "ehp": 248.51807,
+        "ehb": 101.21068,
+        "ttm": 797.4327899999998,
+        "tt200m": 12763.74533576933,
+        "registeredAt": "2025-11-10T12:37:33.107Z",
+        "updatedAt": "2026-10-12T02:20:21.108Z",
+        "lastChangedAt": "2026-10-11T02:40:21.033Z",
+        "lastImportedAt": null
+      }
+    },
+    {
+      "playerId": 1864463,
+      "groupId": 82,
+      "role": "gnome_child",
+      "clientSyncJoinedAt": "2026-09-28T00:00:00.000Z",
+      "createdAt": "2026-09-29T12:00:45.679Z",
+      "updatedAt": "2026-09-29T12:00:45.679Z",
+      "player": {
+        "id": 1864463,
+        "username": "rascaloak",
+        "displayName": "RascalOak",
+        "type": "regular",
+        "build": "main",
+        "status": "active",
+        "country": "GB",
+        "patron": false,
+        "exp": 11764904,
+        "ehp": 96.02489999999997,
+        "ehb": 0.1052,
+        "ttm": 949.9187799999999,
+        "tt200m": 12916.23850576933,
+        "registeredAt": "2024-05-13T11:16:11.295Z",
+        "updatedAt": "2026-10-12T02:17:14.416Z",
+        "lastChangedAt": "2026-10-10T18:09:14.860Z",
+        "lastImportedAt": null
+      }
+    },
+    {
+      "playerId": 1166357,
+      "groupId": 82,
+      "role": "moderator",
+      "clientSyncJoinedAt": "2024-01-13T00:00:00.000Z",
+      "createdAt": "2024-01-14T03:36:24.589Z",
+      "updatedAt": "2026-06-28T10:22:13.644Z",
+      "player": {
+        "id": 1166357,
+        "username": "bongobarrels",
+        "displayName": "BongoBarrels",
+        "type": "regular",
+        "build": "main",
+        "status": "active",
+        "country": null,
+        "patron": false,
+        "exp": 460007927,
+        "ehp": 1159.66975,
+        "ehb": 394.8121,
+        "ttm": 0,
+        "tt200m": 11852.59365576933,
+        "registeredAt": "2023-09-23T23:19:24.132Z",
+        "updatedAt": "2026-10-12T15:55:02.594Z",
+        "lastChangedAt": "2026-10-12T15:55:02.594Z",
+        "lastImportedAt": null
+      }
+    }
+  ]
+}

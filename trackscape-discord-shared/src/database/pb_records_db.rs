@@ -37,6 +37,9 @@ struct PersonalBestRecordsLeaderboardRow {
     cm_previous_names: Vec<String>,
     cm_rank: Option<String>,
     cm_created_at: DateTime<Utc>,
+    cm_in_wom: bool,
+    cm_wom_left_at: Option<DateTime<Utc>>,
+    cm_last_seen_in_chat_at: Option<DateTime<Utc>>,
 }
 
 impl From<PersonalBestRecordsLeaderboardRow> for PersonalBestRecordsModel {
@@ -49,6 +52,9 @@ impl From<PersonalBestRecordsLeaderboardRow> for PersonalBestRecordsModel {
             previous_names: row.cm_previous_names,
             rank: row.cm_rank,
             created_at: row.cm_created_at,
+            in_wom: row.cm_in_wom,
+            wom_left_at: row.cm_wom_left_at,
+            last_seen_in_chat_at: row.cm_last_seen_in_chat_at,
         };
         Self {
             id: row.id,
@@ -109,7 +115,9 @@ impl PersonalBestRecordsDb {
                    r.created_at, r.updated_at,
                    c.id as cm_id, c.guild_id as cm_guild_id, c.player_name as cm_player_name,
                    c.wom_player_id as cm_wom_player_id, c.previous_names as cm_previous_names,
-                   c."rank" as cm_rank, c.created_at as cm_created_at
+                   c."rank" as cm_rank, c.created_at as cm_created_at,
+                   c.in_wom as cm_in_wom, c.wom_left_at as cm_wom_left_at,
+                   c.last_seen_in_chat_at as cm_last_seen_in_chat_at
             FROM personal_best_records r
             JOIN clan_mates c ON c.id = r.clan_mate_id
             WHERE r.guild_id = $1 AND r.activity_id = $2

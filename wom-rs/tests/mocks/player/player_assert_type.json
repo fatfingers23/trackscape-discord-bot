@@ -1,0 +1,22 @@
+{
+  "player": {
+    "id": 1135,
+    "username": "zezima",
+    "displayName": "Zezima",
+    "type": "regular",
+    "build": "main",
+    "country": null,
+    "status": "active",
+    "patron": false,
+    "exp": 27957906,
+    "ehp": 118.1123000000007,
+    "ehb": 0,
+    "ttm": 891.24136,
+    "tt200m": 13406.30792,
+    "registeredAt": "2020-04-22T18:54:52.487Z",
+    "updatedAt": "2022-10-27T11:44:11.564Z",
+    "lastChangedAt": "2021-04-17T15:57:49.039Z",
+    "lastImportedAt": "2022-10-23T18:24:22.792Z"
+  },
+  "changed": false
+}

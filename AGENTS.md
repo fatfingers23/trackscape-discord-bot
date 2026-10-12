@@ -13,6 +13,10 @@ broadcasts are parsed into jobs that post to Discord. State lives in PostgreSQL 
   commands live in `src/commands/`; a new command must be added to BOTH
   `get_commands()` and the `interaction_create` match in `src/main.rs`.
 - `trackscape-discord-shared` — shared library used by everything: Postgres/sqlx database layer (migrations in `migrations/`, embedded and exported as `database::MIGRATOR`), DTOs, OSRS broadcast parsing (`osrs_broadcast_extractor.rs`), celery job definitions, external API clients. Most tests live here. The `legacy-mongo` cargo feature exposes the old Mongo document shapes for the one-off migrator only.
+- `wom-rs` — vendored Wise Old Man API client (formerly a git dependency on
+  fatfingers23/wom_rs @ 56ba91e). Maintained in-tree; its `Country` enum is
+  patched with WOM's GB constituent-country codes plus an `Unknown` fallback
+  so new WOM country codes can't break group deserialization.
 - `trackscape-discord-job-worker` / `trackscape-discord-cron-job-worker` —
   plain binaries: job worker consumes Redis queues `celery` and
   `cron_job_queue`; cron worker enqueues scheduled jobs (e.g. WOM sync).

@@ -2,6 +2,7 @@
 //! own throwaway database with the real migrations applied
 //! (`#[sqlx::test]` picks up `trackscape-discord-shared/migrations`).
 
+use chrono::Utc;
 use sqlx::PgPool;
 use trackscape_discord_shared::database::BotDb;
 use trackscape_discord_shared::database::clan_mate_collection_log_totals::ClanMateCollectionLogTotals;
@@ -128,22 +129,32 @@ async fn clan_mate_find_or_create_and_duplicate_rejected(pool: PgPool) {
     // find_by_current_name matches the normalized name.
     let found = db
         .clan_mates
-        .find_by_current_name("Test Player".to_string())
+        .find_by_current_name(123, "Test Player".to_string())
         .await
         .unwrap()
         .expect("player should be found");
     assert_eq!(found.id, first.id);
 
-    assert_eq!(db.clan_mates.get_clan_member_count(123).await.unwrap(), 1);
+    // The player was discovered via chat, is not in the WOM group and has no
+    // recorded chat sighting, so it is not counted as an active member yet.
+    assert_eq!(db.clan_mates.get_clan_member_count(123).await.unwrap(), 0);
 
-    // change_name moves the old name into previous_names.
-    db.clan_mates
+    // change_name moves the old name into previous_names and returns the
+    // updated model.
+    let changed = db
+        .clan_mates
         .change_name(123, "Test Player".to_string(), "New Name".to_string())
         .await
         .unwrap();
+    assert_eq!(changed.player_name, "New\u{a0}Name");
+    assert!(
+        changed
+            .previous_names
+            .contains(&"Test\u{a0}Player".to_string())
+    );
     let renamed = db
         .clan_mates
-        .find_by_current_name("New Name".to_string())
+        .find_by_current_name(123, "New Name".to_string())
         .await
         .unwrap()
         .expect("renamed player should be found");
@@ -334,10 +345,9 @@ async fn activities_are_case_insensitively_unique(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn find_by_current_name_is_cross_guild_parity(pool: PgPool) {
-    // Documents the known behavior: find_by_current_name searches by name
-    // across ALL guilds (kept for parity with the Mongo layer; tracked as a
-    // follow-up issue).
+async fn find_by_current_name_is_guild_scoped(pool: PgPool) {
+    // find_by_current_name is scoped to a single guild so players with the
+    // same name in different clans are not misattributed.
     let db = setup(pool).await;
     db.guilds.save_new_guild(123).await;
     db.guilds.save_new_guild(456).await;
@@ -350,10 +360,108 @@ async fn find_by_current_name_is_cross_guild_parity(pool: PgPool) {
 
     let found = db
         .clan_mates
-        .find_by_current_name("Shared Name".to_string())
+        .find_by_current_name(123, "Shared Name".to_string())
         .await
         .unwrap()
-        .expect("name should be found");
+        .expect("name should be found in its own guild");
     assert_eq!(found.id, player.id);
     assert_eq!(found.guild_id, 123);
+
+    // The same name in another guild is not found...
+    let not_found = db
+        .clan_mates
+        .find_by_current_name(456, "Shared Name".to_string())
+        .await
+        .unwrap();
+    assert!(not_found.is_none());
+
+    // ...and find_or_create makes a separate row for the other guild.
+    let other = db
+        .clan_mates
+        .find_or_create_clan_mate(456, "Shared Name".to_string())
+        .await
+        .unwrap();
+    assert_ne!(other.id, player.id);
+    assert_eq!(other.guild_id, 456);
+}
+
+#[sqlx::test]
+async fn clan_member_count_counts_active_members(pool: PgPool) {
+    let db = setup(pool).await;
+    db.guilds.save_new_guild(123).await;
+
+    let in_wom_player = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "In Wom".to_string())
+        .await
+        .unwrap();
+    let gone_player = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "Gone".to_string())
+        .await
+        .unwrap();
+    let recent_chat_player = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "Recent Chat".to_string())
+        .await
+        .unwrap();
+    let stale_chat_player = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "Stale Chat".to_string())
+        .await
+        .unwrap();
+
+    // In the WOM group: counted regardless of chat activity.
+    let mut model = in_wom_player.clone();
+    model.in_wom = true;
+    db.clan_mates.update_clan_mate(model).await.unwrap();
+
+    // Left the WOM group and never seen in chat: not counted.
+    let mut model = gone_player.clone();
+    model.in_wom = false;
+    model.last_seen_in_chat_at = None;
+    db.clan_mates.update_clan_mate(model).await.unwrap();
+
+    // Not in the WOM group but seen in chat recently: counted.
+    let mut model = recent_chat_player.clone();
+    model.in_wom = false;
+    model.last_seen_in_chat_at = Some(Utc::now() - chrono::Duration::days(10));
+    db.clan_mates.update_clan_mate(model).await.unwrap();
+
+    // Not in the WOM group and last seen over the 90 day window: not counted.
+    let mut model = stale_chat_player.clone();
+    model.in_wom = false;
+    model.last_seen_in_chat_at = Some(Utc::now() - chrono::Duration::days(91));
+    db.clan_mates.update_clan_mate(model).await.unwrap();
+
+    assert_eq!(db.clan_mates.get_clan_member_count(123).await.unwrap(), 2);
+}
+
+#[sqlx::test]
+async fn touch_last_seen_updates_timestamp(pool: PgPool) {
+    let db = setup(pool).await;
+    db.guilds.save_new_guild(123).await;
+
+    let player = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "Chat Player".to_string())
+        .await
+        .unwrap();
+    assert!(player.last_seen_in_chat_at.is_none());
+
+    db.clan_mates
+        .touch_last_seen_in_chat(player.id)
+        .await
+        .unwrap();
+
+    let refetched = db
+        .clan_mates
+        .find_by_current_name(123, "Chat Player".to_string())
+        .await
+        .unwrap()
+        .expect("player should be found");
+    let touched = refetched
+        .last_seen_in_chat_at
+        .expect("last_seen_in_chat_at should be set");
+    assert!(touched > Utc::now() - chrono::Duration::minutes(1));
 }

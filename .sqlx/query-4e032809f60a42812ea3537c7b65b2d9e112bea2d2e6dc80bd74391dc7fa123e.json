@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, guild_id, player_name, wom_player_id, previous_names, \"rank\", created_at\n            FROM clan_mates\n            WHERE guild_id = $1\n            ORDER BY created_at ASC\n            ",
+  "query": "\n            SELECT id, guild_id, player_name, wom_player_id, previous_names, \"rank\", created_at, in_wom, wom_left_at, last_seen_in_chat_at\n            FROM clan_mates\n            WHERE guild_id = $1\n            ORDER BY created_at ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -79,6 +79,39 @@
             "name": "created_at"
           }
         }
+      },
+      {
+        "ordinal": 7,
+        "name": "in_wom",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "in_wom"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "wom_left_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "wom_left_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "last_seen_in_chat_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "last_seen_in_chat_at"
+          }
+        }
       }
     ],
     "parameters": {
@@ -93,8 +126,11 @@
       true,
       false,
       true,
-      false
+      false,
+      false,
+      true,
+      true
     ]
   },
-  "hash": "e2e29151c9874c04f51cda47bdac62234b32a76f80fe670cf05aaeaa2bdc4ee7"
+  "hash": "4e032809f60a42812ea3537c7b65b2d9e112bea2d2e6dc80bd74391dc7fa123e"
 }

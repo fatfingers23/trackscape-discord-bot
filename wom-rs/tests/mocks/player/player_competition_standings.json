@@ -1,0 +1,48 @@
+[
+  {
+    "playerId": 36994,
+    "competitionId": 16583,
+    "teamName": null,
+    "createdAt": "2022-10-24T14:16:37.339Z",
+    "updatedAt": "2022-10-28T09:53:31.638Z",
+    "progress": {
+      "gained": 4332129,
+      "start": 2097664,
+      "end": 6429793
+    },
+    "levels": {
+      "gained": 11,
+      "start": 80,
+      "end": 91
+    },
+    "rank": 1,
+    "competition": {
+      "id": 16583,
+      "title": "Skill of the Week #60: Thieving",
+      "metric": "thieving",
+      "type": "classic",
+      "startsAt": "2022-10-24T22:00:00.000Z",
+      "endsAt": "2022-10-30T22:00:00.000Z",
+      "groupId": 1088,
+      "score": 626,
+      "createdAt": "2022-10-24T14:16:37.339Z",
+      "updatedAt": "2022-10-26T20:20:05.150Z",
+      "group": {
+        "id": 1088,
+        "name": "Wild",
+        "clanChat": "Wild",
+        "description": "Clan Wild, Created from the community of The Wilderness Podcast",
+        "homeworld": 386,
+        "verified": true,
+        "patron": false,
+        "profileImage": null,
+        "bannerImage": null,
+        "score": 440,
+        "createdAt": "2021-05-04T13:03:02.851Z",
+        "updatedAt": "2022-10-25T15:46:55.761Z",
+        "memberCount": 729
+      },
+      "participantCount": 729
+    }
+  }
+]

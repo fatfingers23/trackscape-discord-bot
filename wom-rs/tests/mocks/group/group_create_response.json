@@ -1,0 +1,26 @@
+{
+  "group": {
+    "id": 6667,
+    "name": "New group",
+    "clanChat": null,
+    "description": null,
+    "homeworld": null,
+    "verified": false,
+    "patron": false,
+    "profileImage": null,
+    "bannerImage": null,
+    "score": 0,
+    "createdAt": "2024-02-06T03:29:24.509Z",
+    "updatedAt": "2024-02-06T03:29:24.509Z",
+    "memberships": [],
+    "socialLinks": {
+      "website": null,
+      "discord": null,
+      "twitter": null,
+      "youtube": null,
+      "twitch": null
+    },
+    "memberCount": 0
+  },
+  "verificationCode": "799-514-963"
+}

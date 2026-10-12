@@ -1,0 +1,51 @@
+[
+  {
+    "name": "99 Agility",
+    "metric": "agility",
+    "measure": "experience",
+    "threshold": 13034431,
+    "playerId": 1135,
+    "currentValue": 738591,
+    "absoluteProgress": 0.0567,
+    "relativeProgress": 0.0567,
+    "createdAt": null,
+    "accuracy": -1
+  },
+  {
+    "name": "50m Agility",
+    "metric": "agility",
+    "measure": "experience",
+    "threshold": 50000000,
+    "playerId": 1135,
+    "currentValue": 738591,
+    "absoluteProgress": 0.0148,
+    "relativeProgress": 0,
+    "createdAt": null,
+    "accuracy": -1
+  },
+  {
+    "name": "100m Agility",
+    "metric": "agility",
+    "measure": "experience",
+    "threshold": 100000000,
+    "playerId": 1135,
+    "currentValue": 738591,
+    "absoluteProgress": 0.0074,
+    "relativeProgress": 0,
+    "createdAt": "2018-08-16T23:23:10.000Z",
+
+    "accuracy": -1
+  },
+  {
+    "name": "200m Agility",
+    "metric": "agility",
+    "measure": "experience",
+    "threshold": 200000000,
+    "playerId": 1135,
+    "currentValue": 738591,
+    "absoluteProgress": 0.0037,
+    "relativeProgress": 0,
+    "createdAt": null,
+    "accuracy": -1
+  }
+]

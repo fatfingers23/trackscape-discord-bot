@@ -1,0 +1,17 @@
+[package]
+name = "trackscape-discord-wom-audit"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+# Operator tool: audits every registered clan's Wise Old Man connection and
+# can re-run the (non-destructive) member sync. Run it with DATABASE_URL (and
+# WOM_API_KEY for the live WOM reads).
+
+[dependencies]
+trackscape-discord-shared = { path = "../trackscape-discord-shared" }
+tokio = { version = "1.26.0", features = ["macros", "rt-multi-thread"] }
+log = "0.4.20"
+env_logger = "0.10"
+anyhow = "1.0.75"
+dotenv = "0.15.0"

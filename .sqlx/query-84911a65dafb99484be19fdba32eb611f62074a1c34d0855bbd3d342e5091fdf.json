@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT r.id, r.clan_mate_id, r.activity_id, r.guild_id, r.time_in_seconds,\n                   r.created_at, r.updated_at,\n                   c.id as cm_id, c.guild_id as cm_guild_id, c.player_name as cm_player_name,\n                   c.wom_player_id as cm_wom_player_id, c.previous_names as cm_previous_names,\n                   c.\"rank\" as cm_rank, c.created_at as cm_created_at\n            FROM personal_best_records r\n            JOIN clan_mates c ON c.id = r.clan_mate_id\n            WHERE r.guild_id = $1 AND r.activity_id = $2\n            ORDER BY r.time_in_seconds ASC, r.updated_at ASC\n            ",
+  "query": "\n            SELECT r.id, r.clan_mate_id, r.activity_id, r.guild_id, r.time_in_seconds,\n                   r.created_at, r.updated_at,\n                   c.id as cm_id, c.guild_id as cm_guild_id, c.player_name as cm_player_name,\n                   c.wom_player_id as cm_wom_player_id, c.previous_names as cm_previous_names,\n                   c.\"rank\" as cm_rank, c.created_at as cm_created_at,\n                   c.in_wom as cm_in_wom, c.wom_left_at as cm_wom_left_at,\n                   c.last_seen_in_chat_at as cm_last_seen_in_chat_at\n            FROM personal_best_records r\n            JOIN clan_mates c ON c.id = r.clan_mate_id\n            WHERE r.guild_id = $1 AND r.activity_id = $2\n            ORDER BY r.time_in_seconds ASC, r.updated_at ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -156,6 +156,39 @@
             "name": "created_at"
           }
         }
+      },
+      {
+        "ordinal": 14,
+        "name": "cm_in_wom",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "in_wom"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "cm_wom_left_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "wom_left_at"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "cm_last_seen_in_chat_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "last_seen_in_chat_at"
+          }
+        }
       }
     ],
     "parameters": {
@@ -178,8 +211,11 @@
       true,
       false,
       true,
-      false
+      false,
+      false,
+      true,
+      true
     ]
   },
-  "hash": "66a35ac7172a1c0bd364d6d384ce183f5ec5e2acf42cadb0949679563456e820"
+  "hash": "84911a65dafb99484be19fdba32eb611f62074a1c34d0855bbd3d342e5091fdf"
 }

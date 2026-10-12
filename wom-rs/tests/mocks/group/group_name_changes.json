@@ -1,0 +1,62 @@
+[
+  {
+    "id": 105668,
+    "playerId": 11049,
+    "oldName": "Tired Cookie",
+    "newName": "Minty Meep",
+    "status": "approved",
+    "reviewContext": null,
+    "resolvedAt": "2022-08-20T20:31:14.548Z",
+    "updatedAt": "2022-08-20T20:31:14.548Z",
+    "createdAt": "2022-08-20T20:30:18.636Z",
+    "player": {
+      "id": 11049,
+      "username": "minty meep",
+      "displayName": "Minty Meep",
+      "type": "regular",
+      "build": "main",
+      "country": null,
+      "status": "active",
+      "patron": false,
+      "exp": 107428372,
+      "ehp": 207.7656800000004,
+      "ehb": 103.9547,
+      "ttm": 801.9514299999992,
+      "tt200m": 13316.65454,
+      "registeredAt": "2020-05-23T18:58:10.774Z",
+      "updatedAt": "2022-10-30T13:52:15.177Z",
+      "lastChangedAt": "2022-09-04T14:47:36.327Z",
+      "lastImportedAt": "2022-01-23T22:24:27.792Z"
+    }
+  },
+  {
+    "id": 90886,
+    "playerId": 45693,
+    "oldName": "Reptarrrr",
+    "newName": "Cremzar",
+    "status": "approved",
+    "reviewContext": null,
+    "resolvedAt": "2022-07-05T00:25:48.412Z",
+    "updatedAt": "2022-07-05T00:25:48.412Z",
+    "createdAt": "2022-07-05T00:25:41.380Z",
+    "player": {
+      "id": 45693,
+      "username": "cremzar",
+      "displayName": "Cremzar",
+      "type": "regular",
+      "build": "main",
+      "country": null,
+      "status": "active",
+      "patron": false,
+      "exp": 117813986,
+      "ehp": 311.34252,
+      "ehb": 229.87636,
+      "ttm": 709.26561,
+      "tt200m": 13213.0777,
+      "registeredAt": "2020-09-28T13:23:23.966Z",
+      "updatedAt": "2022-07-06T01:55:27.127Z",
+      "lastChangedAt": "2022-07-06T01:55:27.000Z",
+      "lastImportedAt": null
+    }
+  }
+]

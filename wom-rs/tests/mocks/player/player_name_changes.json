@@ -1,0 +1,114 @@
+[
+  {
+    "id": 126981,
+    "playerId": 300184,
+    "oldName": "KHX",
+    "newName": "chambou",
+    "status": "approved",
+    "reviewContext": null,
+    "resolvedAt": "2022-10-28T10:59:39.505Z",
+    "updatedAt": "2022-10-28T10:59:39.506Z",
+    "createdAt": "2022-10-28T10:59:17.920Z"
+  },
+  {
+    "id": 21521,
+    "playerId": 300184,
+    "oldName": "bezrobotny",
+    "newName": "KHX",
+    "status": "approved",
+    "reviewContext": null,
+    "resolvedAt": "2021-08-20T17:00:16.848Z",
+    "updatedAt": "2021-08-20T17:00:16.848Z",
+    "createdAt": "2021-08-20T16:59:23.284Z"
+  },
+  {
+    "id": 21521,
+    "playerId": 300184,
+    "oldName": "bezrobotny",
+    "newName": "KHX",
+    "status": "approved",
+    "reviewContext": {
+      "reason": "manual_review"
+    },
+    "resolvedAt": "2021-08-20T17:00:16.848Z",
+    "updatedAt": "2021-08-20T17:00:16.848Z",
+    "createdAt": "2021-08-20T16:59:23.284Z"
+  },
+  {
+    "id": 21521,
+    "playerId": 300184,
+    "oldName": "bezrobotny",
+    "newName": "KHX",
+    "status": "approved",
+    "reviewContext": {
+      "reason": "manual_review"
+    },
+    "resolvedAt": "2021-08-20T17:00:16.848Z",
+    "updatedAt": "2021-08-20T17:00:16.848Z",
+    "createdAt": "2021-08-20T16:59:23.284Z"
+  },
+  {
+    "id": 21521,
+    "playerId": 300184,
+    "oldName": "bezrobotny",
+    "newName": "KHX",
+    "status": "approved",
+    "reviewContext": {
+      "reason": "negative_gains",
+      "negativeGains": {
+        "attack": -5867834,
+        "hunter": -12355,
+        "zulrah": -53
+      }
+    },
+    "resolvedAt": "2021-08-20T17:00:16.848Z",
+    "updatedAt": "2021-08-20T17:00:16.848Z",
+    "createdAt": "2021-08-20T16:59:23.284Z"
+  },
+  {
+    "id": 21521,
+    "playerId": 300184,
+    "oldName": "bezrobotny",
+    "newName": "KHX",
+    "status": "approved",
+    "reviewContext": {
+      "reason": "transition_period_too_long",
+      "maxHoursDiff": 504,
+      "hoursDiff": 596
+    },
+    "resolvedAt": "2021-08-20T17:00:16.848Z",
+    "updatedAt": "2021-08-20T17:00:16.848Z",
+    "createdAt": "2021-08-20T16:59:23.284Z"
+  },
+  {
+    "id": 21521,
+    "playerId": 300184,
+    "oldName": "bezrobotny",
+    "newName": "KHX",
+    "status": "approved",
+    "reviewContext": {
+      "reason": "excessive_gains",
+      "ehpDiff": 407,
+      "ehbDiff": 204,
+      "hoursDiff": 596
+    },
+    "resolvedAt": "2021-08-20T17:00:16.848Z",
+    "updatedAt": "2021-08-20T17:00:16.848Z",
+    "createdAt": "2021-08-20T16:59:23.284Z"
+  },
+  {
+    "id": 21521,
+    "playerId": 300184,
+    "oldName": "bezrobotny",
+    "newName": "KHX",
+    "status": "approved",
+    "reviewContext": {
+      "reason": "total_level_too_low",
+      "minTotalLevel": 700,
+      "totalLevel": 384
+    },
+    "resolvedAt": "2021-08-20T17:00:16.848Z",
+    "updatedAt": "2021-08-20T17:00:16.848Z",
+    "createdAt": "2021-08-20T16:59:23.284Z"
+  }
+]

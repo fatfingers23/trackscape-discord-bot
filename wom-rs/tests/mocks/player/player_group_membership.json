@@ -1,0 +1,46 @@
+[
+  {
+    "playerId": 4156,
+    "groupId": 139,
+    "role": "member",
+    "createdAt": "2022-08-21T20:42:18.541Z",
+    "updatedAt": "2022-08-21T20:42:18.541Z",
+    "group": {
+      "id": 139,
+      "name": "Exclusive Elite Club",
+      "clanChat": "Psikoi",
+      "description": "test",
+      "homeworld": null,
+      "verified": true,
+      "patron": false,
+      "profileImage": null,
+      "bannerImage": null,
+      "score": 330,
+      "createdAt": "2020-07-05T15:25:54.055Z",
+      "updatedAt": "2022-10-24T00:03:02.781Z",
+      "memberCount": 10
+    }
+  },
+  {
+    "playerId": 4156,
+    "groupId": 846,
+    "role": "member",
+    "createdAt": "2021-03-18T01:14:05.993Z",
+    "updatedAt": "2021-03-18T01:14:05.993Z",
+    "group": {
+      "id": 846,
+      "name": "alrighty",
+      "clanChat": "Legacy 07",
+      "description": "yes",
+      "homeworld": 313,
+      "verified": false,
+      "patron": false,
+      "profileImage": null,
+      "bannerImage": null,
+      "score": 260,
+      "createdAt": "2021-03-18T01:14:05.629Z",
+      "updatedAt": "2022-10-24T12:01:49.620Z",
+      "memberCount": 193
+    }
+  }
+]

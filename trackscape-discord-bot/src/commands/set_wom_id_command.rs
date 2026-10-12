@@ -34,10 +34,21 @@ pub async fn run(
             let wom_id_command_option = command.get(0).expect("Expected a command option");
 
             return if let CommandDataOptionValue::Integer(wom_id) = wom_id_command_option.value {
-                //TODO when we have a wom client check if its a valid id
-                saved_guild.wom_id = Some(wom_id);
-                let _ = db.guilds.update_guild(saved_guild).await;
-                None
+                let wom_client = trackscape_discord_shared::wom::get_wom_client();
+                match wom_client.group_client.get_group_details(wom_id).await {
+                    Ok(details) => {
+                        saved_guild.wom_id = Some(wom_id);
+                        db.guilds.update_guild(saved_guild).await;
+                        Some(format!(
+                            "Connected to the Wise Old Man group \"{}\" ({} members).",
+                            details.name, details.member_count
+                        ))
+                    }
+                    Err(_) => Some(format!(
+                        "Couldn't find a Wise Old Man group with the id {}. Double-check the group id on your group's page at wiseoldman.net.",
+                        wom_id
+                    )),
+                }
             } else {
                 Some("Invalid Wise Old Man Id.".to_string())
             };

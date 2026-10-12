@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct ClanMateModel {
     pub id: Uuid,
     pub guild_id: u64,
@@ -16,6 +16,9 @@ pub struct ClanMateModel {
     pub previous_names: Vec<String>,
     pub rank: Option<String>,
     pub created_at: DateTime<Utc>,
+    pub in_wom: bool,
+    pub wom_left_at: Option<DateTime<Utc>>,
+    pub last_seen_in_chat_at: Option<DateTime<Utc>>,
 }
 
 impl ClanMateModel {
@@ -30,6 +33,9 @@ impl ClanMateModel {
             player_name,
             rank: None,
             created_at: Utc::now(),
+            in_wom: false,
+            wom_left_at: None,
+            last_seen_in_chat_at: None,
         }
     }
 }
@@ -44,6 +50,9 @@ struct ClanMateRow {
     previous_names: Vec<String>,
     rank: Option<String>,
     created_at: DateTime<Utc>,
+    in_wom: bool,
+    wom_left_at: Option<DateTime<Utc>>,
+    last_seen_in_chat_at: Option<DateTime<Utc>>,
 }
 
 impl From<ClanMateRow> for ClanMateModel {
@@ -56,6 +65,9 @@ impl From<ClanMateRow> for ClanMateModel {
             previous_names: row.previous_names,
             rank: row.rank,
             created_at: row.created_at,
+            in_wom: row.in_wom,
+            wom_left_at: row.wom_left_at,
+            last_seen_in_chat_at: row.last_seen_in_chat_at,
         }
     }
 }
@@ -84,6 +96,7 @@ pub trait ClanMates {
 
     async fn find_by_current_name(
         &self,
+        guild_id: u64,
         player_name: String,
     ) -> Result<Option<ClanMateModel>, anyhow::Error>;
 
@@ -100,7 +113,9 @@ pub trait ClanMates {
         guild_id: u64,
         old_name: String,
         new_name: String,
-    ) -> Result<(), Error>;
+    ) -> Result<ClanMateModel, Error>;
+
+    async fn touch_last_seen_in_chat(&self, clan_mate_id: Uuid) -> Result<(), Error>;
 }
 
 #[async_trait]
@@ -110,7 +125,9 @@ impl ClanMates for ClanMatesDb {
         guild_id: u64,
         player_name: String,
     ) -> Result<ClanMateModel, Error> {
-        let possible_clan_mate = self.find_by_current_name(player_name.clone()).await?;
+        let possible_clan_mate = self
+            .find_by_current_name(guild_id, player_name.clone())
+            .await?;
         return Ok(match possible_clan_mate {
             None => {
                 self.create_new_clan_mate(guild_id, player_name.replace(" ", "\u{a0}"), None)
@@ -126,12 +143,13 @@ impl ClanMates for ClanMatesDb {
         player_name: String,
         wom_player_id: Option<u64>,
     ) -> Result<ClanMateModel, anyhow::Error> {
-        let clan_mate =
+        let mut clan_mate =
             ClanMateModel::new(guild_id, player_name.replace(" ", "\u{a0}"), wom_player_id);
+        clan_mate.in_wom = clan_mate.wom_player_id.is_some();
         sqlx::query!(
             r#"
-            INSERT INTO clan_mates (id, guild_id, player_name, wom_player_id, previous_names, "rank", created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO clan_mates (id, guild_id, player_name, wom_player_id, previous_names, "rank", created_at, in_wom, wom_left_at, last_seen_in_chat_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             "#,
             clan_mate.id,
             clan_mate.guild_id as i64,
@@ -140,6 +158,9 @@ impl ClanMates for ClanMatesDb {
             &clan_mate.previous_names,
             clan_mate.rank,
             clan_mate.created_at,
+            clan_mate.in_wom,
+            clan_mate.wom_left_at,
+            clan_mate.last_seen_in_chat_at,
         )
         .execute(&self.pool)
         .await?;
@@ -148,15 +169,17 @@ impl ClanMates for ClanMatesDb {
 
     async fn find_by_current_name(
         &self,
+        guild_id: u64,
         player_name: String,
     ) -> Result<Option<ClanMateModel>, anyhow::Error> {
         let row = sqlx::query_as!(
             ClanMateRow,
             r#"
-            SELECT id, guild_id, player_name, wom_player_id, previous_names, "rank", created_at
+            SELECT id, guild_id, player_name, wom_player_id, previous_names, "rank", created_at, in_wom, wom_left_at, last_seen_in_chat_at
             FROM clan_mates
-            WHERE player_name = $1
+            WHERE guild_id = $1 AND player_name = $2
             "#,
+            guild_id as i64,
             player_name.replace(" ", "\u{a0}")
         )
         .fetch_optional(&self.pool)
@@ -169,7 +192,7 @@ impl ClanMates for ClanMatesDb {
         sqlx::query!(
             r#"
             UPDATE clan_mates
-            SET player_name = $2, wom_player_id = $3, previous_names = $4, "rank" = $5, created_at = $6
+            SET player_name = $2, wom_player_id = $3, previous_names = $4, "rank" = $5, created_at = $6, in_wom = $7, wom_left_at = $8, last_seen_in_chat_at = $9
             WHERE id = $1
             "#,
             model.id,
@@ -178,6 +201,9 @@ impl ClanMates for ClanMatesDb {
             &model.previous_names,
             model.rank,
             model.created_at,
+            model.in_wom,
+            model.wom_left_at,
+            model.last_seen_in_chat_at,
         )
         .execute(&self.pool)
         .await?;
@@ -186,7 +212,7 @@ impl ClanMates for ClanMatesDb {
 
     async fn get_clan_member_count(&self, guild_id: u64) -> Result<u64, Error> {
         let count = sqlx::query_scalar!(
-            "SELECT COUNT(*) as count FROM clan_mates WHERE guild_id = $1",
+            "SELECT COUNT(*) as count FROM clan_mates WHERE guild_id = $1 AND (in_wom = true OR last_seen_in_chat_at > now() - interval '90 days')",
             guild_id as i64
         )
         .fetch_one(&self.pool)
@@ -198,7 +224,7 @@ impl ClanMates for ClanMatesDb {
         let rows = sqlx::query_as!(
             ClanMateRow,
             r#"
-            SELECT id, guild_id, player_name, wom_player_id, previous_names, "rank", created_at
+            SELECT id, guild_id, player_name, wom_player_id, previous_names, "rank", created_at, in_wom, wom_left_at, last_seen_in_chat_at
             FROM clan_mates
             WHERE guild_id = $1
             ORDER BY created_at ASC
@@ -211,7 +237,9 @@ impl ClanMates for ClanMatesDb {
     }
 
     async fn remove_clan_mate(&self, guild_id: u64, player_name: String) -> Result<(), Error> {
-        let possible_player = self.find_by_current_name(player_name.clone()).await?;
+        let possible_player = self
+            .find_by_current_name(guild_id, player_name.clone())
+            .await?;
         if possible_player.is_none() {
             return Err(anyhow::anyhow!(format!(
                 "Failed to find clan mate: {}",
@@ -242,8 +270,10 @@ impl ClanMates for ClanMatesDb {
         guild_id: u64,
         old_name: String,
         new_name: String,
-    ) -> Result<(), Error> {
-        let clan_mate = self.find_by_current_name(old_name.clone()).await?;
+    ) -> Result<ClanMateModel, Error> {
+        let clan_mate = self
+            .find_by_current_name(guild_id, old_name.clone())
+            .await?;
         if clan_mate.is_none() {
             return Err(anyhow::anyhow!("Failed to find clan mate"));
         }
@@ -255,7 +285,18 @@ impl ClanMates for ClanMatesDb {
             .previous_names
             .push(old_name.replace(" ", "\u{a0}"));
         clan_mate.player_name = new_name.replace(" ", "\u{a0}");
-        self.update_clan_mate(clan_mate).await?;
+        self.update_clan_mate(clan_mate).await
+    }
+
+    async fn touch_last_seen_in_chat(&self, clan_mate_id: Uuid) -> Result<(), Error> {
+        sqlx::query!(
+            r#"
+            UPDATE clan_mates SET last_seen_in_chat_at = now() WHERE id = $1
+            "#,
+            clan_mate_id
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 }

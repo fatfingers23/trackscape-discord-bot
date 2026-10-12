@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE clan_mates SET last_seen_in_chat_at = now() WHERE id = $1\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cd7e2fab50c30111b5c6aeb56f1a6d81b92e794e7b72ba31556ebb750f4ed227"
+}
