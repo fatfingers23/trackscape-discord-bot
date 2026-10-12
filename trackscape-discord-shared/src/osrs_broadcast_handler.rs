@@ -6,9 +6,10 @@ use crate::ge_api::ge_api::{GeItemMapping, get_item_value_by_id};
 use crate::jobs::new_pb_job::record_new_pb;
 use crate::jobs::{JobQueue, remove_clanmate_job};
 use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-    BroadcastType, ClanMessage, LeaguesBroadCastType, clue_item_broadcast_extractor,
-    coffer_donation_broadcast_extractor, coffer_withdrawal_broadcast_extractor,
-    collection_log_broadcast_extractor, diary_completed_broadcast_extractor,
+    BroadcastType, ClanMessage, LeaguesBroadCastType, clean_broadcast_message,
+    clue_item_broadcast_extractor, coffer_donation_broadcast_extractor,
+    coffer_withdrawal_broadcast_extractor, collection_log_broadcast_extractor,
+    combat_achievement_broadcast_extractor, diary_completed_broadcast_extractor,
     drop_broadcast_extractor, expelled_from_clan_broadcast_extractor, get_broadcast_type,
     invite_broadcast_extractor, leagues_catch_all_broadcast_extractor,
     left_the_clan_broadcast_extractor, levelmilestone_broadcast_extractor,
@@ -67,6 +68,8 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
         clan_mates_db: CM,
         job_queue: Arc<J>,
     ) -> Self {
+        let mut clan_message = clan_message;
+        clan_message.message = clean_broadcast_message(clan_message.message.as_str());
         Self {
             clan_message,
             item_mapping: match item_mapping_from_state {
@@ -532,6 +535,7 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                 }
             }
             BroadcastType::PersonalBest => self.personal_best_handler().await,
+            BroadcastType::CombatAchievement => self.combat_achievement_handler(),
             _ => None,
         }
     }
@@ -1032,6 +1036,50 @@ impl<T: DropLogs, CL: ClanMateCollectionLogTotals, CM: ClanMates, J: JobQueue>
                     message: self.clan_message.message.clone(),
                     icon_url: Some(self.best_guest_pb_icon(exported_data.activity).to_string()),
                     title: ":stopwatch: New Personal Best!".to_string(),
+                    item_quantity: None,
+                })
+            }
+        }
+    }
+
+    fn combat_achievement_handler(&self) -> Option<BroadcastMessageToDiscord> {
+        let combat_achievement =
+            combat_achievement_broadcast_extractor(self.clan_message.message.clone());
+        match combat_achievement {
+            None => {
+                error!(
+                    "Failed to extract Combat Achievement info from message: {}",
+                    self.clan_message.message.clone()
+                );
+                None
+            }
+            Some(exported_data) => {
+                if self.check_if_allowed_broad_cast(BroadcastType::CombatAchievement) {
+                    return None;
+                }
+
+                let title = match exported_data.task {
+                    Some(_) => ":crossed_swords: New combat task completed!".to_string(),
+                    None => ":crossed_swords: New Combat Achievements tier unlocked!".to_string(),
+                };
+
+                if self.check_if_filtered_broad_cast(
+                    BroadcastType::CombatAchievement,
+                    exported_data.player.clone(),
+                    exported_data.task.unwrap_or(exported_data.tier.clone()),
+                ) {
+                    return None;
+                }
+
+                Some(BroadcastMessageToDiscord {
+                    type_of_broadcast: BroadcastType::CombatAchievement,
+                    player_it_happened_to: exported_data.player,
+                    message: self.clan_message.message.clone(),
+                    icon_url: Some(format!(
+                        "https://oldschool.runescape.wiki/images/Combat_Achievements_-_{}_tier_icon.png",
+                        exported_data.tier
+                    )),
+                    title,
                     item_quantity: None,
                 })
             }

@@ -90,6 +90,10 @@ pub fn register() -> CreateCommand {
                 BroadcastType::PersonalBest.to_slug(),
             )
             .add_string_choice(
+                BroadcastType::CombatAchievement.to_string(),
+                BroadcastType::CombatAchievement.to_slug(),
+            )
+            .add_string_choice(
                 BroadcastType::AreaUnlock.to_string(),
                 BroadcastType::AreaUnlock.to_slug(),
             )

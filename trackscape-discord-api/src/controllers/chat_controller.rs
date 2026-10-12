@@ -14,7 +14,7 @@ use trackscape_discord_shared::ge_api::ge_api::get_item_mapping;
 use trackscape_discord_shared::helpers::hash_string;
 use trackscape_discord_shared::jobs::CeleryJobQueue;
 use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::{
-    ClanMessage, get_wiki_clan_rank_image_url,
+    ClanMessage, clean_broadcast_message, get_wiki_clan_rank_image_url,
 };
 use trackscape_discord_shared::osrs_broadcast_handler::OSRSBroadcastHandler;
 use trackscape_discord_shared::redis_helpers::{fetch_redis, write_to_cache_with_seconds};
@@ -168,6 +168,15 @@ async fn new_clan_chats(
 
         let right_now = serenity::model::timestamp::Timestamp::now();
 
+        //Checks to see if it is a clan broadcast. Clan name and sender are the same if so
+        let is_broadcast = chat.sender == chat.clan_name;
+        //HACK leagues. is_league_world is not getting set as expected so we need to check the broadcast for the icon tag
+        let league_world = is_broadcast && chat.message.starts_with(LEAGUES_ICON_TAG);
+        if is_broadcast {
+            //Removes the icons and other markup the game adds to broadcasts
+            chat.message = clean_broadcast_message(chat.message.as_str());
+        }
+
         match registered_guild.clan_chat_channel {
             Some(_channel_id) => {
                 let author_image = match chat.clan_name.clone() == chat.sender.clone() {
@@ -181,16 +190,14 @@ async fn new_clan_chats(
                     CreateEmbed::new()
                         .title("")
                         .author(CreateEmbedAuthor::new(chat.sender.clone()).icon_url(author_image))
-                        //HACK
-                        .description(chat.message.clone().replace(LEAGUES_ICON_TAG, ""))
+                        .description(chat.message.clone())
                         .color(0x0000FF)
                         .timestamp(right_now),
                 );
             }
             _ => {}
         }
-        //Checks to see if it is a clan broadcast. Clan name and sender are the same if so
-        if chat.sender != chat.clan_name {
+        if !is_broadcast {
             //Handles RL chat commands
             if chat.message.starts_with("!") {
                 let _ = celery
@@ -225,11 +232,7 @@ async fn new_clan_chats(
             continue;
         }
 
-        // let league_world = chat.is_league_world.unwrap_or(false);
-        //HACK leagues. is_league_world is not getting set as expected so we need to check the broadcast for the icon tag
-        let league_world = chat.message.starts_with(LEAGUES_ICON_TAG);
         if league_world {
-            chat.message = chat.message.replace(LEAGUES_ICON_TAG, "");
             chat.is_league_world = Some(true);
         }
 

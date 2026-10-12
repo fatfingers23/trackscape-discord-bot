@@ -59,11 +59,25 @@ pub mod osrs_broadcast_extractor {
     });
     // RuneScape Player has achieved a new Vorkath personal best: 2:28
     static PERSONAL_BEST_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r#"^(?P<player>[\w\s]+) has achieved a new (?P<activity>[\w\s\-'\.]+) personal best: (?<time>[\d:]+)"#,).unwrap()
+        Regex::new(r#"^(?P<player>[\w\s]+?)(?: has)? achieved a new (?P<activity>[\w\s\-'\.]+) personal best: (?<time>[\d:]+(?:\.\d+)?)"#,).unwrap()
     });
     static PERSONAL_BEST_BROADCAST_EXTRACTOR_RAID: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r#"^(?P<player>[\w\s]+) has achieved a new (?P<raid>[\w\s]+(?:\: [\w\s]+)?) \([Tt]eam [Ss]ize: (?P<team_size>[\w\s]+)\)(?:(?P<variant>[\w\s]+)?) personal best: (?<time>[\d:]+(?:\.\d{2})?)"#,).unwrap()
+        Regex::new(r#"^(?P<player>[\w\s]+?)(?: has)? achieved a new (?P<raid>[\w\s]+(?:\: [\w\s]+)?) \([Tt]eam [Ss]ize: (?P<team_size>[\w\s]+)\)(?:(?P<variant>[\w\s]+)?) personal best: (?<time>[\d:]+(?:\.\d+)?)"#,).unwrap()
     });
+    // CA_ID:470|RuneScape Player has completed a master combat task: Expert Tomb Looter.
+    static COMBAT_TASK_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"^(?P<player>.*?) has completed an? (?P<tier>\w+) combat task: (?P<task>.+)\.$"#).unwrap()
+    });
+    // RuneScape Player has unlocked the Elite tier of rewards from Combat Achievements!
+    static COMBAT_ACHIEVEMENT_TIER_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"^(?P<player>.*?) has unlocked the (?P<tier>\w+) tier of rewards from Combat Achievements!"#).unwrap()
+    });
+    // <str_quest_name_0=The Lost Tribe>RuneScape Player has completed a quest: <str_quest_name_0>
+    static STRING_TEMPLATE_DEFINITION: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"<(?P<name>str_\w+)=(?P<value>[^>]*)>").unwrap());
+    static ICON_TAG: Lazy<Regex> = Lazy::new(|| Regex::new(r"<img=\d+>").unwrap());
+    static COMBAT_ACHIEVEMENT_ID_PREFIX: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"^CA_ID:\d+\|").unwrap());
 
     #[derive(Deserialize, Serialize, Clone, Debug)]
     pub struct ClanMessage {
@@ -308,6 +322,16 @@ pub mod osrs_broadcast_extractor {
         pub time_in_seconds: f64,
     }
 
+    // CA_ID:470|Tulkarm has completed a master combat task: Expert Tomb Looter.
+    // x Cryptic has unlocked the Elite tier of rewards from Combat Achievements!
+    pub struct CombatAchievementBroadcast {
+        pub player: String,
+        //easy, medium, hard, elite, master, grandmaster
+        pub tier: String,
+        //Name of the task completed. None when it is a tier of rewards unlocked
+        pub task: Option<String>,
+    }
+
     //Leagues broadcasts
     //TODO may come back and add more descriptive broadcasts for Leagues, but right now just going the "firehose" route
     // #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -376,6 +400,7 @@ pub mod osrs_broadcast_extractor {
         RelicTier,
         Unknown,
         ClueItem,
+        CombatAchievement,
     }
 
     impl BroadcastType {
@@ -404,6 +429,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::CombatMasteries => "Combat Masteries".to_string(),
                 BroadcastType::RelicTier => "Relic Tier".to_string(),
                 BroadcastType::ClueItem => "Clue Item".to_string(),
+                BroadcastType::CombatAchievement => "Combat Achievement".to_string(),
             }
         }
 
@@ -427,6 +453,7 @@ pub mod osrs_broadcast_extractor {
                 "Combat Masteries" => BroadcastType::CombatMasteries,
                 "Relic Tier" => BroadcastType::RelicTier,
                 "Clue Item" => BroadcastType::ClueItem,
+                "Combat Achievement" => BroadcastType::CombatAchievement,
                 _ => BroadcastType::Unknown,
             }
         }
@@ -456,6 +483,7 @@ pub mod osrs_broadcast_extractor {
                 BroadcastType::CombatMasteries,
                 BroadcastType::RelicTier,
                 BroadcastType::ClueItem,
+                BroadcastType::CombatAchievement,
             ]
         }
 
@@ -466,10 +494,31 @@ pub mod osrs_broadcast_extractor {
         }
     }
 
+    /// Takes the raw broadcast from the game and removes the markup around it. Account type icons,
+    /// combat achievement ids, and fills in the string templates the game uses for things like quest names
+    pub fn clean_broadcast_message(message: &str) -> String {
+        let mut cleaned = STRING_TEMPLATE_DEFINITION
+            .replace_all(message, "")
+            .to_string();
+        for caps in STRING_TEMPLATE_DEFINITION.captures_iter(message) {
+            let placeholder = format!("<{}>", caps.name("name").unwrap().as_str());
+            cleaned = cleaned.replace(placeholder.as_str(), caps.name("value").unwrap().as_str());
+        }
+        let cleaned = ICON_TAG.replace_all(cleaned.as_str(), "");
+        COMBAT_ACHIEVEMENT_ID_PREFIX
+            .replace(cleaned.trim_start(), "")
+            .to_string()
+    }
+
     pub fn raid_broadcast_extractor(message: String) -> Option<DropItemBroadcast> {
         if let Some(caps) = RAID_BROADCAST_EXTRACTOR.captures(message.as_str()) {
             let player_name = caps.name("player_name").unwrap().as_str();
-            let item = caps.name("item").unwrap().as_str();
+            //Some raid loot has a note about its value after the item name
+            let item = caps
+                .name("item")
+                .unwrap()
+                .as_str()
+                .trim_end_matches(" (very valuable)");
 
             Some(DropItemBroadcast {
                 player_it_happened_to: player_name.to_string(),
@@ -788,6 +837,30 @@ pub mod osrs_broadcast_extractor {
         }
     }
 
+    pub fn combat_achievement_broadcast_extractor(
+        message: String,
+    ) -> Option<CombatAchievementBroadcast> {
+        if let Some(captures) = COMBAT_TASK_BROADCAST_EXTRACTOR.captures(message.as_str()) {
+            return Some(CombatAchievementBroadcast {
+                player: captures.name("player").unwrap().as_str().to_string(),
+                tier: captures.name("tier").unwrap().as_str().to_lowercase(),
+                task: Some(captures.name("task").unwrap().as_str().to_string()),
+            });
+        }
+
+        if let Some(captures) =
+            COMBAT_ACHIEVEMENT_TIER_BROADCAST_EXTRACTOR.captures(message.as_str())
+        {
+            Some(CombatAchievementBroadcast {
+                player: captures.name("player").unwrap().as_str().to_string(),
+                tier: captures.name("tier").unwrap().as_str().to_lowercase(),
+                task: None,
+            })
+        } else {
+            None
+        }
+    }
+
     pub fn leagues_catch_all_broadcast_extractor(message: String) -> Option<LeaguesBroadCastType> {
         if message.contains("has earned") && message.contains("Combat mastery") {
             return Some(LeaguesBroadCastType::CombatMasteries);
@@ -858,22 +931,33 @@ pub mod osrs_broadcast_extractor {
             return Some(format!("Theatre of Blood {}", team_size_with_players));
         }
 
+        //Tombs of Amascut broadcasts a Challenge time and an Overall time for the same raid.
+        //Challenge is kept as its own activity so it does not replace the Overall time
+        let toa_time_type = if raid_from_chat.ends_with("Challenge") {
+            " Challenge"
+        } else {
+            ""
+        };
+
         if raid_from_chat.contains("Tombs of Amascut") && raid_from_chat.contains("Entry mode") {
             return Some(format!(
-                "Tombs of Amascut Entry Mode {}",
-                team_size_with_players
+                "Tombs of Amascut Entry Mode {}{}",
+                team_size_with_players, toa_time_type
             ));
         }
 
         if raid_from_chat.contains("Tombs of Amascut") && raid_from_chat.contains("Expert mode") {
             return Some(format!(
-                "Tombs of Amascut Expert Mode {}",
-                team_size_with_players
+                "Tombs of Amascut Expert Mode {}{}",
+                team_size_with_players, toa_time_type
             ));
         }
 
         if raid_from_chat.contains("Tombs of Amascut") {
-            return Some(format!("Tombs of Amascut {}", team_size_with_players));
+            return Some(format!(
+                "Tombs of Amascut {}{}",
+                team_size_with_players, toa_time_type
+            ));
         }
 
         None
@@ -928,10 +1012,14 @@ pub mod osrs_broadcast_extractor {
         if message_content.contains("withdrawn") && message_content.contains("from the coffer.") {
             return BroadcastType::CofferWithdrawal;
         }
-        if message_content.contains("has achieved a new")
-            && message_content.contains("personal best:")
+        if message_content.contains("achieved a new") && message_content.contains("personal best:")
         {
             return BroadcastType::PersonalBest;
+        }
+        if message_content.contains("combat task:")
+            || message_content.contains("tier of rewards from Combat Achievements!")
+        {
+            return BroadcastType::CombatAchievement;
         }
         return BroadcastType::Unknown;
     }
@@ -984,7 +1072,7 @@ mod tests {
     use super::*;
     use crate::osrs_broadcast_extractor::osrs_broadcast_extractor::{
         CofferTransaction, CofferTransactionBroadcast, CollectionLogBroadcast,
-        DiaryCompletedBroadcast, DiaryTier, InviteBroadcast, LevelMilestoneBroadcast,
+        CombatAchievementBroadcast, DiaryCompletedBroadcast, DiaryTier, InviteBroadcast, LevelMilestoneBroadcast,
         PersonalBestBroadcast, PetDropBroadcast, PkBroadcast, QuestCompletedBroadcast,
         XPMilestoneBroadcast, get_wiki_clan_rank_image_url,
     };
@@ -1649,6 +1737,129 @@ mod tests {
     }
 
     #[test]
+    fn test_get_combat_achievement_type_broadcast() {
+        for test_combat_achievement in get_combat_achievement_messages() {
+            let broadcast_type = osrs_broadcast_extractor::get_broadcast_type(
+                osrs_broadcast_extractor::clean_broadcast_message(
+                    test_combat_achievement.message.as_str(),
+                ),
+            );
+            assert!(matches!(
+                broadcast_type,
+                osrs_broadcast_extractor::BroadcastType::CombatAchievement
+            ));
+        }
+    }
+
+    #[test]
+    fn test_combat_achievement_broadcast_extractor() {
+        for test_combat_achievement in get_combat_achievement_messages() {
+            let possible_combat_achievement =
+                osrs_broadcast_extractor::combat_achievement_broadcast_extractor(
+                    osrs_broadcast_extractor::clean_broadcast_message(
+                        test_combat_achievement.message.as_str(),
+                    ),
+                );
+            match possible_combat_achievement {
+                None => {
+                    println!("❌: {:?}", test_combat_achievement.message.clone());
+                    assert!(false);
+                }
+                Some(combat_achievement) => {
+                    assert_eq!(
+                        combat_achievement.player,
+                        test_combat_achievement.broadcast.player
+                    );
+                    assert_eq!(
+                        combat_achievement.tier,
+                        test_combat_achievement.broadcast.tier
+                    );
+                    assert_eq!(
+                        combat_achievement.task,
+                        test_combat_achievement.broadcast.task
+                    );
+                }
+            }
+        }
+    }
+
+    #[rstest]
+    #[case(
+        "<img=2> Cianna received a new collection log item: Green satchel (713/1717)",
+        "Cianna received a new collection log item: Green satchel (713/1717)"
+    )]
+    #[case(
+        "<str_quest_name_0=The Lost Tribe>iLoveGuyDih has completed a quest: <str_quest_name_0>",
+        "iLoveGuyDih has completed a quest: The Lost Tribe"
+    )]
+    #[case(
+        "<img=2> <str_quest_name_0=The Ides of Milk>IFat Fingers has completed a quest: <str_quest_name_0>",
+        "IFat Fingers has completed a quest: The Ides of Milk"
+    )]
+    #[case(
+        "CA_ID:470|Tulkarm has completed a master combat task: Expert Tomb Looter.",
+        "Tulkarm has completed a master combat task: Expert Tomb Looter."
+    )]
+    #[case(
+        "<img=41> CA_ID:575|Not A Inmate has completed a hard combat task: I'm your son.",
+        "Not A Inmate has completed a hard combat task: I'm your son."
+    )]
+    #[case(
+        "BroRex has reached 15,000,000 XP in Herblore.",
+        "BroRex has reached 15,000,000 XP in Herblore."
+    )]
+    fn test_clean_broadcast_message(#[case] raw: &str, #[case] expected: &str) {
+        assert_eq!(
+            osrs_broadcast_extractor::clean_broadcast_message(raw),
+            expected
+        );
+    }
+
+    #[test]
+    fn test_raw_broadcasts_with_account_icons() {
+        let quest = osrs_broadcast_extractor::quest_completed_broadcast_extractor(
+            osrs_broadcast_extractor::clean_broadcast_message(
+                "<img=2> <str_quest_name_0=The Ribbiting Tale of a Lily Pad Labour Dispute>IFat Fingers has completed a quest: <str_quest_name_0>",
+            ),
+        )
+        .unwrap();
+        assert_eq!(quest.player_it_happened_to, "IFat Fingers");
+        assert_eq!(
+            quest.quest_name,
+            "The Ribbiting Tale of a Lily Pad Labour Dispute"
+        );
+
+        let collection_log = osrs_broadcast_extractor::collection_log_broadcast_extractor(
+            osrs_broadcast_extractor::clean_broadcast_message(
+                "<img=43> 12INCH B B C received a new collection log item: Bludgeon spine (356/1717)",
+            ),
+        )
+        .unwrap();
+        assert_eq!(collection_log.player_it_happened_to, "12INCH B B C");
+        assert_eq!(collection_log.item_name, "Bludgeon spine");
+        assert_eq!(collection_log.log_slots, 356);
+
+        let personal_best = osrs_broadcast_extractor::personal_best_broadcast_extractor(
+            osrs_broadcast_extractor::clean_broadcast_message(
+                "<img=2> IFat Fingers has achieved a new Brutus personal best: 0:15.60",
+            ),
+        )
+        .unwrap();
+        assert_eq!(personal_best.player, "IFat Fingers");
+        assert_eq!(personal_best.activity, "Brutus");
+        assert_eq!(personal_best.time_in_seconds, 15.60);
+
+        let drop = osrs_broadcast_extractor::drop_broadcast_extractor(
+            osrs_broadcast_extractor::clean_broadcast_message(
+                "<img=41> LarryBeans received a drop: Uncut onyx (2,639,012 coins) from Zulrah.",
+            ),
+        )
+        .unwrap();
+        assert_eq!(drop.player_it_happened_to, "LarryBeans");
+        assert_eq!(drop.item_name, "Uncut onyx");
+    }
+
+    #[test]
     fn test_leagues_catch_all_broadcast_extractor() {
         let test_leagues_catch_all = get_leagues_catch_all_broadcast_messages();
         for test_leagues_catch_all in test_leagues_catch_all {
@@ -1778,6 +1989,22 @@ mod tests {
             ),
             _discord_message:
                 "RuneScape Player received special loot from a raid: Justiciar legguards."
+                    .to_string(),
+        });
+        possible_raid_broadcasts.push(ItemMessageTest {
+            message:
+                "RuneScape Player received special loot from a raid: Breach of the Scarab (very valuable)."
+                    .to_string(),
+            player_it_happened_to: "RuneScape Player".to_string(),
+            item_name: "Breach of the Scarab".to_string(),
+            item_quantity: 1,
+            item_value: None,
+            item_icon: Some(
+                "https://oldschool.runescape.wiki/images/Breach_of_the_Scarab_detail.png"
+                    .to_string(),
+            ),
+            _discord_message:
+                "RuneScape Player received special loot from a raid: Breach of the Scarab (very valuable)."
                     .to_string(),
         });
         return possible_raid_broadcasts;
@@ -2577,6 +2804,131 @@ mod tests {
                 time_in_seconds: 98.00,
                 activity: "TzHaar-Ket-Rak's First Challenge".to_string(),
                 variant: None
+            },
+        });
+
+        //Sub second times
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has achieved a new Glough personal best: 2:09.60"
+                .to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 129.60,
+                activity: "Glough".to_string(),
+                variant: None,
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player has achieved a new Phosani's Nightmare personal best: 5:27.00"
+                .to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 327.00,
+                activity: "Phosani's Nightmare".to_string(),
+                variant: None,
+            },
+        });
+
+        //Raids without the "has"
+        messages.push(TestBroadcast {
+            message: "RuneScape Player achieved a new Tombs of Amascut (team size: 1) Normal mode Overall personal best: 30:17".to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 1_817.00,
+                activity: "Tombs of Amascut".to_string(),
+                variant: Some("Tombs of Amascut Solo".to_string()),
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player achieved a new Tombs of Amascut (team size: 1) Normal mode Challenge personal best: 27:01".to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 1_621.00,
+                activity: "Tombs of Amascut".to_string(),
+                variant: Some("Tombs of Amascut Solo Challenge".to_string()),
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player achieved a new Tombs of Amascut (team size: 2) Expert mode Challenge personal best: 19:20.40".to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 1_160.40,
+                activity: "Tombs of Amascut".to_string(),
+                variant: Some("Tombs of Amascut Expert Mode 2 players Challenge".to_string()),
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message: "RuneScape Player achieved a new Tombs of Amascut (team size: 2) Expert mode Overall personal best: 21:53.40".to_string(),
+            broadcast: PersonalBestBroadcast {
+                player: "RuneScape Player".to_string(),
+                time_in_seconds: 1_313.40,
+                activity: "Tombs of Amascut".to_string(),
+                variant: Some("Tombs of Amascut Expert Mode 2 players".to_string()),
+            },
+        });
+
+        messages
+    }
+
+    fn get_combat_achievement_messages() -> Vec<TestBroadcast<CombatAchievementBroadcast>> {
+        let mut messages: Vec<TestBroadcast<CombatAchievementBroadcast>> = Vec::new();
+
+        messages.push(TestBroadcast {
+            message:
+                "CA_ID:470|RuneScape Player has completed a master combat task: Expert Tomb Looter."
+                    .to_string(),
+            broadcast: CombatAchievementBroadcast {
+                player: "RuneScape Player".to_string(),
+                tier: "master".to_string(),
+                task: Some("Expert Tomb Looter".to_string()),
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message:
+                "CA_ID:425|RuneScape Player has completed an elite combat task: Helpful spirit who?."
+                    .to_string(),
+            broadcast: CombatAchievementBroadcast {
+                player: "RuneScape Player".to_string(),
+                tier: "elite".to_string(),
+                task: Some("Helpful spirit who?".to_string()),
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message:
+                "<img=41> CA_ID:575|RuneScape Player has completed a hard combat task: I'm your son."
+                    .to_string(),
+            broadcast: CombatAchievementBroadcast {
+                player: "RuneScape Player".to_string(),
+                tier: "hard".to_string(),
+                task: Some("I'm your son".to_string()),
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message:
+                "<img=43> CA_ID:17|RuneScape Player has completed an elite combat task: General Graardor Veteran."
+                    .to_string(),
+            broadcast: CombatAchievementBroadcast {
+                player: "RuneScape Player".to_string(),
+                tier: "elite".to_string(),
+                task: Some("General Graardor Veteran".to_string()),
+            },
+        });
+
+        messages.push(TestBroadcast {
+            message:
+                "RuneScape Player has unlocked the Elite tier of rewards from Combat Achievements!"
+                    .to_string(),
+            broadcast: CombatAchievementBroadcast {
+                player: "RuneScape Player".to_string(),
+                tier: "elite".to_string(),
+                task: None,
             },
         });
 
