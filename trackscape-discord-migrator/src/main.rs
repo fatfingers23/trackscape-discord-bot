@@ -11,9 +11,10 @@
 //! * personal_best_activities: deduped case-insensitively on the name
 //! * personal_best_records:     deduped on `(clan_mate, activity)`, keeping
 //!               the best (lowest) time; rows referencing missing clan
-//!               mates or activities are skipped
+//!               mates, activities, or guilds are skipped
 //! * clan_mate_collection_log_totals: deduped on `(guild, player)`, keeping
-//!               the latest created_at
+//!               the latest created_at; rows referencing missing clan
+//!               mates or guilds are skipped
 //! * drop_logs / broadcasts: copied as-is, skipping rows whose guild does
 //!               not exist
 //!
@@ -109,12 +110,13 @@ async fn main() -> Result<()> {
     migrate_pb_records(
         &mongo,
         &pg,
+        &guild_ids,
         &clan_mate_id_map,
         &activity_id_map,
         &mut report,
     )
     .await?;
-    migrate_clog_totals(&mongo, &pg, &clan_mate_id_map, &mut report).await?;
+    migrate_clog_totals(&mongo, &pg, &guild_ids, &clan_mate_id_map, &mut report).await?;
     migrate_drop_logs(&mongo, &pg, &guild_ids, &mut report).await?;
     migrate_broadcasts(&mongo, &pg, &guild_ids, &mut report).await?;
 
@@ -451,6 +453,7 @@ async fn migrate_pb_activities(
 async fn migrate_pb_records(
     mongo: &MongoDatabase,
     pg: &PgPool,
+    guild_ids: &HashSet<i64>,
     clan_mate_ids: &HashMap<ObjectId, Uuid>,
     activity_ids: &HashMap<ObjectId, Uuid>,
     report: &mut MigrationReport,
@@ -470,6 +473,11 @@ async fn migrate_pb_records(
     let mut best: HashMap<(Uuid, Uuid), PbRecordRow> = HashMap::new();
 
     while let Some(record) = cursor.try_next().await? {
+        let guild_id = record.guild_id as i64;
+        if !guild_ids.contains(&guild_id) {
+            report.pb_records.note_skipped();
+            continue;
+        }
         let Some(&clan_mate_id) = clan_mate_ids.get(&record.clan_mate_id) else {
             report.pb_records.note_skipped();
             continue;
@@ -483,7 +491,7 @@ async fn migrate_pb_records(
             id: uuid_from_object_id(&record.id),
             clan_mate_id,
             activity_id,
-            guild_id: record.guild_id as i64,
+            guild_id,
             time_in_seconds: record.time_in_seconds,
         };
         match best.get_mut(&key) {
@@ -535,6 +543,7 @@ async fn migrate_pb_records(
 async fn migrate_clog_totals(
     mongo: &MongoDatabase,
     pg: &PgPool,
+    guild_ids: &HashSet<i64>,
     clan_mate_ids: &HashMap<ObjectId, Uuid>,
     report: &mut MigrationReport,
 ) -> Result<()> {
@@ -552,13 +561,18 @@ async fn migrate_clog_totals(
     let mut latest: HashMap<(i64, Uuid), ClogTotalRow> = HashMap::new();
 
     while let Some(total) = cursor.try_next().await? {
+        let guild_id = total.guild_id as i64;
+        if !guild_ids.contains(&guild_id) {
+            report.clog_totals.note_skipped();
+            continue;
+        }
         let Some(&player_id) = clan_mate_ids.get(&total.player_id) else {
             report.clog_totals.note_skipped();
             continue;
         };
-        let key = (total.guild_id as i64, player_id);
+        let key = (guild_id, player_id);
         let candidate = ClogTotalRow {
-            guild_id: total.guild_id as i64,
+            guild_id,
             player_id,
             total: total.total,
             created_at: total.created_at.map(bson_time_to_chrono),
