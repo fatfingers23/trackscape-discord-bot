@@ -1,0 +1,228 @@
+{
+  "id": 7253,
+  "name": "Akhis Clan",
+  "clanChat": "Akhis",
+  "description": null,
+  "homeworld": 303,
+  "verified": false,
+  "patron": false,
+  "visible": true,
+  "profileImage": null,
+  "bannerImage": null,
+  "score": 320,
+  "createdAt": "2024-04-08T01:41:16.369Z",
+  "updatedAt": "2026-10-12T18:05:39.960Z",
+  "memberCount": 3,
+  "socialLinks": {
+    "website": null,
+    "discord": null,
+    "twitter": null,
+    "youtube": null,
+    "twitch": null
+  },
+  "roleOrders": [
+    {
+      "groupId": 7253,
+      "role": "owner",
+      "index": 0
+    },
+    {
+      "groupId": 7253,
+      "role": "deputy_owner",
+      "index": 1
+    },
+    {
+      "groupId": 7253,
+      "role": "moderator",
+      "index": 2
+    },
+    {
+      "groupId": 7253,
+      "role": "master",
+      "index": 3
+    },
+    {
+      "groupId": 7253,
+      "role": "legend",
+      "index": 4
+    },
+    {
+      "groupId": 7253,
+      "role": "merchant",
+      "index": 5
+    },
+    {
+      "groupId": 7253,
+      "role": "carry",
+      "index": 6
+    },
+    {
+      "groupId": 7253,
+      "role": "looter",
+      "index": 7
+    },
+    {
+      "groupId": 7253,
+      "role": "death",
+      "index": 9
+    },
+    {
+      "groupId": 7253,
+      "role": "tzkal",
+      "index": 10
+    },
+    {
+      "groupId": 7253,
+      "role": "administrator",
+      "index": 11
+    },
+    {
+      "groupId": 7253,
+      "role": "skulled",
+      "index": 12
+    },
+    {
+      "groupId": 7253,
+      "role": "infantry",
+      "index": 13
+    },
+    {
+      "groupId": 7253,
+      "role": "blood",
+      "index": 15
+    },
+    {
+      "groupId": 7253,
+      "role": "soul",
+      "index": 16
+    },
+    {
+      "groupId": 7253,
+      "role": "water",
+      "index": 17
+    },
+    {
+      "groupId": 7253,
+      "role": "sage",
+      "index": 18
+    },
+    {
+      "groupId": 7253,
+      "role": "blisterwood",
+      "index": 19
+    },
+    {
+      "groupId": 7253,
+      "role": "quester",
+      "index": 20
+    },
+    {
+      "groupId": 7253,
+      "role": "beast",
+      "index": 21
+    },
+    {
+      "groupId": 7253,
+      "role": "bandosian",
+      "index": 22
+    },
+    {
+      "groupId": 7253,
+      "role": "saradominist",
+      "index": 24
+    },
+    {
+      "groupId": 7253,
+      "role": "xerician",
+      "index": 25
+    },
+    {
+      "groupId": 7253,
+      "role": "serenist",
+      "index": 26
+    }
+  ],
+  "memberships": [
+    {
+      "playerId": 2757675,
+      "groupId": 7253,
+      "role": "deputy_owner",
+      "clientSyncJoinedAt": "2025-11-02T00:00:00.000Z",
+      "createdAt": "2025-11-02T18:20:33.829Z",
+      "updatedAt": "2026-06-27T12:33:41.005Z",
+      "player": {
+        "id": 2757675,
+        "username": "v t m n t s",
+        "displayName": "v t m n t s",
+        "type": "regular",
+        "build": "f2p_lvl3",
+        "status": "active",
+        "country": null,
+        "patron": false,
+        "exp": 1383,
+        "ehp": 0.01755,
+        "ehb": 0,
+        "ttm": 847.7511999999996,
+        "tt200m": 12593.69009391419,
+        "registeredAt": "2025-11-02T18:20:31.469Z",
+        "updatedAt": "2026-10-09T13:50:30.978Z",
+        "lastChangedAt": "2026-02-25T17:32:48.981Z",
+        "lastImportedAt": null
+      }
+    },
+    {
+      "playerId": 3189577,
+      "groupId": 7253,
+      "role": "quester",
+      "clientSyncJoinedAt": "2026-06-14T00:00:00.000Z",
+      "createdAt": "2026-06-14T14:26:05.987Z",
+      "updatedAt": "2026-09-30T17:29:52.607Z",
+      "player": {
+        "id": 3189577,
+        "username": "skeer level3",
+        "displayName": "Skeer Level3",
+        "type": "regular",
+        "build": "lvl3",
+        "status": "active",
+        "country": null,
+        "patron": false,
+        "exp": 41693296,
+        "ehp": 145.03851,
+        "ehb": 0,
+        "ttm": 790.5277200000002,
+        "tt200m": 12648.99943000231,
+        "registeredAt": "2026-06-14T14:26:05.826Z",
+        "updatedAt": "2026-10-09T13:50:36.134Z",
+        "lastChangedAt": "2026-10-09T13:50:36.134Z",
+        "lastImportedAt": null
+      }
+    },
+    {
+      "playerId": 1572422,
+      "groupId": 7253,
+      "role": "owner",
+      "clientSyncJoinedAt": "2024-01-29T00:00:00.000Z",
+      "createdAt": "2024-04-08T01:41:16.369Z",
+      "updatedAt": "2026-06-27T12:33:40.688Z",
+      "player": {
+        "id": 1572422,
+        "username": "ruyalar",
+        "displayName": "Ruyalar",
+        "type": "regular",
+        "build": "main",
+        "status": "active",
+        "country": null,
+        "patron": false,
+        "exp": 186471225,
+        "ehp": 344.36324,
+        "ehb": 150.52213,
+        "ttm": 715.4391999999998,
+        "tt200m": 12667.90016576933,
+        "registeredAt": "2024-02-13T02:49:51.078Z",
+        "updatedAt": "2026-10-12T11:41:29.116Z",
+        "lastChangedAt": "2026-10-12T02:32:22.105Z",
+        "lastImportedAt": null
+      }
+    }
+  ]
+}

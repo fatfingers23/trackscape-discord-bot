@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM personal_best_records dup\n            USING personal_best_records kept\n            WHERE kept.clan_mate_id = $1\n              AND dup.clan_mate_id = $2\n              AND kept.activity_id = dup.activity_id\n              AND kept.time_in_seconds <= dup.time_in_seconds\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "32e523a4cf4be30073f0eed2531529c19c3cdabe72a30ca9db715146a5ed5e2a"
+}

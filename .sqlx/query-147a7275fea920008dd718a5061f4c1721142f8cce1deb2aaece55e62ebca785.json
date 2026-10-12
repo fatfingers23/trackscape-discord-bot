@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE clan_mate_collection_log_totals kept\n            SET total = GREATEST(kept.total, dup.total),\n                created_at = LEAST(kept.created_at, dup.created_at)\n            FROM clan_mate_collection_log_totals dup\n            WHERE kept.player_id = $1\n              AND dup.player_id = $2\n              AND kept.guild_id = dup.guild_id\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "147a7275fea920008dd718a5061f4c1721142f8cce1deb2aaece55e62ebca785"
+}

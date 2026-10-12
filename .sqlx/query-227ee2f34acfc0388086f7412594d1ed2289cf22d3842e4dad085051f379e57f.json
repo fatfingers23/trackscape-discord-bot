@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE personal_best_records SET clan_mate_id = $1 WHERE clan_mate_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "227ee2f34acfc0388086f7412594d1ed2289cf22d3842e4dad085051f379e57f"
+}

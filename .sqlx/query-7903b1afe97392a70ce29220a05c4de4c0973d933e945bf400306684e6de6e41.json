@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE clan_mate_collection_log_totals dup\n            SET player_id = $1\n            WHERE dup.player_id = $2\n              AND NOT EXISTS (\n                  SELECT 1 FROM clan_mate_collection_log_totals kept\n                  WHERE kept.player_id = $1 AND kept.guild_id = dup.guild_id\n              )\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7903b1afe97392a70ce29220a05c4de4c0973d933e945bf400306684e6de6e41"
+}

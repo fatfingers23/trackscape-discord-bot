@@ -16,8 +16,11 @@ pub enum PlayerType {
 }
 
 /// [Player Build](https://docs.wiseoldman.net/players-api/player-type-definitions#enum-player-build)
+/// WOM's wire values are snake case (`f2p_lvl3`, not `f2pLvl3`); the other
+/// variants are single words, so a camel-case rename only ever worked for
+/// them by coincidence.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum PlayerBuild {
     Main,
     F2p,
@@ -26,6 +29,11 @@ pub enum PlayerBuild {
     Def1,
     Hp10,
     F2pLvl3,
+    /// Fallback for build codes WOM may add in the future. A single
+    /// unknown build must never fail deserialization of a whole group
+    /// (same rationale as the `Country` fallback below).
+    #[serde(other)]
+    Unknown,
 }
 
 /// [Player Status](https://docs.wiseoldman.net/players-api/player-type-definitions#enum-player-status)

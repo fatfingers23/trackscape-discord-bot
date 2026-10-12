@@ -1,5 +1,5 @@
 use crate::database::BotDb;
-use crate::database::clan_mates::{ClanMateModel, ClanMates, name_compare};
+use crate::database::clan_mates::{ClanMateModel, ClanMates, name_compare, name_normalize};
 use crate::database::guilds_db::RegisteredGuildModel;
 use crate::wom::{ApiLimiter, get_wom_client};
 use chrono::{DateTime, Utc};
@@ -24,6 +24,17 @@ pub enum SyncAction {
         old_name: String,
         new_name: String,
         wom_player_id: u64,
+    },
+    /// A member renamed in WOM whose new name is already held by an
+    /// unlinked (chat-created) duplicate row. The duplicate is folded into
+    /// `clan_mate` — its name history and sightings are absorbed here, its
+    /// personal bests and collection log totals move in the DB layer — and
+    /// the duplicate row is deleted, all before `clan_mate` takes the new
+    /// name (the `(guild_id, player_name)` unique constraint means the
+    /// rename can only succeed once the duplicate is gone).
+    MergeDuplicate {
+        clan_mate: ClanMateModel,
+        duplicate_id: Uuid,
     },
     /// A clan mate no longer in the WOM group: flag it as left (soft remove —
     /// never delete, PB records and clog totals must survive).
@@ -64,8 +75,43 @@ pub fn plan_wom_sync(
         updated.in_wom = true;
         updated.wom_left_at = None;
         if !name_compare(&row.player_name, &membership.player.display_name) {
-            updated.previous_names.push(row.player_name.clone());
-            updated.player_name = membership.player.display_name.clone();
+            match find_rename_holder(db_members, row.id, &membership.player.display_name) {
+                // Nobody else holds the new name — plain rename.
+                None => {
+                    updated.previous_names.push(row.player_name.clone());
+                    updated.player_name = membership.player.display_name.clone();
+                }
+                // A chat-created duplicate (never linked to a WOM player)
+                // already holds the new name. Fold it into this row so the
+                // rename cannot violate the unique constraint, keeping its
+                // name history and sightings.
+                Some(holder) if holder.wom_player_id.is_none() => {
+                    updated.player_name = membership.player.display_name.clone();
+                    updated.previous_names.push(row.player_name.clone());
+                    updated
+                        .previous_names
+                        .extend(holder.previous_names.iter().cloned());
+                    dedup_previous_names(&mut updated.previous_names);
+                    updated.created_at = row.created_at.min(holder.created_at);
+                    updated.last_seen_in_chat_at =
+                        row.last_seen_in_chat_at.max(holder.last_seen_in_chat_at);
+                    updated.rank = updated.rank.or(holder.rank.clone());
+                    matched.push(holder.id);
+                    actions.push(SyncAction::MergeDuplicate {
+                        clan_mate: updated,
+                        duplicate_id: holder.id,
+                    });
+                    continue;
+                }
+                // The new name is held by a row linked to a different WOM
+                // player — a recycled name. Renaming onto it would violate
+                // the unique constraint (and steal another member's name),
+                // so this row keeps its current name but is still
+                // re-activated. Re-planned the same way on every sync, so
+                // the member's name is corrected as soon as the holder is
+                // renamed or removed.
+                Some(_) => {}
+            }
         }
         let changed = updated != *row;
         actions.push(SyncAction::UpdateMember {
@@ -123,6 +169,17 @@ pub fn plan_wom_sync(
                 .iter()
                 .find(|r| !matched.contains(&r.id) && name_compare(&r.player_name, &nc.old_name));
             if let Some(row) = row {
+                // The new name can only be held by a row matched by WOM
+                // player id in pass 1 (pass 2 claims memberships by name,
+                // and WOM usernames are unique) — a stale link holding a
+                // recycled name. Renaming on top of it would violate the
+                // unique constraint, so leave this member for a later sync.
+                let target_taken = db_members.iter().any(|r| {
+                    r.id != row.id && name_compare(&r.player_name, &membership.player.display_name)
+                });
+                if target_taken {
+                    continue;
+                }
                 matched.push(row.id);
                 actions.push(SyncAction::RenameAndLink {
                     old_name: row.player_name.clone(),
@@ -131,6 +188,16 @@ pub fn plan_wom_sync(
                 });
                 continue;
             }
+        }
+
+        // Same guard for creates: a row holding the name was matched in
+        // pass 1 (see above), and inserting a second row with that name
+        // would violate the unique constraint.
+        let name_taken = db_members
+            .iter()
+            .any(|r| name_compare(&r.player_name, &membership.player.display_name));
+        if name_taken {
+            continue;
         }
 
         actions.push(SyncAction::CreateMember {
@@ -153,6 +220,27 @@ pub fn plan_wom_sync(
     }
 
     actions
+}
+
+/// Finds another row already holding `new_name` (case-insensitive), which
+/// would make renaming `row_id` onto it violate the `(guild_id,
+/// player_name)` unique constraint. Matched rows count as holders too: they
+/// are linked to a WOM player, so their name must not be stolen.
+fn find_rename_holder<'a>(
+    db_members: &'a [ClanMateModel],
+    row_id: Uuid,
+    new_name: &str,
+) -> Option<&'a ClanMateModel> {
+    db_members
+        .iter()
+        .find(|r| r.id != row_id && name_compare(&r.player_name, new_name))
+}
+
+/// Drops duplicate entries from a merged name history, keeping first
+/// occurrence order (the oldest recorded name stays first).
+fn dedup_previous_names(names: &mut Vec<String>) {
+    let mut seen = std::collections::HashSet::new();
+    names.retain(|name| seen.insert(name_normalize(name)));
 }
 
 pub async fn sync_wom_by_guild(guild: &RegisteredGuildModel, db: &BotDb) {
@@ -225,6 +313,7 @@ pub async fn sync_wom_by_guild(guild: &RegisteredGuildModel, db: &BotDb) {
     let mut created = 0usize;
     let mut renamed = 0usize;
     let mut updated = 0usize;
+    let mut merged = 0usize;
     let mut soft_removed = 0usize;
 
     for action in actions {
@@ -269,6 +358,13 @@ pub async fn sync_wom_by_guild(guild: &RegisteredGuildModel, db: &BotDb) {
                 }
                 Err(e) => error!("Failed to change clan mate name: {:?}", e),
             },
+            SyncAction::MergeDuplicate {
+                clan_mate,
+                duplicate_id,
+            } => match db.clan_mates.merge_clan_mates(clan_mate, duplicate_id).await {
+                Ok(_) => merged += 1,
+                Err(e) => error!("Failed to merge duplicate clan mate: {:?}", e),
+            },
             SyncAction::SoftRemove { clan_mate } => {
                 match db.clan_mates.update_clan_mate(clan_mate).await {
                     Ok(_) => soft_removed += 1,
@@ -279,8 +375,8 @@ pub async fn sync_wom_by_guild(guild: &RegisteredGuildModel, db: &BotDb) {
     }
 
     info!(
-        "WOM sync for {:?} (wom id {}): created {}, renamed {}, updated {}, soft-removed {}",
-        guild.clan_name, wom_id, created, renamed, updated, soft_removed
+        "WOM sync for {:?} (wom id {}): created {}, renamed {}, updated {}, merged {}, soft-removed {}",
+        guild.clan_name, wom_id, created, renamed, updated, merged, soft_removed
     );
 }
 
@@ -520,5 +616,164 @@ mod tests {
         let actions = plan_wom_sync(&[row], &[], &[], test_now());
 
         assert!(actions.is_empty());
+    }
+
+    #[test]
+    fn renamed_member_whose_new_name_is_taken_by_chat_duplicate_merges() {
+        // Arcane PvM shape: the player renamed in WOM (Braunfel -> "Auss
+        // tx") while clan chat already created an unlinked row for the new
+        // name. Before the merge, the rename violated the
+        // (guild_id, player_name) unique constraint on every sync.
+        let mut linked = test_clan_mate(1, "Braunfel", Some(62361), true, None);
+        linked.created_at = Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap();
+        let mut duplicate = test_clan_mate(2, "Auss tx", None, false, None);
+        duplicate.created_at = Utc.with_ymd_and_hms(2026, 9, 1, 0, 0, 0).unwrap();
+        let memberships = vec![test_membership(test_player(62361, "auss tx", "Auss tx"))];
+
+        let actions = plan_wom_sync(
+            &[linked, duplicate.clone()],
+            &memberships,
+            &[],
+            test_now(),
+        );
+
+        assert_eq!(actions.len(), 1);
+        match &actions[0] {
+            SyncAction::MergeDuplicate {
+                clan_mate,
+                duplicate_id,
+            } => {
+                assert_eq!(*duplicate_id, duplicate.id);
+                assert_eq!(clan_mate.player_name, "Auss tx");
+                assert_eq!(clan_mate.previous_names, vec!["Braunfel".to_string()]);
+                assert!(clan_mate.in_wom);
+                assert_eq!(clan_mate.wom_left_at, None);
+                assert_eq!(clan_mate.wom_player_id, Some(62361));
+                // The merged row keeps the earlier creation date.
+                assert_eq!(
+                    clan_mate.created_at,
+                    Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap()
+                );
+            }
+            other => panic!("expected MergeDuplicate, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn merge_absorbs_duplicate_history_and_sightings() {
+        let mut linked = test_clan_mate(1, "Old Name", Some(5), true, None);
+        linked.last_seen_in_chat_at = Some(Utc.with_ymd_and_hms(2026, 5, 1, 0, 0, 0).unwrap());
+        let mut duplicate = test_clan_mate(2, "New Name", None, false, None);
+        duplicate.previous_names = vec!["Newer Name".to_string(), "old name".to_string()];
+        duplicate.last_seen_in_chat_at = Some(Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap());
+        duplicate.rank = Some("Deputy Owner".to_string());
+        let memberships = vec![test_membership(test_player(5, "new name", "New Name"))];
+
+        let actions = plan_wom_sync(&[linked, duplicate], &memberships, &[], test_now());
+
+        let SyncAction::MergeDuplicate { clan_mate, .. } = &actions[0] else {
+            panic!("expected MergeDuplicate, got {:?}", actions[0])
+        };
+        // The old name is remembered; the duplicate's history is absorbed
+        // without case-insensitive duplicates; the latest chat sighting and
+        // a missing rank are carried over.
+        assert_eq!(
+            clan_mate.previous_names,
+            vec!["Old Name".to_string(), "Newer Name".to_string()]
+        );
+        assert_eq!(
+            clan_mate.last_seen_in_chat_at,
+            Some(Utc.with_ymd_and_hms(2026, 8, 1, 0, 0, 0).unwrap())
+        );
+        assert_eq!(clan_mate.rank, Some("Deputy Owner".to_string()));
+    }
+
+    #[test]
+    fn renamed_member_whose_new_name_is_taken_by_linked_row_keeps_old_name() {
+        // Recycled name: a row linked to a *different* WOM player holds the
+        // new name. The member keeps its current name (still re-activated)
+        // instead of stealing it, and the sync stays stable and idempotent.
+        let linked = test_clan_mate(1, "Old Name", Some(5), false, Some(test_now()));
+        let holder = test_clan_mate(2, "New Name", Some(9), false, Some(test_now()));
+        let memberships = vec![test_membership(test_player(5, "new name", "New Name"))];
+
+        let actions = plan_wom_sync(&[linked, holder], &memberships, &[], test_now());
+
+        assert_eq!(actions.len(), 1);
+        let (clan_mate, changed) = update_member(&actions[0]);
+        assert_eq!(clan_mate.player_name, "Old Name");
+        assert_eq!(clan_mate.previous_names, Vec::<String>::new());
+        assert!(clan_mate.in_wom);
+        assert_eq!(clan_mate.wom_left_at, None);
+        assert!(changed);
+    }
+
+    #[test]
+    fn name_change_rename_onto_taken_name_is_skipped() {
+        // Player 5 renamed Old -> New, but holder B (stale-linked to player
+        // 9) still holds "New": its own rename to player 9's current name
+        // "Whatever" is blocked by holder C, which holds that name. The
+        // rename onto "New" would violate the unique constraint, so the
+        // member is left for a later sync — and self-heals as soon as the
+        // chain of stale names resolves (C frees "Whatever", then B frees
+        // "New").
+        let row = test_clan_mate(1, "Old", None, true, None);
+        let holder_b = test_clan_mate(2, "New", Some(9), true, None);
+        let holder_c = test_clan_mate(3, "Whatever", Some(10), true, None);
+        let memberships = vec![
+            test_membership(test_player(5, "new", "New")),
+            test_membership(test_player(9, "whatever", "Whatever")),
+            test_membership(test_player(10, "else", "Else")),
+        ];
+        let name_changes = vec![test_name_change(5, "Old", "New", Some(test_now()))];
+
+        let actions = plan_wom_sync(
+            &[row, holder_b.clone(), holder_c],
+            &memberships,
+            &name_changes,
+            test_now(),
+        );
+
+        // Holder B is matched by WOM player id but keeps its name (its own
+        // rename is blocked); the rename onto "New" is skipped, so "Old"
+        // just soft-removes instead of colliding.
+        assert!(actions.contains(&SyncAction::UpdateMember {
+            clan_mate: holder_b,
+            changed: false,
+        }));
+        assert!(
+            !actions
+                .iter()
+                .any(|a| matches!(a, SyncAction::RenameAndLink { .. }))
+        );
+        assert!(
+            actions
+                .iter()
+                .any(|a| matches!(a, SyncAction::SoftRemove { .. }))
+        );
+    }
+
+    #[test]
+    fn create_member_whose_name_is_taken_by_linked_row_is_skipped() {
+        // Player 5's name is held by holder B, whose own rename is blocked
+        // by holder C (same stale-name chain as above). Creating a second
+        // row with the name would violate the unique constraint, so the
+        // member waits for a later sync.
+        let holder_b = test_clan_mate(2, "Held", Some(9), true, None);
+        let holder_c = test_clan_mate(3, "Other", Some(10), true, None);
+        let memberships = vec![
+            test_membership(test_player(5, "held", "Held")),
+            test_membership(test_player(9, "other", "Other")),
+            test_membership(test_player(10, "else", "Else")),
+        ];
+
+        let actions = plan_wom_sync(&[holder_b, holder_c], &memberships, &[], test_now());
+
+        assert_eq!(actions.len(), 2);
+        assert!(
+            actions
+                .iter()
+                .all(|a| matches!(a, SyncAction::UpdateMember { .. }))
+        );
     }
 }

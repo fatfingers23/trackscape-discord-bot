@@ -13,7 +13,11 @@
 //! * `--resync`: additionally re-runs the member sync for every clan whose
 //!   WOM group is reachable. The sync is non-destructive (it creates missing
 //!   members, renames via name changes, and soft-removes members that left
-//!   the WOM group) and never deletes rows, so it is safe to run repeatedly.
+//!   the WOM group), with one deliberate exception: when a member renamed in
+//!   WOM but their new name is already held by an unlinked (chat-created)
+//!   duplicate row, the duplicate is merged into the member's row — personal
+//!   bests and collection log totals move over (keeping the better values)
+//!   and the duplicate row is deleted — so it is safe to run repeatedly.
 //! * `--guild-id <discord_guild_id>`: restrict the run to a single clan,
 //!   e.g. to re-sync just one clan without touching the rest.
 //!

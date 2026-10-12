@@ -102,6 +102,20 @@ pub trait ClanMates {
 
     async fn update_clan_mate(&self, model: ClanMateModel) -> Result<ClanMateModel, anyhow::Error>;
 
+    /// Folds the `duplicate_id` row into `keep` in one transaction: its
+    /// personal best records and collection log totals move to the kept
+    /// row (keeping the better value where both rows have one), the
+    /// duplicate row is deleted, and the kept row is updated to `keep`'s
+    /// state — typically a rename onto the name the duplicate was holding,
+    /// which can only succeed once the duplicate's row is gone. Used by
+    /// the WOM sync when a member's new WOM name is already taken by an
+    /// unlinked (chat-created) duplicate row.
+    async fn merge_clan_mates(
+        &self,
+        keep: ClanMateModel,
+        duplicate_id: Uuid,
+    ) -> Result<ClanMateModel, anyhow::Error>;
+
     async fn get_clan_member_count(&self, guild_id: u64) -> Result<u64, Error>;
 
     async fn get_clan_mates_by_guild_id(&self, guild_id: u64) -> Result<Vec<ClanMateModel>, Error>;
@@ -208,6 +222,121 @@ impl ClanMates for ClanMatesDb {
         .execute(&self.pool)
         .await?;
         Ok(model)
+    }
+
+    async fn merge_clan_mates(
+        &self,
+        mut keep: ClanMateModel,
+        duplicate_id: Uuid,
+    ) -> Result<ClanMateModel, anyhow::Error> {
+        keep.player_name = keep.player_name.replace(" ", "\u{a0}");
+        let mut tx = self.pool.begin().await?;
+
+        // Personal bests: where both rows have a time for the same
+        // activity, the better (lower) one wins; the rest simply move.
+        // Order matters: the better time is copied onto the kept row
+        // FIRST, so the delete of the duplicate's now-redundant rows sees
+        // the updated value — otherwise the final move would violate the
+        // (clan_mate_id, activity_id) unique constraint.
+        sqlx::query!(
+            r#"
+            UPDATE personal_best_records kept
+            SET time_in_seconds = dup.time_in_seconds,
+                updated_at = dup.updated_at
+            FROM personal_best_records dup
+            WHERE kept.clan_mate_id = $1
+              AND dup.clan_mate_id = $2
+              AND kept.activity_id = dup.activity_id
+              AND dup.time_in_seconds < kept.time_in_seconds
+            "#,
+            keep.id,
+            duplicate_id
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            r#"
+            DELETE FROM personal_best_records dup
+            USING personal_best_records kept
+            WHERE kept.clan_mate_id = $1
+              AND dup.clan_mate_id = $2
+              AND kept.activity_id = dup.activity_id
+              AND kept.time_in_seconds <= dup.time_in_seconds
+            "#,
+            keep.id,
+            duplicate_id
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            "UPDATE personal_best_records SET clan_mate_id = $1 WHERE clan_mate_id = $2",
+            keep.id,
+            duplicate_id
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // Collection log totals: keep the higher total per guild, move the rest.
+        sqlx::query!(
+            r#"
+            UPDATE clan_mate_collection_log_totals kept
+            SET total = GREATEST(kept.total, dup.total),
+                created_at = LEAST(kept.created_at, dup.created_at)
+            FROM clan_mate_collection_log_totals dup
+            WHERE kept.player_id = $1
+              AND dup.player_id = $2
+              AND kept.guild_id = dup.guild_id
+            "#,
+            keep.id,
+            duplicate_id
+        )
+        .execute(&mut *tx)
+        .await?;
+        sqlx::query!(
+            r#"
+            UPDATE clan_mate_collection_log_totals dup
+            SET player_id = $1
+            WHERE dup.player_id = $2
+              AND NOT EXISTS (
+                  SELECT 1 FROM clan_mate_collection_log_totals kept
+                  WHERE kept.player_id = $1 AND kept.guild_id = dup.guild_id
+              )
+            "#,
+            keep.id,
+            duplicate_id
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // The duplicate's names and sightings were folded into `keep` by
+        // the caller; with its dependent rows re-pointed, deleting it
+        // cascades nothing.
+        sqlx::query!("DELETE FROM clan_mates WHERE id = $1", duplicate_id)
+            .execute(&mut *tx)
+            .await?;
+
+        // The name is free now, so the kept row can take it.
+        sqlx::query!(
+            r#"
+            UPDATE clan_mates
+            SET player_name = $2, wom_player_id = $3, previous_names = $4, "rank" = $5, created_at = $6, in_wom = $7, wom_left_at = $8, last_seen_in_chat_at = $9
+            WHERE id = $1
+            "#,
+            keep.id,
+            keep.player_name,
+            keep.wom_player_id.map(|id| id as i64),
+            &keep.previous_names,
+            keep.rank,
+            keep.created_at,
+            keep.in_wom,
+            keep.wom_left_at,
+            keep.last_seen_in_chat_at,
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(keep)
     }
 
     async fn get_clan_member_count(&self, guild_id: u64) -> Result<u64, Error> {

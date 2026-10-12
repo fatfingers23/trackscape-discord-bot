@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE personal_best_records kept\n            SET time_in_seconds = dup.time_in_seconds,\n                updated_at = dup.updated_at\n            FROM personal_best_records dup\n            WHERE kept.clan_mate_id = $1\n              AND dup.clan_mate_id = $2\n              AND kept.activity_id = dup.activity_id\n              AND dup.time_in_seconds < kept.time_in_seconds\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4fe47110c8698c3dd45860e8bc411201e56d6ca82fa4e14adfa49746be73f044"
+}
