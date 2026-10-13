@@ -79,7 +79,7 @@ client.getBotInfo().then((info) => {
 
 
       <div class="mt-4 ">
-        <div class="stats stats-vertical md:stats-horizontal">
+        <div class="stats stats-vertical md:stats-horizontal bg-base-100">
           <div class="stat">
             <div class="stat-title">
               Servers Joined
@@ -116,7 +116,7 @@ client.getBotInfo().then((info) => {
       </h2>
 
       <div class="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-8">
-        <div class="card bordered glass">
+        <div class="card card-border glass">
           <figure>
             <img
               src="@/assets/img/chat_from_cc.png"
@@ -131,7 +131,7 @@ client.getBotInfo().then((info) => {
           </div>
         </div>
 
-        <div class="card bordered glass">
+        <div class="card card-border glass">
           <figure>
             <img
               src="@/assets/img/discord_to_chat.png"
@@ -146,7 +146,7 @@ client.getBotInfo().then((info) => {
           </div>
         </div>
 
-        <div class="card bordered glass">
+        <div class="card card-border glass">
           <figure>
             <img
               src="@/assets/img/raid_drop_broadcast.png"
@@ -161,7 +161,7 @@ client.getBotInfo().then((info) => {
           </div>
         </div>
 
-        <div class="card bordered glass">
+        <div class="card card-border glass">
           <figure>
             <img
               src="@/assets/img/GitHub_Logo_White.png"

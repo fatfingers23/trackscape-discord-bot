@@ -86,7 +86,7 @@
           v-model="searchedTerm"
           type="text"
           placeholder="Search"
-          class="input input-bordered w-full md:max-w-md max-w-full mb-3 mt-2" />
+          class="input w-full md:max-w-md max-w-full mb-3 mt-2" />
       </div>
     </div>
     <table class="table">

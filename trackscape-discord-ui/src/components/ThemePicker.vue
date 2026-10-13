@@ -34,57 +34,59 @@
     "winter",
     "dim",
     "nord",
-    "sunset"
+    "sunset",
+    "caramellatte",
+    "abyss",
+    "silk"
   ];
 
-  let savedTheme = localStorage.getItem("theme");
-  let selectedTheme =  ref(savedTheme ?? "default");
+  const savedTheme = localStorage.getItem("theme");
+  const selectedTheme = ref(savedTheme ?? "default");
 
-  const onSelect = ((theme: string) => {
+  // This component is mounted more than once at the same time (the drawer
+  // sidebar and the top navbar both render it), so the popover id and CSS
+  // anchor name have to be unique per instance.
+  const uid = `theme-picker-${Math.random().toString(36).slice(2, 9)}`;
+  const popoverId = `${uid}-popover`;
+  const radioGroupName = `${uid}-theme`;
+  const anchorName = `--${uid}`;
+
+  const themePopover = ref<HTMLElement | null>(null);
+
+  const onSelect = (theme: string) => {
     localStorage.setItem("theme", theme);
-  });
-
-
-  //HACK Does not seem typescripty
-  window.addEventListener('click', function(e) {
-    document.querySelectorAll('.theme-picker').forEach(function(dropdown) {
-      //@ts-ignore
-      if (!dropdown.contains(e.target )) {
-        //@ts-ignore
-        dropdown.open = false;
-      }
-    });
-  });
-
+    themePopover.value?.hidePopover();
+  };
 </script>
 
 <template>
-  <details class="theme-picker">
-    <summary>
-      Pick Theme
-    </summary>
-    <ul class="p-2 bg-base-100">
+  <button type="button"
+          :popovertarget="popoverId"
+          :style="`anchor-name: ${anchorName}`">
+    Pick Theme
+  </button>
+
+  <!--
+    Teleported out of the menu <ul> so daisyUI's submenu styles do not apply to
+    the popover. Anchor positioning is document-wide, so it still anchors to
+    the button above.
+  -->
+  <Teleport to="body">
+    <ul ref="themePopover"
+        :id="popoverId"
+        popover
+        class="dropdown dropdown-end bg-base-100 rounded-box z-1 w-52 p-2 shadow max-h-[70vh] overflow-y-auto"
+        :style="`position-anchor: ${anchorName}`">
       <li v-for="theme in themes"
           :key="theme">
-
-        <input
-          v-model="selectedTheme"
-          @click="onSelect(theme)"
-          type="radio"
-          name="theme-dropdown"
-          :class="['theme-controller btn btn-sm btn-block btn-ghost justify-start ']"
-          :aria-label="`${theme == savedTheme ? 'x - ': ''} ${theme}`"
-          :checked="theme === selectedTheme"
-          :value="theme"/>
+        <input v-model="selectedTheme"
+               @click="onSelect(theme)"
+               type="radio"
+               :name="radioGroupName"
+               class="theme-controller w-full btn btn-sm btn-block btn-ghost justify-start"
+               :aria-label="`${theme == savedTheme ? 'x - ': ''} ${theme}`"
+               :value="theme" />
       </li>
     </ul>
-  </details>
+  </Teleport>
 </template>
-
-<style scoped>
-
-.theme-picker {
-  z-index: 10000000;
-}
-
-</style>

@@ -31,7 +31,7 @@ let displayedClans = computed(() => {
       v-model="search"
       type="text"
       placeholder="Type clan name here"
-      class="input input-bordered w-full md:max-w-md max-w-full" />
+      class="input w-full md:max-w-md max-w-full" />
   </PageTitle>
 
 
@@ -40,7 +40,7 @@ let displayedClans = computed(() => {
                    class="grid grid-cols-2 md:grid-cols-4 gap-4">
     <div v-for="(clan, index) in displayedClans"
          :key="index">
-      <div class="card bg-primary text-primary-content card-compact shadow-sm shadow-accent-content">
+      <div class="card card-sm bg-primary text-primary-content shadow-xs shadow-accent-content">
         <div class="card-body">
           <h2 class="card-title">{{clan.name}}
           </h2>

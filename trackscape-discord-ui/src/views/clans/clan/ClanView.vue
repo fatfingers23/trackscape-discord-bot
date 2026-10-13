@@ -104,7 +104,7 @@ const tabMenus = [
       v-if="clanDetail !== undefined"
       :discord_id="clanDetail?.discord_guild_id" />
     <div
-      class="pt-3 pb-3 tabs tabs-bordered min-w-full">
+      class="pt-3 pb-3 tabs tabs-border min-w-full">
       <router-link v-for="(tabMenu,index) in tabMenus"
                    :key="index"
                    :to="{name: tabMenu.routeName, params: {clanId: clanId}}"
