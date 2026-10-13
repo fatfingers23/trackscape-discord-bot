@@ -7,5 +7,4 @@ Secrets.dev.toml
 .env
 .DS_Store
 #trackscape-discord-api/ui
-trackscape-discord-ui/bun.lockb
 .vscode

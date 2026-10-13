@@ -3,10 +3,10 @@
 import {ref} from "vue";
 import TrackscapeApiClient from "@/services/TrackscapeApiClient";
 import type {BotInfo} from "@/services/TrackscapeApiTypes";
-let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
+const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 
 
-let botInfo = ref<BotInfo>();
+const botInfo = ref<BotInfo>();
 
 
 client.getBotInfo().then((info) => {

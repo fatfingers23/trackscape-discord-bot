@@ -2,18 +2,18 @@
 import { useRoute } from 'vue-router';
 import PageTitle from "@/components/PageTitle.vue";
 import TrackscapeApiClient from "@/services/TrackscapeApiClient";
-import {ref} from "vue";
+import { computed, ref } from "vue";
 import type {  ClanDetail } from '@/services/TrackscapeApiTypes';
 import DiscordWidget from "@/components/clan/DiscordWidget.vue";
 import BroadcastList from '@/components/clan/BroadcastList.vue';
 import { useHead } from '@unhead/vue';
 
-let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
+const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 
 const route = useRoute();
 const clanId = route.params.clanId as string;
 
-let clanDetail = ref<ClanDetail>();
+const clanDetail = ref<ClanDetail>();
 
 client.getClanDetail(clanId).then((clan) => {
   //put clan list in alphabetical order
@@ -27,9 +27,15 @@ client.getClanDetail(clanId).then((clan) => {
     return 0;
   });
   clanDetail.value = clan;
-  useHead({
-    title: `${clan.name} - TrackScape`,
-  });
+});
+
+// useHead() has to be called during setup: unhead v3 throws when it runs from an
+// async callback. Declaring it up here with a computed title keeps the same
+// behaviour (title updates once the clan detail arrives) and still cleans up on
+// unmount.
+useHead({
+  title: computed(() =>
+    clanDetail.value === undefined ? 'TrackScape' : `${clanDetail.value.name} - TrackScape`)
 });
 
 

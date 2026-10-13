@@ -12,18 +12,23 @@ jobs:
       working-directory: ./trackscape-discord-ui
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: trackscape-discord-ui/package.json
+          cache: true
+          cache_dependency_path: trackscape-discord-ui/pnpm-lock.yaml
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Npm Install
+          node-version: 24
+      - name: Pnpm Install
         working-directory: ${{ env.working-directory }}
-        run: npm install
-      - name: Npm Lint
+        run: pnpm install --frozen-lockfile
+      - name: Pnpm Lint
         working-directory: ${{ env.working-directory }}
-        run: npm run lint
-      - name: Npm Build
+        run: pnpm run lint
+      - name: Pnpm Build
         working-directory: ${{ env.working-directory }}
-        run: npm run build
+        run: pnpm run build
 
   check-backend:
     name: Check Backend

@@ -77,7 +77,7 @@ const setModel = (item: SelectItem) => {
     <ul ref="optionsPopover"
         :id="optionsId"
         popover
-        class="dropdown dropdown-end menu bg-base-100 rounded-box p-2 shadow max-h-96 overflow-y-auto"
+        class="dropdown dropdown-end menu bg-base-100 rounded-box p-2 shadow-sm max-h-96 overflow-y-auto"
         :style="`position-anchor: ${anchorName}; width: anchor-size(width)`">
       <li v-for="(item, index) in options"
           :key="index">

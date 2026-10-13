@@ -3,7 +3,7 @@
 @plugin "daisyui" {
   themes:
     light --default,
-    dark,
+    dark --prefersdark,
     cupcake,
     bumblebee,
     emerald,

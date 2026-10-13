@@ -75,7 +75,7 @@
     <ul ref="themePopover"
         :id="popoverId"
         popover
-        class="dropdown dropdown-end bg-base-100 rounded-box z-1 w-52 p-2 shadow max-h-[70vh] overflow-y-auto"
+        class="dropdown dropdown-end bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm max-h-[70vh] overflow-y-auto"
         :style="`position-anchor: ${anchorName}`">
       <li v-for="theme in themes"
           :key="theme">

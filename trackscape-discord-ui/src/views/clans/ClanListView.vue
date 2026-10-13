@@ -5,9 +5,9 @@ import type {Clan} from "@/services/TrackscapeApiTypes";
 import PageTitle from "@/components/PageTitle.vue";
 import { useHead } from '@unhead/vue';
 
-let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
-let clans = ref<Clan[]>([]);
-let search = ref<string>("");
+const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
+const clans = ref<Clan[]>([]);
+const search = ref<string>("");
 
 client.getClans().then((apiClans: Clan[]) => {
   clans.value = apiClans;
@@ -16,7 +16,7 @@ client.getClans().then((apiClans: Clan[]) => {
 useHead({
   title: `Clans - TrackScape`,
 });
-let displayedClans = computed(() => {
+const displayedClans = computed(() => {
   return clans.value.filter((clan) => {
     return clan.name.toLowerCase().includes(search.value.toLowerCase());
   });
@@ -40,7 +40,7 @@ let displayedClans = computed(() => {
                    class="grid grid-cols-2 md:grid-cols-4 gap-4">
     <div v-for="(clan, index) in displayedClans"
          :key="index">
-      <div class="card card-sm bg-primary text-primary-content shadow-xs shadow-accent-content">
+      <div class="card bg-primary text-primary-content card-sm shadow-xs shadow-accent-content">
         <div class="card-body">
           <h2 class="card-title">{{clan.name}}
           </h2>

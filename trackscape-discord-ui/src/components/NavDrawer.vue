@@ -2,7 +2,7 @@
 import NavItems from "@/components/NavItems.vue";
 import {ref} from "vue";
 
-let open = ref(false);
+const open = ref(false);
 </script>
 
 <template>

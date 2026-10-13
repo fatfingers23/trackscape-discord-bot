@@ -1,0 +1,10 @@
+# Standalone project: no workspace packages, this file only carries pnpm settings.
+# Build scripts must be explicitly allowed (pnpm blocks lifecycle scripts by default).
+allowBuilds:
+  esbuild: true
+  vue-demi: true
+minimumReleaseAgeExclude:
+  - '@vitest/mocker@5.0.4'
+  - '@vitest/spy@5.0.4'
+  - vitest@5.0.4
+  - daisyui@5.7.48

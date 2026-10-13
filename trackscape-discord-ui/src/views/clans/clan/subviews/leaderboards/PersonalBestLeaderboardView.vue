@@ -16,7 +16,7 @@ const props = defineProps({
   }
 });
 
-let clan = ref<ClanDetail>();
+const clan = ref<ClanDetail>();
 
 
 if (props.clanDetail) {
@@ -39,11 +39,11 @@ const columns = [
 ];
 
 const osrsTimeDisplay = (timeInSeconds: number) => {
-    let grabMilliseconds = timeInSeconds.toString().split('.')[1];
-    let pad = function(num: number, size: number) { return ('000' + num).slice(size * -1); };
-    let hours = Math.floor(timeInSeconds / 60 / 60);
-    let minutes = Math.floor(timeInSeconds / 60) % 60;
-    let seconds = Math.floor(timeInSeconds - minutes * 60);
+    const grabMilliseconds = timeInSeconds.toString().split('.')[1];
+    const pad = function(num: number, size: number) { return ('000' + num).slice(size * -1); };
+    const hours = Math.floor(timeInSeconds / 60 / 60);
+    const minutes = Math.floor(timeInSeconds / 60) % 60;
+    const seconds = Math.floor(timeInSeconds - minutes * 60);
 
   return `${pad(hours, 2)}:${pad(minutes, 2)}:${pad(seconds, 2)}${grabMilliseconds !== undefined ? '.' + grabMilliseconds : ''}`;
 };

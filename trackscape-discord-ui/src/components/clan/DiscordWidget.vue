@@ -17,7 +17,7 @@ type DiscordWidgetResponse = {
   presence_count: number
 }
 
-let discordWidget = ref<DiscordWidgetResponse>();
+const discordWidget = ref<DiscordWidgetResponse>();
 
 fetch(`https://discord.com/api/guilds/${props.discord_id}/widget.json`)
   .then((response) => {

@@ -15,7 +15,7 @@ const props = defineProps({
 });
 
 
-let clanId = ref<string>();
+const clanId = ref<string>();
 const route = useRoute();
 
 if (props.clanDetail) {

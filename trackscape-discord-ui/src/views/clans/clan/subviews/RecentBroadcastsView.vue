@@ -6,7 +6,7 @@ import {ref} from "vue";
 import BroadcastList from '@/components/clan/BroadcastList.vue';
 
 
-let clanId = ref<string>();
+const clanId = ref<string>();
 const props = defineProps({
   clanDetail: {
     type: Object as PropType<ClanDetail>,
