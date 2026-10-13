@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT COUNT(*) as count FROM clan_mates WHERE guild_id = $1 AND (in_wom = true OR last_seen_in_chat_at > now() - interval '90 days')",
+  "query": "\n            SELECT COUNT(*) as count FROM clan_mates cm\n            WHERE cm.guild_id = $1\n                AND cm.left_at IS NULL AND cm.\"rank\" IS DISTINCT FROM 'Guest'\n            ",
   "describe": {
     "columns": [
       {
@@ -19,5 +19,5 @@
       null
     ]
   },
-  "hash": "7ebb871e311084147492b5ed69bfe562c6b96123e35ac6d00e41cdca8bb1c160"
+  "hash": "76d39b0edae3e52e2fd823a5317247e76e6b3a1cff4867153c663766a7a8c34f"
 }

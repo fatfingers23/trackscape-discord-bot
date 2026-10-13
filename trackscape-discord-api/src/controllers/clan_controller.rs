@@ -110,7 +110,7 @@ async fn detail(mongodb: Data<BotDb>, path: web::Path<(String,)>) -> Result<Http
                         .unwrap(),
                     members: mongodb
                         .clan_mates
-                        .get_clan_mates_by_guild_id(registered_guild.guild_id)
+                        .get_active_clan_mates_by_guild_id(registered_guild.guild_id)
                         .await
                         .unwrap(),
                 };

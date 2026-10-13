@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO clan_mates (id, guild_id, player_name, wom_player_id, previous_names, \"rank\", created_at, in_wom, left_at, last_seen_in_chat_at)\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Text",
+        "Int8",
+        "TextArray",
+        "Text",
+        "Timestamptz",
+        "Bool",
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "b3c328fc573bcbd6f610e53e997c0c86be206d1da0d65af9085b2cf720877a21"
+}

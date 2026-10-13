@@ -198,8 +198,12 @@ async fn new_clan_chats(
             _ => {}
         }
         if !is_broadcast {
-            //Handles RL chat commands
-            if chat.message.starts_with("!") {
+            //Handles RL chat commands. Guests are not clan mates, so their commands are not honoured.
+            if chat.message.starts_with("!")
+                && !trackscape_discord_shared::jobs::update_create_clanmate_job::is_guest_rank(
+                    &chat.rank,
+                )
+            {
                 let _ = celery
                     .send_task(
                         trackscape_discord_shared::jobs::parse_rl_chat_command::parse_command::new(

@@ -1,6 +1,7 @@
 use crate::database::BotDb;
 use crate::database::clan_mates::{ClanMateModel, ClanMates, name_compare, name_normalize};
 use crate::database::guilds_db::RegisteredGuildModel;
+use crate::jobs::job_helpers::{invalidate_clan_mate_cache, try_get_redis_connection};
 use crate::wom::{ApiLimiter, get_wom_client};
 use chrono::{DateTime, Utc};
 use log::{error, info, warn};
@@ -73,7 +74,7 @@ pub fn plan_wom_sync(
 
         let mut updated = row.clone();
         updated.in_wom = true;
-        updated.wom_left_at = None;
+        updated.left_at = None;
         if !name_compare(&row.player_name, &membership.player.display_name) {
             match find_rename_holder(db_members, row.id, &membership.player.display_name) {
                 // Nobody else holds the new name — plain rename.
@@ -138,7 +139,7 @@ pub fn plan_wom_sync(
         let mut updated = row.clone();
         updated.wom_player_id = Some(membership.player.id as u64);
         updated.in_wom = true;
-        updated.wom_left_at = None;
+        updated.left_at = None;
         let changed = updated != *row;
         actions.push(SyncAction::UpdateMember {
             clan_mate: updated,
@@ -214,12 +215,40 @@ pub fn plan_wom_sync(
         if row.in_wom {
             let mut updated = row.clone();
             updated.in_wom = false;
-            updated.wom_left_at = Some(now);
+            updated.left_at = Some(now);
             actions.push(SyncAction::SoftRemove { clan_mate: updated });
         }
     }
 
     actions
+}
+
+/// Why a fetched WOM group should not be reconciled against this clan's rows.
+/// A group that lists nobody, or that shares no player with a clan we already
+/// know a fair number of members for, is far more likely a wrong or stale
+/// `wom_id` than a real roster change; acting on it would create strangers
+/// as clan mates. The caller logs the reason and skips the guild.
+pub fn wom_group_looks_unrelated(
+    db_members: &[ClanMateModel],
+    wom_memberships: &[GroupMemberShip],
+    actions: &[SyncAction],
+) -> Option<&'static str> {
+    if wom_memberships.is_empty() {
+        return Some("the WOM group has no members");
+    }
+    const MIN_KNOWN_ROWS: usize = 5;
+    let overlaps = actions.iter().any(|a| {
+        matches!(
+            a,
+            SyncAction::UpdateMember { .. }
+                | SyncAction::RenameAndLink { .. }
+                | SyncAction::MergeDuplicate { .. }
+        )
+    });
+    if db_members.len() >= MIN_KNOWN_ROWS && !overlaps {
+        return Some("the WOM group shares no player with the clan's existing members");
+    }
+    None
 }
 
 /// Finds another row already holding `new_name` (case-insensitive), which
@@ -310,11 +339,22 @@ pub async fn sync_wom_by_guild(guild: &RegisteredGuildModel, db: &BotDb) {
 
     let actions = plan_wom_sync(&db_members, &wom_group.memberships, &name_changes, Utc::now());
 
+    if let Some(reason) = wom_group_looks_unrelated(&db_members, &wom_group.memberships, &actions) {
+        warn!(
+            "Skipping WOM sync for clan {:?} (wom id {}): {}",
+            guild.clan_name, wom_id, reason
+        );
+        return;
+    }
+
     let mut created = 0usize;
     let mut renamed = 0usize;
     let mut updated = 0usize;
     let mut merged = 0usize;
     let mut soft_removed = 0usize;
+    // Opened on the first soft removal only; `None` inside means Redis was
+    // unavailable (already logged), so cache invalidation is skipped.
+    let mut redis: Option<Option<redis::Connection>> = None;
 
     for action in actions {
         match action {
@@ -350,7 +390,7 @@ pub async fn sync_wom_by_guild(guild: &RegisteredGuildModel, db: &BotDb) {
                 Ok(mut clan_mate) => {
                     clan_mate.wom_player_id = Some(wom_player_id);
                     clan_mate.in_wom = true;
-                    clan_mate.wom_left_at = None;
+                    clan_mate.left_at = None;
                     match db.clan_mates.update_clan_mate(clan_mate).await {
                         Ok(_) => renamed += 1,
                         Err(e) => error!("Failed to link renamed clan mate to WOM: {:?}", e),
@@ -367,7 +407,18 @@ pub async fn sync_wom_by_guild(guild: &RegisteredGuildModel, db: &BotDb) {
             },
             SyncAction::SoftRemove { clan_mate } => {
                 match db.clan_mates.update_clan_mate(clan_mate).await {
-                    Ok(_) => soft_removed += 1,
+                    Ok(removed) => {
+                        soft_removed += 1;
+                        // Drop the chat job's cached copy so a rejoin restores them.
+                        if let Some(connection) = redis.get_or_insert_with(try_get_redis_connection)
+                        {
+                            invalidate_clan_mate_cache(
+                                connection,
+                                guild.guild_id,
+                                &removed.player_name,
+                            );
+                        }
+                    }
                     Err(e) => error!("Failed to soft remove clan mate: {:?}", e),
                 }
             }
@@ -450,7 +501,7 @@ mod tests {
         player_name: &str,
         wom_player_id: Option<u64>,
         in_wom: bool,
-        wom_left_at: Option<DateTime<Utc>>,
+        left_at: Option<DateTime<Utc>>,
     ) -> ClanMateModel {
         ClanMateModel {
             id: Uuid::from_u128(id),
@@ -461,7 +512,7 @@ mod tests {
             rank: None,
             created_at: Utc.with_ymd_and_hms(2026, 1, 1, 0, 0, 0).unwrap(),
             in_wom,
-            wom_left_at,
+            left_at,
             last_seen_in_chat_at: None,
         }
     }
@@ -512,7 +563,7 @@ mod tests {
         let (clan_mate, changed) = update_member(&actions[0]);
         assert!(changed);
         assert!(clan_mate.in_wom);
-        assert_eq!(clan_mate.wom_left_at, None);
+        assert_eq!(clan_mate.left_at, None);
     }
 
     #[test]
@@ -527,7 +578,7 @@ mod tests {
         assert!(changed);
         assert_eq!(clan_mate.wom_player_id, Some(7));
         assert!(clan_mate.in_wom);
-        assert_eq!(clan_mate.wom_left_at, None);
+        assert_eq!(clan_mate.left_at, None);
         // The row's own spelling is kept.
         assert_eq!(clan_mate.player_name, "Link Me");
     }
@@ -619,6 +670,16 @@ mod tests {
     }
 
     #[test]
+    fn pass_4_leaves_unlinked_rows_alone() {
+        // A chat-created row that WOM never linked is not WOM's to remove:
+        // only rows the sync itself marked in_wom are soft-removed.
+        let unlinked = test_clan_mate(1, "Chatty", None, false, None);
+        let now = Utc.with_ymd_and_hms(2026, 10, 14, 0, 0, 0).unwrap();
+        let actions = plan_wom_sync(&[unlinked], &[], &[], now);
+        assert!(actions.is_empty(), "got {:?}", actions);
+    }
+
+    #[test]
     fn renamed_member_whose_new_name_is_taken_by_chat_duplicate_merges() {
         // Arcane PvM shape: the player renamed in WOM (Braunfel -> "Auss
         // tx") while clan chat already created an unlinked row for the new
@@ -647,7 +708,7 @@ mod tests {
                 assert_eq!(clan_mate.player_name, "Auss tx");
                 assert_eq!(clan_mate.previous_names, vec!["Braunfel".to_string()]);
                 assert!(clan_mate.in_wom);
-                assert_eq!(clan_mate.wom_left_at, None);
+                assert_eq!(clan_mate.left_at, None);
                 assert_eq!(clan_mate.wom_player_id, Some(62361));
                 // The merged row keeps the earlier creation date.
                 assert_eq!(
@@ -704,7 +765,7 @@ mod tests {
         assert_eq!(clan_mate.player_name, "Old Name");
         assert_eq!(clan_mate.previous_names, Vec::<String>::new());
         assert!(clan_mate.in_wom);
-        assert_eq!(clan_mate.wom_left_at, None);
+        assert_eq!(clan_mate.left_at, None);
         assert!(changed);
     }
 
@@ -775,5 +836,67 @@ mod tests {
                 .iter()
                 .all(|a| matches!(a, SyncAction::UpdateMember { .. }))
         );
+    }
+
+    fn known_rows(count: u128) -> Vec<ClanMateModel> {
+        (1..=count)
+            .map(|i| test_clan_mate(i, &format!("Known {i}"), None, false, None))
+            .collect()
+    }
+
+    fn strangers() -> Vec<GroupMemberShip> {
+        (100..103)
+            .map(|id| {
+                let name = format!("Stranger {id}");
+                test_membership(test_player(id, &name.to_lowercase(), &name))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn empty_group_looks_unrelated() {
+        let rows = known_rows(10);
+        let actions = plan_wom_sync(&rows, &[], &[], test_now());
+
+        assert_eq!(
+            wom_group_looks_unrelated(&rows, &[], &actions),
+            Some("the WOM group has no members")
+        );
+    }
+
+    #[test]
+    fn group_of_strangers_for_known_clan_looks_unrelated() {
+        let rows = known_rows(10);
+        let memberships = strangers();
+        let actions = plan_wom_sync(&rows, &memberships, &[], test_now());
+
+        assert_eq!(
+            wom_group_looks_unrelated(&rows, &memberships, &actions),
+            Some("the WOM group shares no player with the clan's existing members")
+        );
+    }
+
+    #[test]
+    fn group_of_strangers_for_new_clan_is_accepted() {
+        let rows = known_rows(2);
+        let memberships = strangers();
+        let actions = plan_wom_sync(&rows, &memberships, &[], test_now());
+
+        assert_eq!(wom_group_looks_unrelated(&rows, &memberships, &actions), None);
+    }
+
+    #[test]
+    fn group_sharing_one_player_is_accepted() {
+        let rows = known_rows(10);
+        let mut memberships = strangers();
+        memberships.push(test_membership(test_player(200, "known 3", "Known 3")));
+        let actions = plan_wom_sync(&rows, &memberships, &[], test_now());
+        assert!(
+            actions
+                .iter()
+                .any(|a| matches!(a, SyncAction::UpdateMember { .. }))
+        );
+
+        assert_eq!(wom_group_looks_unrelated(&rows, &memberships, &actions), None);
     }
 }

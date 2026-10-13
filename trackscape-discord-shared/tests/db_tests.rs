@@ -135,9 +135,9 @@ async fn clan_mate_find_or_create_and_duplicate_rejected(pool: PgPool) {
         .expect("player should be found");
     assert_eq!(found.id, first.id);
 
-    // The player was discovered via chat, is not in the WOM group and has no
-    // recorded chat sighting, so it is not counted as an active member yet.
-    assert_eq!(db.clan_mates.get_clan_member_count(123).await.unwrap(), 0);
+    // The player was discovered via chat and is not marked as left or a
+    // Guest, so it counts as a member.
+    assert_eq!(db.clan_mates.get_clan_member_count(123).await.unwrap(), 1);
 
     // change_name moves the old name into previous_names and returns the
     // updated model.
@@ -166,13 +166,13 @@ async fn clan_mate_find_or_create_and_duplicate_rejected(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn remove_clan_mate_cascades_to_pb_records_and_clog_totals(pool: PgPool) {
+async fn soft_remove_keeps_history_and_drops_from_count(pool: PgPool) {
     let db = setup(pool).await;
     db.guilds.save_new_guild(123).await;
 
     let clan_mate = db
         .clan_mates
-        .find_or_create_clan_mate(123, "Cascade Player".to_string())
+        .find_or_create_clan_mate(123, "Leaving Player".to_string())
         .await
         .unwrap();
     let activity = db
@@ -180,7 +180,6 @@ async fn remove_clan_mate_cascades_to_pb_records_and_clog_totals(pool: PgPool) {
         .create_or_get_activity("Zulrah".to_string())
         .await
         .unwrap();
-
     db.pb_records
         .create_or_update_pb_record(clan_mate.id, activity.id, 123, 100.0)
         .await
@@ -189,14 +188,35 @@ async fn remove_clan_mate_cascades_to_pb_records_and_clog_totals(pool: PgPool) {
         .update_or_create(123, clan_mate.id, 500)
         .await
         .unwrap();
+    assert_eq!(db.clan_mates.get_clan_member_count(123).await.unwrap(), 1);
 
-    db.clan_mates
-        .remove_clan_mate(123, "Cascade Player".to_string())
+    // Casing and plain spaces in the request must not matter.
+    let removed = db
+        .clan_mates
+        .soft_remove_clan_mate(123, "leaving player".to_string())
         .await
         .unwrap();
+    assert_eq!(removed.id, clan_mate.id);
+    assert!(removed.left_at.is_some());
+    assert!(!removed.in_wom);
 
-    // The PB records and collection log totals were removed by the foreign
-    // key cascades (the old Mongo layer orphaned these rows).
+    // Row and history survive; the member just stops counting.
+    assert_eq!(db.clan_mates.get_clan_member_count(123).await.unwrap(), 0);
+    assert!(
+        db.clan_mates
+            .get_active_clan_mates_by_guild_id(123)
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        db.clan_mates
+            .get_clan_mates_by_guild_id(123)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
     let pb_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM personal_best_records")
         .fetch_one(db.pool())
         .await
@@ -206,8 +226,22 @@ async fn remove_clan_mate_cascades_to_pb_records_and_clog_totals(pool: PgPool) {
             .fetch_one(db.pool())
             .await
             .unwrap();
-    assert_eq!(pb_count, 0);
-    assert_eq!(clog_count, 0);
+    assert_eq!(pb_count, 1);
+    assert_eq!(clog_count, 1);
+
+    // Removing an already-removed member is not an error.
+    db.clan_mates
+        .soft_remove_clan_mate(123, "Leaving Player".to_string())
+        .await
+        .unwrap();
+
+    // Unknown names are an error so the bot can report it.
+    assert!(
+        db.clan_mates
+            .soft_remove_clan_mate(123, "Nobody".to_string())
+            .await
+            .is_err()
+    );
 }
 
 #[sqlx::test]
@@ -386,55 +420,91 @@ async fn find_by_current_name_is_guild_scoped(pool: PgPool) {
 }
 
 #[sqlx::test]
-async fn clan_member_count_counts_active_members(pool: PgPool) {
+async fn clan_member_count_counts_members_not_marked_left(pool: PgPool) {
     let db = setup(pool).await;
     db.guilds.save_new_guild(123).await;
 
-    let in_wom_player = db
+    // (name, rank, left_at set?, counted?)
+    let fixture: [(&str, Option<&str>, bool, bool); 5] = [
+        ("Quiet Member", Some("Sapphire"), false, true),
+        ("Never Ranked", None, false, true),
+        ("Left", Some("Ruby"), true, false),
+        ("Guest Chat", Some("Guest"), false, false),
+        ("Guest Left", Some("Guest"), true, false),
+    ];
+    for (name, rank, left, _) in fixture {
+        let mut model = db
+            .clan_mates
+            .find_or_create_clan_mate(123, name.to_string())
+            .await
+            .unwrap();
+        model.rank = rank.map(str::to_string);
+        model.left_at = left.then(Utc::now);
+        db.clan_mates.update_clan_mate(model).await.unwrap();
+    }
+
+    let expected = fixture.iter().filter(|(_, _, _, counted)| *counted).count() as u64;
+    assert_eq!(
+        db.clan_mates.get_clan_member_count(123).await.unwrap(),
+        expected
+    );
+}
+
+#[sqlx::test]
+async fn active_clan_mates_match_member_count(pool: PgPool) {
+    let db = setup(pool).await;
+    db.guilds.save_new_guild(123).await;
+
+    // (name, rank, left_at set?, in_wom, counted?) — in_wom must not matter.
+    let fixture: [(&str, Option<&str>, bool, bool, bool); 6] = [
+        ("In Wom", Some("Owner"), false, true, true),
+        ("Not In Wom", Some("Sapphire"), false, false, true),
+        ("Left In Wom", Some("Ruby"), true, true, false),
+        ("Left", None, true, false, false),
+        ("Guest Chat", Some("Guest"), false, false, false),
+        ("Wom Guest", Some("Guest"), false, true, false),
+    ];
+    for (name, rank, left, in_wom, _) in fixture {
+        let mut model = db
+            .clan_mates
+            .find_or_create_clan_mate(123, name.to_string())
+            .await
+            .unwrap();
+        model.rank = rank.map(str::to_string);
+        model.left_at = left.then(Utc::now);
+        model.in_wom = in_wom;
+        db.clan_mates.update_clan_mate(model).await.unwrap();
+    }
+
+    let active = db
         .clan_mates
-        .find_or_create_clan_mate(123, "In Wom".to_string())
+        .get_active_clan_mates_by_guild_id(123)
         .await
         .unwrap();
-    let gone_player = db
-        .clan_mates
-        .find_or_create_clan_mate(123, "Gone".to_string())
-        .await
-        .unwrap();
-    let recent_chat_player = db
-        .clan_mates
-        .find_or_create_clan_mate(123, "Recent Chat".to_string())
-        .await
-        .unwrap();
-    let stale_chat_player = db
-        .clan_mates
-        .find_or_create_clan_mate(123, "Stale Chat".to_string())
-        .await
-        .unwrap();
+    let mut active_names: Vec<String> = active.iter().map(|m| m.player_name.clone()).collect();
+    active_names.sort();
+    let mut expected: Vec<String> = fixture
+        .iter()
+        .filter(|(_, _, _, _, counted)| *counted)
+        .map(|(name, _, _, _, _)| name.replace(' ', "\u{a0}"))
+        .collect();
+    expected.sort();
+    assert_eq!(active_names, expected);
 
-    // In the WOM group: counted regardless of chat activity.
-    let mut model = in_wom_player.clone();
-    model.in_wom = true;
-    db.clan_mates.update_clan_mate(model).await.unwrap();
+    assert_eq!(
+        active.len() as u64,
+        db.clan_mates.get_clan_member_count(123).await.unwrap()
+    );
 
-    // Left the WOM group and never seen in chat: not counted.
-    let mut model = gone_player.clone();
-    model.in_wom = false;
-    model.last_seen_in_chat_at = None;
-    db.clan_mates.update_clan_mate(model).await.unwrap();
-
-    // Not in the WOM group but seen in chat recently: counted.
-    let mut model = recent_chat_player.clone();
-    model.in_wom = false;
-    model.last_seen_in_chat_at = Some(Utc::now() - chrono::Duration::days(10));
-    db.clan_mates.update_clan_mate(model).await.unwrap();
-
-    // Not in the WOM group and last seen over the 90 day window: not counted.
-    let mut model = stale_chat_player.clone();
-    model.in_wom = false;
-    model.last_seen_in_chat_at = Some(Utc::now() - chrono::Duration::days(91));
-    db.clan_mates.update_clan_mate(model).await.unwrap();
-
-    assert_eq!(db.clan_mates.get_clan_member_count(123).await.unwrap(), 2);
+    // The unfiltered list the sync jobs depend on still returns every row.
+    assert_eq!(
+        db.clan_mates
+            .get_clan_mates_by_guild_id(123)
+            .await
+            .unwrap()
+            .len(),
+        fixture.len()
+    );
 }
 
 #[sqlx::test]
@@ -450,25 +520,22 @@ async fn list_clans_paginated_pages_searches_and_counts_members(pool: PgPool) {
     }
     db.guilds.save_new_guild(999).await;
 
-    // Member counts come back from the JOIN, using the same active-member
-    // predicate as get_clan_member_count.
-    let in_wom_player = db
-        .clan_mates
-        .find_or_create_clan_mate(123, "In Wom".to_string())
-        .await
-        .unwrap();
-    let mut model = in_wom_player.clone();
-    model.in_wom = true;
-    db.clan_mates.update_clan_mate(model).await.unwrap();
-    let stale_chat_player = db
-        .clan_mates
-        .find_or_create_clan_mate(123, "Stale Chat".to_string())
-        .await
-        .unwrap();
-    let mut model = stale_chat_player.clone();
-    model.in_wom = false;
-    model.last_seen_in_chat_at = Some(Utc::now() - chrono::Duration::days(91));
-    db.clan_mates.update_clan_mate(model).await.unwrap();
+    // Member counts come back from the JOIN, using the same membership
+    // predicate as get_clan_member_count: left_at IS NULL and not a Guest.
+    for (name, rank, left) in [
+        ("Member", Some("Sapphire"), false),
+        ("Left", Some("Ruby"), true),
+        ("Guest Chat", Some("Guest"), false),
+    ] {
+        let mut model = db
+            .clan_mates
+            .find_or_create_clan_mate(123, name.to_string())
+            .await
+            .unwrap();
+        model.rank = rank.map(str::to_string);
+        model.left_at = left.then(Utc::now);
+        db.clan_mates.update_clan_mate(model).await.unwrap();
+    }
 
     // Pages are ordered by clan name and respect the limit/offset.
     let first_page = db.guilds.list_clans_paginated(None, 2, 0).await.unwrap();
@@ -481,13 +548,17 @@ async fn list_clans_paginated_pages_searches_and_counts_members(pool: PgPool) {
     // The total matches across pages.
     assert_eq!(db.guilds.count_clans(None).await.unwrap(), 3);
 
-    // The JOIN only counts active members (in WOM or seen in chat recently).
+    // The JOIN only counts members (left_at IS NULL and not a Guest).
     assert_eq!(first_page[0].clan_name, "Alpha");
     assert_eq!(first_page[0].registered_members, 1);
     assert_eq!(first_page[1].registered_members, 0);
 
     // A case-insensitive search narrows both the page and the total.
-    let hits = db.guilds.list_clans_paginated(Some("AMM"), 10, 0).await.unwrap();
+    let hits = db
+        .guilds
+        .list_clans_paginated(Some("AMM"), 10, 0)
+        .await
+        .unwrap();
     let names: Vec<&str> = hits.iter().map(|c| c.clan_name.as_str()).collect();
     assert_eq!(names, vec!["Gamma"]);
     assert_eq!(db.guilds.count_clans(Some("AMM")).await.unwrap(), 1);
@@ -531,4 +602,138 @@ async fn touch_last_seen_updates_timestamp(pool: PgPool) {
         .last_seen_in_chat_at
         .expect("last_seen_in_chat_at should be set");
     assert!(touched > Utc::now() - chrono::Duration::minutes(1));
+}
+
+#[sqlx::test]
+async fn find_by_current_name_is_case_insensitive(pool: PgPool) {
+    let db = setup(pool).await;
+    db.guilds.save_new_guild(123).await;
+
+    let player = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "Vorrentz".to_string())
+        .await
+        .unwrap();
+
+    for query in ["vorrentz", "VORRENTZ", "VoRrEnTz"] {
+        let found = db
+            .clan_mates
+            .find_by_current_name(123, query.to_string())
+            .await
+            .unwrap()
+            .unwrap_or_else(|| panic!("{query} should find the row"));
+        assert_eq!(found.id, player.id);
+        // The stored spelling is untouched.
+        assert_eq!(found.player_name, "Vorrentz");
+    }
+
+    // find_or_create reuses the row instead of making a case-variant twin.
+    let again = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "VORRENTZ".to_string())
+        .await
+        .unwrap();
+    assert_eq!(again.id, player.id);
+    assert_eq!(
+        db.clan_mates
+            .get_clan_mates_by_guild_id(123)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
+#[sqlx::test]
+async fn creating_a_case_only_duplicate_is_rejected(pool: PgPool) {
+    let db = setup(pool).await;
+    db.guilds.save_new_guild(123).await;
+    db.clan_mates
+        .create_new_clan_mate(123, "Vorrentz".to_string(), None)
+        .await
+        .unwrap();
+    let err = db
+        .clan_mates
+        .create_new_clan_mate(123, "vorrentz".to_string(), None)
+        .await
+        .unwrap_err();
+    assert!(
+        err.to_string()
+            .contains("clan_mates_guild_id_lower_player_name_idx"),
+        "{err}"
+    );
+}
+
+#[sqlx::test]
+async fn find_or_create_restores_a_left_member(pool: PgPool) {
+    // A broadcast about a player (PB, clog, !pb) is proof they are in the
+    // clan, so finding them clears left_at.
+    let db = setup(pool).await;
+    db.guilds.save_new_guild(123).await;
+
+    let mut model = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "Came Back".to_string())
+        .await
+        .unwrap();
+    model.left_at = Some(Utc::now());
+    db.clan_mates.update_clan_mate(model.clone()).await.unwrap();
+    assert_eq!(db.clan_mates.get_clan_member_count(123).await.unwrap(), 0);
+
+    let restored = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "came back".to_string())
+        .await
+        .unwrap();
+    assert_eq!(restored.id, model.id);
+    assert_eq!(restored.left_at, None);
+    assert_eq!(db.clan_mates.get_clan_member_count(123).await.unwrap(), 1);
+
+    // A Guest row is restored too but still does not count: rank wins.
+    let mut guest = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "Visitor".to_string())
+        .await
+        .unwrap();
+    guest.rank = Some("Guest".to_string());
+    guest.left_at = Some(Utc::now());
+    db.clan_mates.update_clan_mate(guest).await.unwrap();
+    let guest = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "Visitor".to_string())
+        .await
+        .unwrap();
+    assert_eq!(guest.left_at, None);
+    assert_eq!(db.clan_mates.get_clan_member_count(123).await.unwrap(), 1);
+}
+
+#[sqlx::test]
+async fn change_name_refuses_a_name_held_by_another_row(pool: PgPool) {
+    let db = setup(pool).await;
+    db.guilds.save_new_guild(123).await;
+    let first = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "First".to_string())
+        .await
+        .unwrap();
+    db.clan_mates
+        .find_or_create_clan_mate(123, "Second".to_string())
+        .await
+        .unwrap();
+
+    let err = db
+        .clan_mates
+        .change_name(123, "First".to_string(), "second".to_string())
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("already"), "{err}");
+
+    // Changing only the casing of your own name is allowed.
+    let recased = db
+        .clan_mates
+        .change_name(123, "First".to_string(), "FIRST".to_string())
+        .await
+        .unwrap();
+    assert_eq!(recased.id, first.id);
+    assert_eq!(recased.player_name, "FIRST");
 }

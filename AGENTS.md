@@ -12,7 +12,7 @@ broadcasts are parsed into jobs that post to Discord. State lives in PostgreSQL 
 - `trackscape-discord-bot` — serenity Discord gateway bot. Slash
   commands live in `src/commands/`; a new command must be added to BOTH
   `get_commands()` and the `interaction_create` match in `src/main.rs`.
-- `trackscape-discord-shared` — shared library used by everything: Postgres/sqlx database layer (migrations in `migrations/`, embedded and exported as `database::MIGRATOR`), DTOs, OSRS broadcast parsing (`osrs_broadcast_extractor.rs`), celery job definitions, external API clients. Most tests live here. The `legacy-mongo` cargo feature exposes the old Mongo document shapes for the one-off migrator only.
+- `trackscape-discord-shared` — shared library used by everything: Postgres/sqlx database layer (migrations in `migrations/`, embedded and exported as `database::MIGRATOR`), DTOs, OSRS broadcast parsing (`osrs_broadcast_extractor.rs`), celery job definitions, external API clients. Most tests live here. The `legacy-mongo` cargo feature exposes the old Mongo document shapes for the one-off migrator only. A clan mate is a member while `left_at` is NULL and their rank is not Guest; the WOM sync, leave/expel broadcasts and `/expel` set it, and chat lines, broadcasts and the WOM sync clear it.
 - `wom-rs` — vendored Wise Old Man API client (formerly a git dependency on
   fatfingers23/wom_rs @ 56ba91e). Maintained in-tree; its `Country` enum is
   patched with WOM's GB constituent-country codes plus an `Unknown` fallback

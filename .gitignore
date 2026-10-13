@@ -8,3 +8,5 @@ Secrets.dev.toml
 .DS_Store
 #trackscape-discord-api/ui
 .vscode
+# Database dumps used for migration dry runs
+*.dump

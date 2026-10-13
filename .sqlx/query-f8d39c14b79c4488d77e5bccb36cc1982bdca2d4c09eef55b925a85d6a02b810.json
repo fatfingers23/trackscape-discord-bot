@@ -1,0 +1,136 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id, guild_id, player_name, wom_player_id, previous_names, \"rank\", created_at, in_wom, left_at, last_seen_in_chat_at\n            FROM clan_mates cm\n            WHERE cm.guild_id = $1\n                AND cm.left_at IS NULL AND cm.\"rank\" IS DISTINCT FROM 'Guest'\n            ORDER BY created_at ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "guild_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "guild_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "player_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "player_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "wom_player_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "wom_player_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "previous_names",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "previous_names"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "rank",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "rank"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "in_wom",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "in_wom"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "left_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "left_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "last_seen_in_chat_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "clan_mates",
+            "name": "last_seen_in_chat_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "f8d39c14b79c4488d77e5bccb36cc1982bdca2d4c09eef55b925a85d6a02b810"
+}

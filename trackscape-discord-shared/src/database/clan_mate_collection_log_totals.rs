@@ -46,7 +46,7 @@ struct GuildTotalsRow {
     cm_rank: Option<String>,
     cm_created_at: DateTime<Utc>,
     cm_in_wom: bool,
-    cm_wom_left_at: Option<DateTime<Utc>>,
+    cm_left_at: Option<DateTime<Utc>>,
     cm_last_seen_in_chat_at: Option<DateTime<Utc>>,
 }
 
@@ -61,7 +61,7 @@ impl From<GuildTotalsRow> for ClanMateCollectionLogTotalModel {
             rank: row.cm_rank,
             created_at: row.cm_created_at,
             in_wom: row.cm_in_wom,
-            wom_left_at: row.cm_wom_left_at,
+            left_at: row.cm_left_at,
             last_seen_in_chat_at: row.cm_last_seen_in_chat_at,
         };
         Self {
@@ -131,7 +131,7 @@ impl ClanMateCollectionLogTotals for ClanMateCollectionLogTotalsDb {
                    c.id as cm_id, c.guild_id as cm_guild_id, c.player_name as cm_player_name,
                    c.wom_player_id as cm_wom_player_id, c.previous_names as cm_previous_names,
                    c."rank" as cm_rank, c.created_at as cm_created_at,
-                   c.in_wom as cm_in_wom, c.wom_left_at as cm_wom_left_at,
+                   c.in_wom as cm_in_wom, c.left_at as cm_left_at,
                    c.last_seen_in_chat_at as cm_last_seen_in_chat_at
             FROM clan_mate_collection_log_totals t
             JOIN clan_mates c ON c.id = t.player_id
