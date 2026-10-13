@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, guild_id, player_name, wom_player_id, previous_names, \"rank\", created_at, in_wom, wom_left_at, last_seen_in_chat_at\n            FROM clan_mates\n            WHERE guild_id = $1\n            ORDER BY created_at ASC\n            ",
+  "query": "\n            SELECT id, guild_id, player_name, wom_player_id, previous_names, \"rank\", created_at, in_wom, left_at, last_seen_in_chat_at\n            FROM clan_mates cm\n            WHERE cm.guild_id = $1\n                AND cm.left_at IS NULL AND cm.\"rank\" IS DISTINCT FROM 'Guest'\n            ORDER BY created_at ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -93,12 +93,12 @@
       },
       {
         "ordinal": 8,
-        "name": "wom_left_at",
+        "name": "left_at",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
             "table": "clan_mates",
-            "name": "wom_left_at"
+            "name": "left_at"
           }
         }
       },
@@ -132,5 +132,5 @@
       true
     ]
   },
-  "hash": "4e032809f60a42812ea3537c7b65b2d9e112bea2d2e6dc80bd74391dc7fa123e"
+  "hash": "f8d39c14b79c4488d77e5bccb36cc1982bdca2d4c09eef55b925a85d6a02b810"
 }

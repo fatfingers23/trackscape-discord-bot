@@ -1,4 +1,5 @@
 use crate::database::BotDb;
+use log::error;
 use redis::{Client, Connection, RedisResult};
 use serde::Serialize;
 use std::env;
@@ -28,6 +29,42 @@ pub fn get_redis_connection() -> RedisResult<Connection> {
         .get_connection()
 }
 
+/// Like `get_redis_connection`, but never panics: a missing `REDIS_ADDR` or
+/// an unreachable Redis is logged and returns `None`. For best-effort cache
+/// work in code that also runs outside the workers (bot, wom-audit).
+pub fn try_get_redis_connection() -> Option<Connection> {
+    let redis_url = match env::var("REDIS_ADDR") {
+        Ok(redis_url) => redis_url,
+        Err(e) => {
+            error!("REDIS_ADDR not set, skipping redis: {:?}", e);
+            return None;
+        }
+    };
+    match Client::open(redis_url).and_then(|client| client.get_connection()) {
+        Ok(connection) => Some(connection),
+        Err(e) => {
+            error!("Failed to connect to redis: {:?}", e);
+            None
+        }
+    }
+}
+
+/// Redis key under which the chat job caches a clan mate. Guild scoped so one
+/// clan's state never leaks into another clan with a same-named member.
+pub fn clan_mate_cache_key(guild_id: u64, player_name: &str) -> String {
+    format!("players:{}:{}", guild_id, player_name)
+}
+
+/// Drops the chat job's cached copy of a clan mate, so the next chat line
+/// reads the row from the database. Failures are logged, never fatal.
+pub fn invalidate_clan_mate_cache(redis: &mut Connection, guild_id: u64, player_name: &str) {
+    let key = clan_mate_cache_key(guild_id, player_name);
+    let result: RedisResult<()> = redis.del(&key);
+    if let Err(e) = result {
+        error!("Failed to invalidate clan mate cache {}: {:?}", key, e);
+    }
+}
+
 pub fn get_redis_client() -> Client {
     let redis_url = env::var("REDIS_ADDR").expect("REDIS_ADDR not set!");
     redis::Client::open(redis_url).expect("Could not connect to redis")
@@ -43,4 +80,17 @@ pub async fn write_to_cache<T: Serialize>(
         serde_json::to_string(&data).unwrap(),
         3600,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clan_mate_cache_key_format() {
+        assert_eq!(
+            clan_mate_cache_key(42, "Some Player"),
+            "players:42:Some Player"
+        );
+    }
 }

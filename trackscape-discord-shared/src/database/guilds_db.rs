@@ -393,8 +393,8 @@ impl GuildsDb {
 
     /// One page of clans with their active member counts folded in (a LEFT
     /// JOIN instead of the old per-clan COUNT round-trips). The member-count
-    /// predicate (in WOM, or a non-guest seen in chat in the last 90 days)
-    /// mirrors `ClanMates::get_clan_member_count`.
+    /// predicate (left_at IS NULL and not a Guest) mirrors
+    /// `ClanMates::get_clan_member_count`.
     pub async fn list_clans_paginated(
         &self,
         search: Option<&str>,
@@ -407,7 +407,7 @@ impl GuildsDb {
             SELECT g.id, g.clan_name AS "clan_name!", COUNT(cm.guild_id) AS "registered_members!"
             FROM guilds g
             LEFT JOIN clan_mates cm ON cm.guild_id = g.guild_id
-                AND (cm.in_wom = true OR (cm."rank" IS DISTINCT FROM 'Guest' AND cm.last_seen_in_chat_at > now() - interval '90 days'))
+                AND cm.left_at IS NULL AND cm."rank" IS DISTINCT FROM 'Guest'
             WHERE g.clan_name IS NOT NULL AND g.clan_name <> ''
                 AND ($1::text IS NULL OR g.clan_name ILIKE '%' || $1 || '%')
             GROUP BY g.id, g.clan_name

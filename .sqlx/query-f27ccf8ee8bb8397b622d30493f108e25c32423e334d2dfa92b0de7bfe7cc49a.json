@@ -1,87 +1,54 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT r.id, r.clan_mate_id, r.activity_id, r.guild_id, r.time_in_seconds,\n                   r.created_at, r.updated_at,\n                   c.id as cm_id, c.guild_id as cm_guild_id, c.player_name as cm_player_name,\n                   c.wom_player_id as cm_wom_player_id, c.previous_names as cm_previous_names,\n                   c.\"rank\" as cm_rank, c.created_at as cm_created_at,\n                   c.in_wom as cm_in_wom, c.wom_left_at as cm_wom_left_at,\n                   c.last_seen_in_chat_at as cm_last_seen_in_chat_at\n            FROM personal_best_records r\n            JOIN clan_mates c ON c.id = r.clan_mate_id\n            WHERE r.guild_id = $1 AND r.activity_id = $2\n            ORDER BY r.time_in_seconds ASC, r.updated_at ASC\n            ",
+  "query": "\n            SELECT t.guild_id, t.player_id, t.total, t.created_at,\n                   c.id as cm_id, c.guild_id as cm_guild_id, c.player_name as cm_player_name,\n                   c.wom_player_id as cm_wom_player_id, c.previous_names as cm_previous_names,\n                   c.\"rank\" as cm_rank, c.created_at as cm_created_at,\n                   c.in_wom as cm_in_wom, c.left_at as cm_left_at,\n                   c.last_seen_in_chat_at as cm_last_seen_in_chat_at\n            FROM clan_mate_collection_log_totals t\n            JOIN clan_mates c ON c.id = t.player_id\n            WHERE t.guild_id = $1\n            ORDER BY t.total DESC\n            ",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "id",
-        "type_info": "Uuid",
-        "origin": {
-          "Table": {
-            "table": "personal_best_records",
-            "name": "id"
-          }
-        }
-      },
-      {
-        "ordinal": 1,
-        "name": "clan_mate_id",
-        "type_info": "Uuid",
-        "origin": {
-          "Table": {
-            "table": "personal_best_records",
-            "name": "clan_mate_id"
-          }
-        }
-      },
-      {
-        "ordinal": 2,
-        "name": "activity_id",
-        "type_info": "Uuid",
-        "origin": {
-          "Table": {
-            "table": "personal_best_records",
-            "name": "activity_id"
-          }
-        }
-      },
-      {
-        "ordinal": 3,
         "name": "guild_id",
         "type_info": "Int8",
         "origin": {
           "Table": {
-            "table": "personal_best_records",
+            "table": "clan_mate_collection_log_totals",
             "name": "guild_id"
           }
         }
       },
       {
-        "ordinal": 4,
-        "name": "time_in_seconds",
-        "type_info": "Float8",
+        "ordinal": 1,
+        "name": "player_id",
+        "type_info": "Uuid",
         "origin": {
           "Table": {
-            "table": "personal_best_records",
-            "name": "time_in_seconds"
+            "table": "clan_mate_collection_log_totals",
+            "name": "player_id"
           }
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 2,
+        "name": "total",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "clan_mate_collection_log_totals",
+            "name": "total"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
-            "table": "personal_best_records",
+            "table": "clan_mate_collection_log_totals",
             "name": "created_at"
           }
         }
       },
       {
-        "ordinal": 6,
-        "name": "updated_at",
-        "type_info": "Timestamptz",
-        "origin": {
-          "Table": {
-            "table": "personal_best_records",
-            "name": "updated_at"
-          }
-        }
-      },
-      {
-        "ordinal": 7,
+        "ordinal": 4,
         "name": "cm_id",
         "type_info": "Uuid",
         "origin": {
@@ -92,7 +59,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 5,
         "name": "cm_guild_id",
         "type_info": "Int8",
         "origin": {
@@ -103,7 +70,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 6,
         "name": "cm_player_name",
         "type_info": "Text",
         "origin": {
@@ -114,7 +81,7 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 7,
         "name": "cm_wom_player_id",
         "type_info": "Int8",
         "origin": {
@@ -125,7 +92,7 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 8,
         "name": "cm_previous_names",
         "type_info": "TextArray",
         "origin": {
@@ -136,7 +103,7 @@
         }
       },
       {
-        "ordinal": 12,
+        "ordinal": 9,
         "name": "cm_rank",
         "type_info": "Text",
         "origin": {
@@ -147,7 +114,7 @@
         }
       },
       {
-        "ordinal": 13,
+        "ordinal": 10,
         "name": "cm_created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -158,7 +125,7 @@
         }
       },
       {
-        "ordinal": 14,
+        "ordinal": 11,
         "name": "cm_in_wom",
         "type_info": "Bool",
         "origin": {
@@ -169,18 +136,18 @@
         }
       },
       {
-        "ordinal": 15,
-        "name": "cm_wom_left_at",
+        "ordinal": 12,
+        "name": "cm_left_at",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
             "table": "clan_mates",
-            "name": "wom_left_at"
+            "name": "left_at"
           }
         }
       },
       {
-        "ordinal": 16,
+        "ordinal": 13,
         "name": "cm_last_seen_in_chat_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -193,14 +160,10 @@
     ],
     "parameters": {
       "Left": [
-        "Int8",
-        "Uuid"
+        "Int8"
       ]
     },
     "nullable": [
-      false,
-      false,
-      false,
       false,
       false,
       false,
@@ -217,5 +180,5 @@
       true
     ]
   },
-  "hash": "84911a65dafb99484be19fdba32eb611f62074a1c34d0855bbd3d342e5091fdf"
+  "hash": "f27ccf8ee8bb8397b622d30493f108e25c32423e334d2dfa92b0de7bfe7cc49a"
 }

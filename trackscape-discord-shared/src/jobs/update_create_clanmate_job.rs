@@ -1,5 +1,5 @@
 use crate::database::clan_mates::{ClanMateModel, ClanMates};
-use crate::jobs::job_helpers::{get_db, get_redis_connection, write_to_cache};
+use crate::jobs::job_helpers::{clan_mate_cache_key, get_db, get_redis_connection, write_to_cache};
 use crate::wom::{get_latest_name_change, get_wom_client};
 use celery::prelude::*;
 use chrono::{DateTime, Utc};
@@ -12,8 +12,24 @@ const LAST_SEEN_WRITE_INTERVAL: chrono::Duration = chrono::Duration::hours(1);
 
 /// Guests can talk in the clan channel but are not clan mates, so they get
 /// no row, no rank update and no `last_seen_in_chat_at` touch.
-fn is_guest_rank(rank: &str) -> bool {
+pub fn is_guest_rank(rank: &str) -> bool {
     rank == "Guest"
+}
+
+/// Applies what a non-guest chat line tells us about a player: they are in
+/// the clan (so a `left_at` marker is cleared) and they hold `rank`.
+/// Returns true when the model changed and needs to be written back.
+fn apply_chat_sighting(player: &mut ClanMateModel, rank: &str) -> bool {
+    let mut changed = false;
+    if player.left_at.is_some() {
+        player.left_at = None;
+        changed = true;
+    }
+    if player.rank.as_deref() != Some(rank) {
+        player.rank = Some(rank.to_string());
+        changed = true;
+    }
+    changed
 }
 
 fn last_seen_is_stale(last_seen: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
@@ -41,9 +57,7 @@ pub async fn update_create_clanmate(
             return Ok(0);
         }
     };
-    // Guild scoped so one clan's rank/last-seen state never leaks into another
-    // clan that happens to have a member with the same name.
-    let redis_key = format!("players:{}:{}", guild_id, player_name);
+    let redis_key = clan_mate_cache_key(guild_id, &player_name);
     let now = Utc::now();
     let db = get_db().await;
 
@@ -83,10 +97,9 @@ pub async fn update_create_clanmate(
             player.last_seen_in_chat_at = Some(now);
         }
 
-        if player.rank.as_ref() != Some(&rank) {
-            player.rank = Some(rank.clone());
+        if apply_chat_sighting(&mut player, &rank) {
             if let Err(e) = db.clan_mates.update_clan_mate(player.clone()).await {
-                error!("Failed to update clan mate rank: {:?}", e);
+                error!("Failed to update clan mate from chat: {:?}", e);
                 return Ok(0);
             }
         }
@@ -113,10 +126,9 @@ pub async fn update_create_clanmate(
                 player.last_seen_in_chat_at = Some(now);
             }
 
-            if player.rank.as_ref() != Some(&rank) {
-                player.rank = Some(rank.clone());
+            if apply_chat_sighting(&mut player, &rank) {
                 if let Err(e) = db.clan_mates.update_clan_mate(player.clone()).await {
-                    error!("Failed to update clan mate rank: {:?}", e);
+                    error!("Failed to update clan mate from chat: {:?}", e);
                     return Ok(0);
                 }
             }
@@ -200,9 +212,8 @@ pub async fn update_create_clanmate(
 
             if let Some(mut player) = saved_player {
                 player.last_seen_in_chat_at = Some(now);
-                if player.rank.is_none() {
-                    player.rank = Some(rank.clone());
-                }
+                // This branch always writes, so the "changed" result is not needed.
+                apply_chat_sighting(&mut player, &rank);
                 if let Err(e) = db.clan_mates.update_clan_mate(player.clone()).await {
                     error!("Failed to save clan mate {}: {:?}", player_name, e);
                     return Ok(0);
@@ -232,5 +243,30 @@ mod tests {
         assert!(!is_guest_rank("Owner"));
         assert!(!is_guest_rank("Not Ranked"));
         assert!(!is_guest_rank(""));
+    }
+
+    #[test]
+    fn chat_line_restores_and_reranks() {
+        let mut player = ClanMateModel::new(1, "Back".to_string(), None);
+        player.left_at = Some(Utc::now());
+        player.rank = Some("Sapphire".to_string());
+
+        // Left member with the same rank: restored, needs a write.
+        assert!(apply_chat_sighting(&mut player, "Sapphire"));
+        assert_eq!(player.left_at, None);
+        assert_eq!(player.rank.as_deref(), Some("Sapphire"));
+
+        // Nothing changed: no write.
+        assert!(!apply_chat_sighting(&mut player, "Sapphire"));
+
+        // Rank changed: write.
+        assert!(apply_chat_sighting(&mut player, "Ruby"));
+        assert_eq!(player.rank.as_deref(), Some("Ruby"));
+
+        // Left member who also changed rank: one write covers both.
+        player.left_at = Some(Utc::now());
+        assert!(apply_chat_sighting(&mut player, "Emerald"));
+        assert_eq!(player.left_at, None);
+        assert_eq!(player.rank.as_deref(), Some("Emerald"));
     }
 }
