@@ -10,6 +10,12 @@ use redis::{Commands, RedisResult};
 /// so writing on every message would hammer the database.
 const LAST_SEEN_WRITE_INTERVAL: chrono::Duration = chrono::Duration::hours(1);
 
+/// Guests can talk in the clan channel but are not clan mates, so they get
+/// no row, no rank update and no `last_seen_in_chat_at` touch.
+fn is_guest_rank(rank: &str) -> bool {
+    rank == "Guest"
+}
+
 fn last_seen_is_stale(last_seen: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
     match last_seen {
         None => true,
@@ -25,6 +31,9 @@ pub async fn update_create_clanmate(
     rank: String,
     guild_id: u64,
 ) -> TaskResult<i32> {
+    if is_guest_rank(&rank) {
+        return Ok(0);
+    }
     let mut redis_connection = match get_redis_connection() {
         Ok(redis_connection) => redis_connection,
         Err(e) => {
@@ -210,5 +219,18 @@ pub async fn update_create_clanmate(
             );
             return Ok(0);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn guest_rank_is_not_a_clan_mate() {
+        assert!(is_guest_rank("Guest"));
+        assert!(!is_guest_rank("Owner"));
+        assert!(!is_guest_rank("Not Ranked"));
+        assert!(!is_guest_rank(""));
     }
 }

@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*) as count FROM clan_mates cm\n            WHERE cm.guild_id = $1\n                AND (cm.in_wom = true OR (cm.\"rank\" IS DISTINCT FROM 'Guest' AND cm.last_seen_in_chat_at > now() - interval '90 days'))\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "04301ea86a94d11e0362e72e65f4bff4863883e9b52d3245ae0519d2063d473e"
+}

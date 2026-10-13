@@ -116,9 +116,24 @@ pub trait ClanMates {
         duplicate_id: Uuid,
     ) -> Result<ClanMateModel, anyhow::Error>;
 
+    /// Number of active clan mates: in the WOM group, or a non-guest seen in
+    /// clan chat within the last 90 days. Same predicate as
+    /// [ClanMates::get_active_clan_mates_by_guild_id] and
+    /// `GuildsDb::list_clans_paginated`.
     async fn get_clan_member_count(&self, guild_id: u64) -> Result<u64, Error>;
 
+    /// Every clan mate row for the guild, including soft-removed ones. The
+    /// WOM sync and name-change jobs depend on seeing all rows, so this is
+    /// intentionally unfiltered; use
+    /// [ClanMates::get_active_clan_mates_by_guild_id] for anything user facing.
     async fn get_clan_mates_by_guild_id(&self, guild_id: u64) -> Result<Vec<ClanMateModel>, Error>;
+
+    /// Only the active clan mates, using the same predicate as
+    /// [ClanMates::get_clan_member_count] so a list and its count always agree.
+    async fn get_active_clan_mates_by_guild_id(
+        &self,
+        guild_id: u64,
+    ) -> Result<Vec<ClanMateModel>, Error>;
 
     async fn remove_clan_mate(&self, guild_id: u64, player_name: String) -> Result<(), Error>;
 
@@ -341,7 +356,11 @@ impl ClanMates for ClanMatesDb {
 
     async fn get_clan_member_count(&self, guild_id: u64) -> Result<u64, Error> {
         let count = sqlx::query_scalar!(
-            "SELECT COUNT(*) as count FROM clan_mates WHERE guild_id = $1 AND (in_wom = true OR last_seen_in_chat_at > now() - interval '90 days')",
+            r#"
+            SELECT COUNT(*) as count FROM clan_mates cm
+            WHERE cm.guild_id = $1
+                AND (cm.in_wom = true OR (cm."rank" IS DISTINCT FROM 'Guest' AND cm.last_seen_in_chat_at > now() - interval '90 days'))
+            "#,
             guild_id as i64
         )
         .fetch_one(&self.pool)
@@ -356,6 +375,26 @@ impl ClanMates for ClanMatesDb {
             SELECT id, guild_id, player_name, wom_player_id, previous_names, "rank", created_at, in_wom, wom_left_at, last_seen_in_chat_at
             FROM clan_mates
             WHERE guild_id = $1
+            ORDER BY created_at ASC
+            "#,
+            guild_id as i64
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows.into_iter().map(|row| row.into()).collect())
+    }
+
+    async fn get_active_clan_mates_by_guild_id(
+        &self,
+        guild_id: u64,
+    ) -> Result<Vec<ClanMateModel>, Error> {
+        let rows = sqlx::query_as!(
+            ClanMateRow,
+            r#"
+            SELECT id, guild_id, player_name, wom_player_id, previous_names, "rank", created_at, in_wom, wom_left_at, last_seen_in_chat_at
+            FROM clan_mates cm
+            WHERE cm.guild_id = $1
+                AND (cm.in_wom = true OR (cm."rank" IS DISTINCT FROM 'Guest' AND cm.last_seen_in_chat_at > now() - interval '90 days'))
             ORDER BY created_at ASC
             "#,
             guild_id as i64

@@ -434,7 +434,92 @@ async fn clan_member_count_counts_active_members(pool: PgPool) {
     model.last_seen_in_chat_at = Some(Utc::now() - chrono::Duration::days(91));
     db.clan_mates.update_clan_mate(model).await.unwrap();
 
+    // A guest chatting in the clan channel is not a member: not counted even
+    // though they were seen recently.
+    let guest_chat_player = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "Guest Chat".to_string())
+        .await
+        .unwrap();
+    let mut model = guest_chat_player.clone();
+    model.rank = Some("Guest".to_string());
+    model.in_wom = false;
+    model.last_seen_in_chat_at = Some(Utc::now() - chrono::Duration::days(1));
+    db.clan_mates.update_clan_mate(model).await.unwrap();
+
     assert_eq!(db.clan_mates.get_clan_member_count(123).await.unwrap(), 2);
+
+    // WOM membership is authoritative: a stale Guest rank on a row that is in
+    // the WOM group still counts.
+    let wom_guest_player = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "Wom Guest".to_string())
+        .await
+        .unwrap();
+    let mut model = wom_guest_player.clone();
+    model.rank = Some("Guest".to_string());
+    model.in_wom = true;
+    db.clan_mates.update_clan_mate(model).await.unwrap();
+
+    assert_eq!(db.clan_mates.get_clan_member_count(123).await.unwrap(), 3);
+}
+
+#[sqlx::test]
+async fn active_clan_mates_match_member_count(pool: PgPool) {
+    let db = setup(pool).await;
+    db.guilds.save_new_guild(123).await;
+
+    // (name, rank, in_wom, days since last seen in chat, expected active)
+    let fixture: [(&str, Option<&str>, bool, Option<i64>, bool); 6] = [
+        ("In Wom", Some("Owner"), true, None, true),
+        ("Gone", Some("Sapphire"), false, None, false),
+        ("Recent Chat", None, false, Some(10), true),
+        ("Stale Chat", Some("Ruby"), false, Some(91), false),
+        ("Guest Chat", Some("Guest"), false, Some(1), false),
+        ("Wom Guest", Some("Guest"), true, Some(1), true),
+    ];
+    for (name, rank, in_wom, days_ago, _) in fixture {
+        let mut model = db
+            .clan_mates
+            .find_or_create_clan_mate(123, name.to_string())
+            .await
+            .unwrap();
+        model.rank = rank.map(str::to_string);
+        model.in_wom = in_wom;
+        model.last_seen_in_chat_at = days_ago.map(|d| Utc::now() - chrono::Duration::days(d));
+        db.clan_mates.update_clan_mate(model).await.unwrap();
+    }
+
+    let active = db
+        .clan_mates
+        .get_active_clan_mates_by_guild_id(123)
+        .await
+        .unwrap();
+    let mut active_names: Vec<String> = active.iter().map(|m| m.player_name.clone()).collect();
+    active_names.sort();
+    let mut expected: Vec<String> = fixture
+        .iter()
+        .filter(|(_, _, _, _, active)| *active)
+        .map(|(name, _, _, _, _)| name.replace(' ', "\u{a0}"))
+        .collect();
+    expected.sort();
+    assert_eq!(active_names, expected);
+
+    // The list and the count always agree.
+    assert_eq!(
+        active.len() as u64,
+        db.clan_mates.get_clan_member_count(123).await.unwrap()
+    );
+
+    // The unfiltered list the sync jobs depend on still returns every row.
+    assert_eq!(
+        db.clan_mates
+            .get_clan_mates_by_guild_id(123)
+            .await
+            .unwrap()
+            .len(),
+        fixture.len()
+    );
 }
 
 #[sqlx::test]
@@ -469,6 +554,16 @@ async fn list_clans_paginated_pages_searches_and_counts_members(pool: PgPool) {
     model.in_wom = false;
     model.last_seen_in_chat_at = Some(Utc::now() - chrono::Duration::days(91));
     db.clan_mates.update_clan_mate(model).await.unwrap();
+    let guest_player = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "Guest Chat".to_string())
+        .await
+        .unwrap();
+    let mut model = guest_player.clone();
+    model.rank = Some("Guest".to_string());
+    model.in_wom = false;
+    model.last_seen_in_chat_at = Some(Utc::now() - chrono::Duration::days(1));
+    db.clan_mates.update_clan_mate(model).await.unwrap();
 
     // Pages are ordered by clan name and respect the limit/offset.
     let first_page = db.guilds.list_clans_paginated(None, 2, 0).await.unwrap();
@@ -481,7 +576,7 @@ async fn list_clans_paginated_pages_searches_and_counts_members(pool: PgPool) {
     // The total matches across pages.
     assert_eq!(db.guilds.count_clans(None).await.unwrap(), 3);
 
-    // The JOIN only counts active members (in WOM or seen in chat recently).
+    // The JOIN only counts active members (in WOM or a non-guest seen in chat recently).
     assert_eq!(first_page[0].clan_name, "Alpha");
     assert_eq!(first_page[0].registered_members, 1);
     assert_eq!(first_page[1].registered_members, 0);
