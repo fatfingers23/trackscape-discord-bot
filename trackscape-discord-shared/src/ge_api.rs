@@ -82,6 +82,9 @@ pub mod ge_api {
         pub name: String,
         pub examine: String,
         pub id: i64,
+        // The wiki omits `value` entirely for placeholder/unreleased items, so
+        // default it rather than failing the whole mapping (see ge_api tests).
+        #[serde(default)]
         pub value: i64,
         pub icon: String,
         pub lowalch: Option<i64>,
@@ -95,5 +98,46 @@ pub mod ge_api {
         pub high_time: i64,
         pub low: i64,
         pub low_time: i64,
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        // The wiki's osrs/mapping response omits `value` for placeholder/unreleased
+        // items. That used to fail deserialization of the entire mapping, so
+        // `ge_mapping` was never written to redis and every request re-fetched.
+        #[test]
+        fn test_mapping_deserializes_when_item_value_is_missing() {
+            let payload = r#"[
+                {
+                    "name": "Dummy stymphike feather",
+                    "examine": "placeholder",
+                    "id": 33644,
+                    "members": false,
+                    "icon": "Dummy stymphike feather.png"
+                },
+                {
+                    "examine": "Fabulously ancient mage protection enchanted in the 3rd Age.",
+                    "id": 10344,
+                    "members": true,
+                    "lowalch": 20200,
+                    "limit": 8,
+                    "value": 50500,
+                    "highalch": 30300,
+                    "icon": "3rd Age amulet.png",
+                    "name": "3rd Age amulet"
+                }
+            ]"#;
+
+            let mapping: GeItemMapping = serde_json::from_str(payload).unwrap();
+
+            assert_eq!(mapping.len(), 2);
+            assert_eq!(mapping[0].id, 33644);
+            assert_eq!(mapping[0].value, 0);
+            assert_eq!(mapping[0].highalch, None);
+            assert_eq!(mapping[1].id, 10344);
+            assert_eq!(mapping[1].value, 50500);
+        }
     }
 }
