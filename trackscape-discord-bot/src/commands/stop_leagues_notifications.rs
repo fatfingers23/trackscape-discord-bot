@@ -1,33 +1,26 @@
-use serenity::all::{CommandDataOption, CreateCommand};
-use serenity::client::Context;
-use trackscape_discord_shared::database::BotDb;
+use crate::commands::guild_id;
+use crate::{Context, Error};
 
-pub fn register() -> CreateCommand {
-    CreateCommand::new("stop_leagues_notifications")
-        .description("Stops leagues notifications, can reenable by setting the channel again.")
-}
-
-pub async fn run(
-    _options: &[CommandDataOption],
-    _ctx: &Context,
-    db: &BotDb,
-    guild_id: u64,
-) -> Option<String> {
+/// Stops leagues notifications, can reenable by setting the channel again.
+#[poise::command(slash_command, guild_only, ephemeral)]
+pub async fn stop_leagues_notifications(ctx: Context<'_>) -> Result<(), Error> {
+    let guild_id = guild_id(ctx)?;
+    let db = &ctx.data().db;
     let saved_guild_query = db.guilds.get_by_guild_id(guild_id).await;
 
-    return match saved_guild_query {
+    let reply = match saved_guild_query {
         Ok(possible_guild) => match possible_guild {
             Some(mut saved_guild) => {
                 saved_guild.leagues_broadcast_channel = None;
                 db.guilds.update_guild(saved_guild).await;
-                Some("You have stopped receiving leagues notifications. You can reenable by setting the channel again.".to_string())
+                "You have stopped receiving leagues notifications. You can reenable by setting the channel again."
             }
             None => {
-                Some("Error finding your server as registered. Try kicking and re adding the bot please.".to_string())
+                "Error finding your server as registered. Try kicking and re adding the bot please."
             }
         },
-        Err(_) => {
-            Some("There was a technical error. Please try again later.".to_string())
-        }
+        Err(_) => "There was a technical error. Please try again later.",
     };
+    ctx.say(reply).await?;
+    Ok(())
 }

@@ -9,15 +9,8 @@ rust-version.workspace = true
 [dependencies]
 anyhow = "1.0.66"
 dotenv = "0.15.0"
+poise = "0.7.1"
 xxhash-rust = { version = "0.8.6", features = ["xxh3", "const_xxh3"] }
-serenity = { version = "0.12.0", default-features = false, features = [
-    "client",
-    "gateway",
-    "rustls_backend",
-    "model",
-    "cache",
-    "collector",
-] }
 serde = { version = "1.0.188", features = ["derive"] }
 serde_json = "1.0.105"
 tokio = { version = "1.26.0", features = ["macros", "rt-multi-thread"] }
@@ -30,4 +23,3 @@ num-format = "0.4.4"
 reqwest = { version = "0.11.20", features = ["json"] }
 trackscape-discord-shared = { path = "../trackscape-discord-shared" }
 log = "0.4.20"
-async-trait = "0.1.77"

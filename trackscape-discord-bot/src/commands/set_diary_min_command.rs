@@ -1,58 +1,32 @@
-use crate::database::BotDb;
-use serenity::all::{
-    CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommandOption,
-};
-use serenity::builder::CreateCommand;
-use serenity::client::Context;
-use serenity::model::prelude::Permissions;
+use crate::commands::choices::DiaryTierChoice;
+use crate::commands::guild_id;
+use crate::{Context, Error};
 use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
-use trackscape_discord_shared::osrs_broadcast_extractor::osrs_broadcast_extractor::DiaryTier;
 
-pub fn register() -> CreateCommand {
-    CreateCommand::new("diaries")
-        .description("Sets min diary tier to trigger a broadcast. Anything below will not send")
-        .default_member_permissions(Permissions::MANAGE_GUILD)
-        .add_option(
-            CreateCommandOption::new(
-                CommandOptionType::String,
-                "tier",
-                "Min diary tier difficulty to send a broadcast.",
-            )
-            .add_string_choice(DiaryTier::Easy.to_string(), DiaryTier::Easy.to_string())
-            .add_string_choice(DiaryTier::Medium.to_string(), DiaryTier::Medium.to_string())
-            .add_string_choice(DiaryTier::Hard.to_string(), DiaryTier::Hard.to_string())
-            .add_string_choice(DiaryTier::Elite.to_string(), DiaryTier::Elite.to_string())
-            .required(true),
-        )
-}
+/// Sets min diary tier to trigger a broadcast. Anything below will not send
+#[poise::command(
+    slash_command,
+    guild_only,
+    ephemeral,
+    default_member_permissions = "MANAGE_GUILD",
+    rename = "diaries"
+)]
+pub async fn set_diary_min_command(
+    ctx: Context<'_>,
+    #[description = "Min diary tier difficulty to send a broadcast."] tier: DiaryTierChoice,
+) -> Result<(), Error> {
+    let guild_id = guild_id(ctx)?;
+    let db = &ctx.data().db;
 
-pub async fn run(
-    command: &Vec<CommandDataOption>,
-    _ctx: &Context,
-    db: &BotDb,
-    guild_id: u64,
-) -> Option<String> {
-    let saved_guild_query = db.guilds.get_by_guild_id(guild_id).await;
-    match saved_guild_query {
+    let reply = match db.guilds.get_by_guild_id(guild_id).await {
         Ok(saved_guild) => {
             let mut saved_guild = saved_guild.unwrap_or(RegisteredGuildModel::new(guild_id));
-            let possible_diary_tier = command.get(0).expect("Expected diary tier option");
-
-            return if let CommandDataOptionValue::String(diary_tier) =
-                possible_diary_tier.clone().value
-            {
-                saved_guild.min_diary_tier =
-                    Some(DiaryTier::from_string(diary_tier.clone().to_string()));
-                db.guilds.update_guild(saved_guild).await;
-                Some("Successfully updated min diary to broadcast.".to_string())
-            } else {
-                Some("Invalid option.".to_string())
-            };
+            saved_guild.min_diary_tier = Some(tier.into());
+            db.guilds.update_guild(saved_guild).await;
+            "Successfully updated min diary to broadcast."
         }
-        Err(_) => {
-            return Some(
-                "No saved guild was found. Please try adding and removing the bot".to_string(),
-            );
-        }
-    }
+        Err(_) => "No saved guild was found. Please try adding and removing the bot",
+    };
+    ctx.say(reply).await?;
+    Ok(())
 }

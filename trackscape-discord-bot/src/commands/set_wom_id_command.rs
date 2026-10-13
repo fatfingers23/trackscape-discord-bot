@@ -1,62 +1,46 @@
-use crate::database::BotDb;
-use serenity::all::{
-    CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommandOption,
-};
-use serenity::builder::CreateCommand;
-use serenity::client::Context;
-use serenity::model::prelude::Permissions;
+use crate::commands::guild_id;
+use crate::{Context, Error};
 use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
 
-pub fn register() -> CreateCommand {
-    CreateCommand::new("wom")
-        .description("Connects Trackscape to your Wise Old Man group.")
-        .default_member_permissions(Permissions::MANAGE_GUILD)
-        .add_option(
-            CreateCommandOption::new(
-                CommandOptionType::Integer,
-                "group_id",
-                "Your Wise Old Man group id. Found on the side bar of your group page.",
-            )
-            .required(true),
-        )
-}
+/// Connects Trackscape to your Wise Old Man group.
+#[poise::command(
+    slash_command,
+    guild_only,
+    ephemeral,
+    default_member_permissions = "MANAGE_GUILD",
+    rename = "wom"
+)]
+pub async fn set_wom_id_command(
+    ctx: Context<'_>,
+    #[description = "Your Wise Old Man group id. Found on the side bar of your group page."]
+    group_id: i64,
+) -> Result<(), Error> {
+    // Wise Old Man is called inline and can outlast Discord's three second reply window
+    ctx.defer_ephemeral().await?;
+    let guild_id = guild_id(ctx)?;
+    let db = &ctx.data().db;
 
-pub async fn run(
-    command: &Vec<CommandDataOption>,
-    _ctx: &Context,
-    db: &BotDb,
-    guild_id: u64,
-) -> Option<String> {
-    let saved_guild_query = db.guilds.get_by_guild_id(guild_id).await;
-    match saved_guild_query {
+    let reply = match db.guilds.get_by_guild_id(guild_id).await {
         Ok(saved_guild) => {
             let mut saved_guild = saved_guild.unwrap_or(RegisteredGuildModel::new(guild_id));
-            let wom_id_command_option = command.get(0).expect("Expected a command option");
-
-            return if let CommandDataOptionValue::Integer(wom_id) = wom_id_command_option.value {
-                let wom_client = trackscape_discord_shared::wom::get_wom_client();
-                match wom_client.group_client.get_group_details(wom_id).await {
-                    Ok(details) => {
-                        saved_guild.wom_id = Some(wom_id);
-                        db.guilds.update_guild(saved_guild).await;
-                        Some(format!(
-                            "Connected to the Wise Old Man group \"{}\" ({} members).",
-                            details.name, details.member_count
-                        ))
-                    }
-                    Err(_) => Some(format!(
-                        "Couldn't find a Wise Old Man group with the id {}. Double-check the group id on your group's page at wiseoldman.net.",
-                        wom_id
-                    )),
+            let wom_client = trackscape_discord_shared::wom::get_wom_client();
+            match wom_client.group_client.get_group_details(group_id).await {
+                Ok(details) => {
+                    saved_guild.wom_id = Some(group_id);
+                    db.guilds.update_guild(saved_guild).await;
+                    format!(
+                        "Connected to the Wise Old Man group \"{}\" ({} members).",
+                        details.name, details.member_count
+                    )
                 }
-            } else {
-                Some("Invalid Wise Old Man Id.".to_string())
-            };
+                Err(_) => format!(
+                    "Couldn't find a Wise Old Man group with the id {}. Double-check the group id on your group's page at wiseoldman.net.",
+                    group_id
+                ),
+            }
         }
-        Err(_) => {
-            return Some(
-                "No saved guild was found. Please try adding and removing the bot".to_string(),
-            );
-        }
-    }
+        Err(_) => "No saved guild was found. Please try adding and removing the bot".to_string(),
+    };
+    ctx.say(reply).await?;
+    Ok(())
 }

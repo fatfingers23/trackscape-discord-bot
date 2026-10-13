@@ -1,62 +1,36 @@
-use crate::database::BotDb;
-use serenity::all::{
-    CommandDataOption, CommandDataOptionValue, CommandOptionType, CreateCommandOption,
-};
-use serenity::builder::CreateCommand;
-use serenity::client::Context;
-use serenity::model::prelude::Permissions;
+use crate::commands::guild_id;
+use crate::{Context, Error};
 use trackscape_discord_shared::database::guilds_db::RegisteredGuildModel;
 
-pub fn register() -> CreateCommand {
-    CreateCommand::new("set_clog_max_percentage")
-        .description(
-            "Set the max completion percentage for allowed broadcasts (see wiki collection log table)",
-        )
-        .default_member_permissions(Permissions::MANAGE_GUILD)
-        .add_option(
-            CreateCommandOption::new(
-                CommandOptionType::String,
-                "percentage",
-                "Collection log max completion %, max 100",
-            )
-            .required(true),
-        )
-}
+/// Set the max completion percentage for allowed broadcasts (see wiki collection log table)
+#[poise::command(
+    slash_command,
+    guild_only,
+    ephemeral,
+    default_member_permissions = "MANAGE_GUILD"
+)]
+pub async fn set_clog_max_percentage(
+    ctx: Context<'_>,
+    #[description = "Collection log max completion %, max 100"] percentage: String,
+) -> Result<(), Error> {
+    let guild_id = guild_id(ctx)?;
+    let db = &ctx.data().db;
 
-pub async fn run(
-    command: &Vec<CommandDataOption>,
-    _ctx: &Context,
-    db: &BotDb,
-    guild_id: u64,
-) -> Option<String> {
-    let saved_guild_query = db.guilds.get_by_guild_id(guild_id).await;
-    match saved_guild_query {
+    let reply = match db.guilds.get_by_guild_id(guild_id).await {
         Ok(saved_guild) => {
             let mut saved_guild = saved_guild.unwrap_or(RegisteredGuildModel::new(guild_id));
-            let possible_percentage = command.get(0).expect("Expected percentage option");
-
-            return if let CommandDataOptionValue::String(percentage) =
-                possible_percentage.clone().value
-            {
-                saved_guild.collection_log_max_percentage = match percentage.parse::<f64>() {
-                    Ok(value) if value <= 100.0 && value >= 0.0 => Some(value),
-                    Ok(_) => return Some("Percentage must be between 0 and 100.".to_string()),
-                    Err(_) => {
-                        return Some(
-                            "Invalid percentage value. Please provide a valid number.".to_string(),
-                        );
-                    }
-                };
-                db.guilds.update_guild(saved_guild).await;
-                Some("Successfully updated the Collection Log max percentage.".to_string())
-            } else {
-                Some("Invalid threshold.".to_string())
-            };
+            match percentage.parse::<f64>() {
+                Ok(value) if (0.0..=100.0).contains(&value) => {
+                    saved_guild.collection_log_max_percentage = Some(value);
+                    db.guilds.update_guild(saved_guild).await;
+                    "Successfully updated the Collection Log max percentage."
+                }
+                Ok(_) => "Percentage must be between 0 and 100.",
+                Err(_) => "Invalid percentage value. Please provide a valid number.",
+            }
         }
-        Err(_) => {
-            return Some(
-                "No saved guild was found. Please try adding and removing the bot".to_string(),
-            );
-        }
-    }
+        Err(_) => "No saved guild was found. Please try adding and removing the bot",
+    };
+    ctx.say(reply).await?;
+    Ok(())
 }

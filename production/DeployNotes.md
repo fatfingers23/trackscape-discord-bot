@@ -7,7 +7,7 @@
 
  # Repo Names with tags
  - fatfingers23/trackscape-api:latest (actix-web API + serves the dashboard UI)
- - fatfingers23/trackscape-bot:latest (serenity Discord gateway bot)
+ - fatfingers23/trackscape-bot:latest (poise-based Discord gateway bot, built on serenity)
  - fatfingers23/trackscape-worker:latest (Job worker )
  - fatfingers23/trackscape-cron-worker:latest (Binary to fire off jobs on cron schedule)
 
