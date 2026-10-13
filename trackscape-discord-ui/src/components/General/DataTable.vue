@@ -9,6 +9,9 @@
 
   const props = defineProps({
     data: {
+      // The table is intentionally generic: rows come from several API shapes
+      // (some with nested objects addressed via dotted `searchField`s).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       type: Array as PropType<any[]>,
       required: true
     },
@@ -38,11 +41,11 @@
     }
   });
 
-  let searchedTerm = ref<string>("");
-  let leaderBoardTitle = ref<string>(props.title);
+  const searchedTerm = ref<string>("");
+  const leaderBoardTitle = ref<string>(props.title);
 
 
-  let filteredData = computed(() => {
+  const filteredData = computed(() => {
     return props.data.filter((item) => {
       if (props.searchField === "") {
         return true;
@@ -62,6 +65,8 @@
     });
   });
 
+  // Rows may be arbitrarily nested, so the value cannot be typed more precisely here.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getMultiLevelValue = (obj: any, key: string) => {
     const keys = key.split('.');
     let value = obj;
@@ -86,7 +91,7 @@
           v-model="searchedTerm"
           type="text"
           placeholder="Search"
-          class="input input-bordered w-full md:max-w-md max-w-full mb-3 mt-2" />
+          class="input w-full md:max-w-md max-w-full mb-3 mt-2" />
       </div>
     </div>
     <table class="table">
@@ -103,7 +108,7 @@
         </tr>
 
         <tr v-for="(item, index) in filteredData"
-            class="hover"
+            class="hover:bg-base-300"
             :key="index">
           <th v-for="(column, index) in props.columns"
               :key="index">

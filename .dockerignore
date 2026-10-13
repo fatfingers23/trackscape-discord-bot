@@ -2,3 +2,5 @@ target
 **/target
 **/.idea
 .idea
+**/node_modules
+**/dist

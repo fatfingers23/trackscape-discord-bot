@@ -27,8 +27,8 @@ const callEndpoint = (id: string) => client.getCollectionLogLeaderboard(id).then
 });
 
 
-let clan = ref<ClanDetail>();
-let collectionLogLeaderboard = ref<ClanMateCollectionLogTotalsView[]>();
+const clan = ref<ClanDetail>();
+const collectionLogLeaderboard = ref<ClanMateCollectionLogTotalsView[]>();
 
 if (props.clanDetail) {
   clan.value = props.clanDetail;

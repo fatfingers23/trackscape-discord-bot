@@ -8,8 +8,8 @@ import { useRoute } from 'vue-router';
 const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 const store = usePbStore();
 
-let activities = ref<PbActivity[]>();
-let props = defineProps({
+const activities = ref<PbActivity[]>();
+const props = defineProps({
   clanId: {
     type: String,
     required: true
@@ -25,7 +25,7 @@ client.getTrackScapePbActivities().then(async (activitiesFromApi) => {
   //   }
   // }) as SelectItem[];
   activities.value = activitiesFromApi;
-  let activityId = route.params.activityId !== '' ? route.params.activityId :  activities.value[0]._id;
+  const activityId = route.params.activityId !== '' ? route.params.activityId :  activities.value[0]._id;
   let activity = activities.value.find((activity) => activity._id === activityId);
   if(activity === undefined){
     activity = activities.value[0];

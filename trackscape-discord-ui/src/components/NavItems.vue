@@ -11,7 +11,7 @@ const route = useRoute();
     <router-link
       @click="$emit('click')"
       :to="{name: 'clan-list'}"
-      :class="{'active': route.name === 'clan-list'}">Clans</router-link>
+      :class="{'menu-active': route.name === 'clan-list'}">Clans</router-link>
   </li>
   <li>
     <ThemePicker/>

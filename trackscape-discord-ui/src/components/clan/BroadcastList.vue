@@ -4,9 +4,9 @@ import { ref } from 'vue';
 import type { Broadcast } from '@/services/TrackscapeApiTypes';
 import TrackscapeApiClient from '@/services/TrackscapeApiClient';
 
-let broadcasts = ref<Broadcast[]>();
-let loading = ref(true);
-let props = defineProps({
+const broadcasts = ref<Broadcast[]>();
+const loading = ref(true);
+const props = defineProps({
   clanId: {
     type: String,
     required: true
@@ -24,7 +24,7 @@ let props = defineProps({
 });
 
 
-let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
+const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 
 client.getBroadcasts(props.clanId, props.limit).then((broadcastsResult) => {
   broadcastsResult.forEach((broadcast) => {

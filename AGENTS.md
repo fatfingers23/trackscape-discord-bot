@@ -26,7 +26,7 @@ broadcasts are parsed into jobs that post to Discord. State lives in PostgreSQL 
 
 ## Dev commands
 
-Prereqs: Rust stable, Docker, Node 20.
+Prereqs: Rust stable, Docker, Node 24 + pnpm 12 (for the dashboard).
 
     docker compose up -d        # postgres :5432 + redis :6379 — must be running
     cp .env.save .env           # fill in DISCORD_TOKEN, DEV_GUILD_ID (numeric), ...
@@ -50,9 +50,10 @@ Prereqs: Rust stable, Docker, Node 20.
 - Nearly all tests are in shared: `cargo test -p trackscape-discord-shared`;
   single test e.g. `cargo test -p trackscape-discord-shared test_pet_extractor`.
   New broadcast types should get extractor test vectors like the existing ones.
-- UI (in `trackscape-discord-ui/`, use npm — CI does; `bun.lockb` is
-  gitignored): `npm run lint`, `npm run build` (includes type-check),
-  `npm run dev`, `npm run test:unit`.
+- UI (in `trackscape-discord-ui/`, use pnpm — CI does; Node 24 + pnpm 12, pinned
+  by the `packageManager` field): `pnpm run lint`, `pnpm run build` (includes
+  type-check), `pnpm run dev`, `pnpm run test:unit` (there are currently no test
+  files, so Vitest exits non-zero — CI does not run it).
 
 ## Gotchas
 

@@ -37,6 +37,16 @@ pub struct RegisteredGuildModel {
     pub collection_log_max_percentage: Option<f64>,
 }
 
+/// A clan as it appears in the public clans list: just the fields the
+/// dashboard renders, plus the active member count from the JOIN in
+/// [GuildsDb::list_clans_paginated].
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ClanListEntry {
+    pub id: Uuid,
+    pub clan_name: String,
+    pub registered_members: i64,
+}
+
 impl RegisteredGuildModel {
     pub const COLLECTION_NAME: &'static str = "guilds";
     pub fn new(guild_id: u64) -> Self {
@@ -363,6 +373,53 @@ impl GuildsDb {
         if let Err(e) = result {
             error!("Failed to delete document for the Discord guild: {:?}", e);
         }
+    }
+
+    /// Total number of clans, optionally narrowed by a case-insensitive name
+    /// search. Matches the filter used by [GuildsDb::list_clans_paginated].
+    pub async fn count_clans(&self, search: Option<&str>) -> Result<i64, anyhow::Error> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) as count FROM guilds
+            WHERE clan_name IS NOT NULL AND clan_name <> ''
+                AND ($1::text IS NULL OR clan_name ILIKE '%' || $1 || '%')
+            "#,
+            search
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(count.unwrap_or(0))
+    }
+
+    /// One page of clans with their active member counts folded in (a LEFT
+    /// JOIN instead of the old per-clan COUNT round-trips). The member-count
+    /// predicate mirrors `ClanMates::get_clan_member_count`.
+    pub async fn list_clans_paginated(
+        &self,
+        search: Option<&str>,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<ClanListEntry>, anyhow::Error> {
+        let rows = sqlx::query_as!(
+            ClanListEntry,
+            r#"
+            SELECT g.id, g.clan_name AS "clan_name!", COUNT(cm.guild_id) AS "registered_members!"
+            FROM guilds g
+            LEFT JOIN clan_mates cm ON cm.guild_id = g.guild_id
+                AND (cm.in_wom = true OR cm.last_seen_in_chat_at > now() - interval '90 days')
+            WHERE g.clan_name IS NOT NULL AND g.clan_name <> ''
+                AND ($1::text IS NULL OR g.clan_name ILIKE '%' || $1 || '%')
+            GROUP BY g.id, g.clan_name
+            ORDER BY g.clan_name ASC
+            LIMIT $2 OFFSET $3
+            "#,
+            search,
+            limit,
+            offset
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
     }
 
     pub async fn list_clans(&self) -> Result<Vec<RegisteredGuildModel>, anyhow::Error> {

@@ -15,7 +15,7 @@ const props = defineProps({
 });
 
 
-let clanId = ref<string>();
+const clanId = ref<string>();
 const route = useRoute();
 
 if (props.clanDetail) {
@@ -50,7 +50,7 @@ const leaderBoardMenus = [
                                                        stroke-width="2"
                                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
     <div>
-      <h3 class="text-sm text-bold">Personal Best Leaderboards are still a work in progress.</h3>
+      <h3 class="text-sm font-bold">Personal Best Leaderboards are still a work in progress.</h3>
       <a class="underline text-sm"
          href="https://github.com/fatfingers23/trackscape-discord-bot/issues/29">View or add bugs for PBs</a>
 
@@ -60,7 +60,7 @@ const leaderBoardMenus = [
   <div class="pt-1 justify-between items-center flex md:flex-row flex-col">
     <div
       role="tablist"
-      class="tabs tabs-boxed md:w-1/2 w-full">
+      class="tabs tabs-box md:w-1/2 w-full">
       <router-link v-for="(menu, index) in leaderBoardMenus"
                    :key="index"
                    :to="{name: menu.routeName, params: {clanId: clanId}}"

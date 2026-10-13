@@ -14,7 +14,7 @@ type ClanMate = {
   id: string,
   guild_id: string,
   player_name: string,
-  wom_player_id: Number,
+  wom_player_id: number,
   previous_names: string[],
   rank: string | null,
   created_at: string,
@@ -63,8 +63,14 @@ type PbRecord = {
   clan_mate: ClanMate|null,
 }
 
+type ClansPage = {
+  clans: Clan[],
+  total: number,
+}
+
 export type {
   BotInfo,
+  ClansPage,
   Clan,
   ClanDetail,
   ClanMate,

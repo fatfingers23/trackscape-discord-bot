@@ -1,8 +1,10 @@
-FROM node:lts-alpine3.18 AS frontend
+FROM node:24-alpine AS frontend
 WORKDIR /frontend-app
 COPY ./trackscape-discord-ui /frontend-app
-RUN npm install
-RUN npm run build
+# Use the pnpm version pinned by the UI's packageManager field so the image
+# builds the exact dependency tree recorded in pnpm-lock.yaml.
+RUN corepack enable && pnpm install --frozen-lockfile
+RUN pnpm run build
 
 FROM rust:1.99-bookworm AS api-builder
 ENV SQLX_OFFLINE=true

@@ -17,7 +17,7 @@ type DiscordWidgetResponse = {
   presence_count: number
 }
 
-let discordWidget = ref<DiscordWidgetResponse>();
+const discordWidget = ref<DiscordWidgetResponse>();
 
 fetch(`https://discord.com/api/guilds/${props.discord_id}/widget.json`)
   .then((response) => {
@@ -38,7 +38,7 @@ fetch(`https://discord.com/api/guilds/${props.discord_id}/widget.json`)
   <Transition name="slide-fade">
     <div
       v-if="discordWidget !== undefined"
-      class="cursor-default select-none space-y-2 rounded-sm bg-[#f2f3f5] p-4 dark:bg-[#2b2d31] shadow-xl">
+      class="cursor-default select-none space-y-2 rounded-xs bg-[#f2f3f5] p-4 dark:bg-[#2b2d31] shadow-xl">
       <p class="text-xs font-semibold uppercase text-[#4e5058] dark:text-[#b5bac1]">You've been invited to join a server</p>
       <div class="flex items-center justify-between gap-16">
         <div class="flex items-center gap-4">
@@ -75,7 +75,7 @@ fetch(`https://discord.com/api/guilds/${props.discord_id}/widget.json`)
         </div>
         <a target="_blank"
            rel="noopener noreferrer"
-           :href="discordWidget.instant_invite"><button class="focus-visible:ring-ring ring-offset-background inline-flex h-10 items-center justify-center rounded-md bg-[#248046] px-4 py-2 text-sm font-medium text-[#e9ffec] transition-colors hover:bg-[#1a6334] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50">Join</button></a>
+           :href="discordWidget.instant_invite"><button class="inline-flex h-10 items-center justify-center rounded-md bg-[#248046] px-4 py-2 text-sm font-medium text-[#e9ffec] transition-colors hover:bg-[#1a6334] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50">Join</button></a>
       </div>
     </div>
   </Transition>

@@ -3,10 +3,10 @@
 import {ref} from "vue";
 import TrackscapeApiClient from "@/services/TrackscapeApiClient";
 import type {BotInfo} from "@/services/TrackscapeApiTypes";
-let client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
+const client = new TrackscapeApiClient(import.meta.env.VITE_API_BASE_URL);
 
 
-let botInfo = ref<BotInfo>();
+const botInfo = ref<BotInfo>();
 
 
 client.getBotInfo().then((info) => {
@@ -38,23 +38,23 @@ client.getBotInfo().then((info) => {
       </p>
 
       <div class="flex flex-col space-y-2.5 justify-center">
-        <div class="">
+        <div class="flex flex-wrap items-center justify-center gap-2">
           <a
             href="https://discord.com/api/oauth2/authorize?client_id=864626697327869952&permissions=2147568704&scope=bot"
             target="_blank"
-            class="btn btn-primary btn-outline mr-2"
+            class="btn btn-primary btn-outline"
           >Invite to Discord <img
-            class="w-7 h-8 ml-2"
+            class="w-7 h-7 ml-2 object-contain"
             src="@/assets/img/icon_clyde_blurple_RGB.svg"
             alt="Discord Logo"
           > </a>
 
           <router-link
             to="/clans"
-            class="btn btn-primary btn-outline ml-2"
+            class="btn btn-primary btn-outline"
           >View Clans
             <img
-
+              class="w-7 h-7 ml-2 object-contain"
               src="https://oldschool.runescape.wiki/images/Your_Clan_icon.png"
               alt="In game cc icon"
             >
@@ -62,7 +62,7 @@ client.getBotInfo().then((info) => {
 
           <a
             href="https://www.patreon.com/TrackScape"
-            class="btn btn-primary btn-outline ml-2 md:pt-0 mt-2"
+            class="btn btn-primary btn-outline"
           >
             Support TrackScape on Patreon
           </a>
@@ -79,7 +79,7 @@ client.getBotInfo().then((info) => {
 
 
       <div class="mt-4 ">
-        <div class="stats stats-vertical md:stats-horizontal">
+        <div class="stats stats-vertical md:stats-horizontal bg-base-100">
           <div class="stat">
             <div class="stat-title">
               Servers Joined
@@ -116,7 +116,7 @@ client.getBotInfo().then((info) => {
       </h2>
 
       <div class="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-8">
-        <div class="card bordered glass">
+        <div class="card card-border glass">
           <figure>
             <img
               src="@/assets/img/chat_from_cc.png"
@@ -131,7 +131,7 @@ client.getBotInfo().then((info) => {
           </div>
         </div>
 
-        <div class="card bordered glass">
+        <div class="card card-border glass">
           <figure>
             <img
               src="@/assets/img/discord_to_chat.png"
@@ -146,7 +146,7 @@ client.getBotInfo().then((info) => {
           </div>
         </div>
 
-        <div class="card bordered glass">
+        <div class="card card-border glass">
           <figure>
             <img
               src="@/assets/img/raid_drop_broadcast.png"
@@ -161,7 +161,7 @@ client.getBotInfo().then((info) => {
           </div>
         </div>
 
-        <div class="card bordered glass">
+        <div class="card card-border glass">
           <figure>
             <img
               src="@/assets/img/GitHub_Logo_White.png"
