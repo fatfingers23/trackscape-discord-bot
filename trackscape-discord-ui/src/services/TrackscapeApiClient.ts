@@ -1,9 +1,6 @@
 import type {
-    BotInfo,
-    Broadcast,
-    Clan,
-    ClanDetail,
-    ClanMateCollectionLogTotalsView, PbActivity, PbRecord
+    BotInfo, Broadcast, ClansPage,
+    ClanDetail, ClanMateCollectionLogTotalsView, PbActivity, PbRecord
 } from '@/services/TrackscapeApiTypes';
 
 export default class TrackscapeApiClient {
@@ -23,8 +20,14 @@ export default class TrackscapeApiClient {
         return this.get<BotInfo>("/info/landing-page-info");
     }
 
-    public async getClans(): Promise<Clan[]> {
-        return this.get<Clan[]>("/clans/list");
+    public async getClans(limit: number, offset: number, search?: string): Promise<ClansPage> {
+        const params = new URLSearchParams();
+        params.set("limit", limit.toString());
+        params.set("offset", offset.toString());
+        if (search) {
+            params.set("search", search);
+        }
+        return this.get<ClansPage>(`/clans/list?${params.toString()}`);
     }
 
     public async getClanDetail(clanId: string): Promise<ClanDetail> {

@@ -23,31 +23,58 @@ struct ClanDetail {
     members: Vec<ClanMateModel>,
 }
 
+#[derive(Deserialize)]
+struct ListClansQuery {
+    search: Option<String>,
+    limit: Option<i64>,
+    offset: Option<i64>,
+}
+
+#[derive(Serialize)]
+struct ListClansResponse {
+    clans: Vec<ClanViewModel>,
+    total: i64,
+}
+
 #[get("/list")]
-async fn list_clans(mongodb: Data<BotDb>) -> Result<HttpResponse, Error> {
-    let result = mongodb.guilds.list_clans().await;
+async fn list_clans(
+    db: Data<BotDb>,
+    query: web::Query<ListClansQuery>,
+) -> Result<HttpResponse, Error> {
+    let search = query
+        .search
+        .as_deref()
+        .map(str::trim)
+        .filter(|search| !search.is_empty());
+    let limit = query.limit.unwrap_or(50).clamp(1, 100);
+    let offset = query.offset.unwrap_or(0).max(0);
 
-    match result {
-        Ok(clans) => {
-            let mut view_models: Vec<ClanViewModel> = Vec::new();
-            for clan in clans {
-                if clan.clan_name.is_none() {
-                    continue;
-                }
-                view_models.push(ClanViewModel {
+    let clans = db.guilds.list_clans_paginated(search, limit, offset).await;
+    let total = db.guilds.count_clans(search).await;
+
+    match (clans, total) {
+        (Ok(clans), Ok(total)) => {
+            let view_models = clans
+                .into_iter()
+                .map(|clan| ClanViewModel {
                     id: clan.id.to_string(),
-                    name: clan.clan_name.unwrap(),
-                    registered_members: mongodb
-                        .clan_mates
-                        .get_clan_member_count(clan.guild_id)
-                        .await
-                        .unwrap(),
-                });
-            }
-
-            Ok(HttpResponse::Ok().json(view_models))
+                    name: clan.clan_name,
+                    registered_members: clan.registered_members as u64,
+                })
+                .collect();
+            Ok(HttpResponse::Ok().json(ListClansResponse {
+                clans: view_models,
+                total,
+            }))
         }
-        Err(_) => Ok(HttpResponse::InternalServerError().body("Failed to list clans.")),
+        (clans, total) => {
+            error!(
+                "Failed to list clans: clans={:?} total={:?}",
+                clans.err(),
+                total.err()
+            );
+            Ok(HttpResponse::InternalServerError().body("Failed to list clans."))
+        }
     }
 }
 

@@ -438,6 +438,73 @@ async fn clan_member_count_counts_active_members(pool: PgPool) {
 }
 
 #[sqlx::test]
+async fn list_clans_paginated_pages_searches_and_counts_members(pool: PgPool) {
+    let db = setup(pool).await;
+
+    // Three clans plus one guild without a clan name (which must not appear).
+    for (guild_id, clan_name) in [(123, "Alpha"), (456, "Beta"), (789, "Gamma")] {
+        db.guilds.save_new_guild(guild_id).await;
+        let mut guild = db.guilds.get_by_guild_id(guild_id).await.unwrap().unwrap();
+        guild.clan_name = Some(clan_name.to_string());
+        db.guilds.update_guild(guild).await;
+    }
+    db.guilds.save_new_guild(999).await;
+
+    // Member counts come back from the JOIN, using the same active-member
+    // predicate as get_clan_member_count.
+    let in_wom_player = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "In Wom".to_string())
+        .await
+        .unwrap();
+    let mut model = in_wom_player.clone();
+    model.in_wom = true;
+    db.clan_mates.update_clan_mate(model).await.unwrap();
+    let stale_chat_player = db
+        .clan_mates
+        .find_or_create_clan_mate(123, "Stale Chat".to_string())
+        .await
+        .unwrap();
+    let mut model = stale_chat_player.clone();
+    model.in_wom = false;
+    model.last_seen_in_chat_at = Some(Utc::now() - chrono::Duration::days(91));
+    db.clan_mates.update_clan_mate(model).await.unwrap();
+
+    // Pages are ordered by clan name and respect the limit/offset.
+    let first_page = db.guilds.list_clans_paginated(None, 2, 0).await.unwrap();
+    let names: Vec<&str> = first_page.iter().map(|c| c.clan_name.as_str()).collect();
+    assert_eq!(names, vec!["Alpha", "Beta"]);
+    let second_page = db.guilds.list_clans_paginated(None, 2, 2).await.unwrap();
+    let names: Vec<&str> = second_page.iter().map(|c| c.clan_name.as_str()).collect();
+    assert_eq!(names, vec!["Gamma"]);
+
+    // The total matches across pages.
+    assert_eq!(db.guilds.count_clans(None).await.unwrap(), 3);
+
+    // The JOIN only counts active members (in WOM or seen in chat recently).
+    assert_eq!(first_page[0].clan_name, "Alpha");
+    assert_eq!(first_page[0].registered_members, 1);
+    assert_eq!(first_page[1].registered_members, 0);
+
+    // A case-insensitive search narrows both the page and the total.
+    let hits = db.guilds.list_clans_paginated(Some("AMM"), 10, 0).await.unwrap();
+    let names: Vec<&str> = hits.iter().map(|c| c.clan_name.as_str()).collect();
+    assert_eq!(names, vec!["Gamma"]);
+    assert_eq!(db.guilds.count_clans(Some("AMM")).await.unwrap(), 1);
+
+    // A search that matches nothing comes back empty with a zero total.
+    assert_eq!(
+        db.guilds
+            .list_clans_paginated(Some("nope"), 10, 0)
+            .await
+            .unwrap()
+            .len(),
+        0
+    );
+    assert_eq!(db.guilds.count_clans(Some("nope")).await.unwrap(), 0);
+}
+
+#[sqlx::test]
 async fn touch_last_seen_updates_timestamp(pool: PgPool) {
     let db = setup(pool).await;
     db.guilds.save_new_guild(123).await;

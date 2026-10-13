@@ -63,8 +63,14 @@ type PbRecord = {
   clan_mate: ClanMate|null,
 }
 
+type ClansPage = {
+  clans: Clan[],
+  total: number,
+}
+
 export type {
   BotInfo,
+  ClansPage,
   Clan,
   ClanDetail,
   ClanMate,
