@@ -38,23 +38,23 @@ client.getBotInfo().then((info) => {
       </p>
 
       <div class="flex flex-col space-y-2.5 justify-center">
-        <div class="">
+        <div class="flex flex-wrap items-center justify-center gap-2">
           <a
             href="https://discord.com/api/oauth2/authorize?client_id=864626697327869952&permissions=2147568704&scope=bot"
             target="_blank"
-            class="btn btn-primary btn-outline mr-2"
+            class="btn btn-primary btn-outline"
           >Invite to Discord <img
-            class="w-7 h-8 ml-2"
+            class="w-7 h-7 ml-2 object-contain"
             src="@/assets/img/icon_clyde_blurple_RGB.svg"
             alt="Discord Logo"
           > </a>
 
           <router-link
             to="/clans"
-            class="btn btn-primary btn-outline ml-2"
+            class="btn btn-primary btn-outline"
           >View Clans
             <img
-
+              class="w-7 h-7 ml-2 object-contain"
               src="https://oldschool.runescape.wiki/images/Your_Clan_icon.png"
               alt="In game cc icon"
             >
@@ -62,7 +62,7 @@ client.getBotInfo().then((info) => {
 
           <a
             href="https://www.patreon.com/TrackScape"
-            class="btn btn-primary btn-outline ml-2 md:pt-0 mt-2"
+            class="btn btn-primary btn-outline"
           >
             Support TrackScape on Patreon
           </a>
