@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT COUNT(*) as count FROM guilds\n            WHERE clan_name IS NOT NULL AND clan_name <> ''\n                AND NOT hidden_from_website\n                AND ($1::text IS NULL OR clan_name ILIKE '%' || $1 || '%')\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "f470ac25fada8e51f2938359a0130fb5d31e7196f46437876c89c19905946c6b"
+}

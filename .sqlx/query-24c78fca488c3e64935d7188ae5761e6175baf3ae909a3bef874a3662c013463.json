@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, guild_id, clan_name, broadcast_channel, clan_chat_channel,\n                   leagues_broadcast_channel, drop_price_threshold,\n                   disallowed_broadcast_types, verification_code, hashed_verification_code,\n                   min_quest_difficulty, min_diary_tier, pk_value_threshold, wom_id, created_at,\n                   custom_drop_broadcast_filter,\n                   collection_log_max_percentage\n            FROM guilds\n            WHERE clan_name IS NOT NULL AND clan_name <> ''\n            ORDER BY clan_name ASC\n            ",
+  "query": "\n            SELECT id, guild_id, clan_name, broadcast_channel, clan_chat_channel,\n                   leagues_broadcast_channel, drop_price_threshold,\n                   disallowed_broadcast_types, verification_code, hashed_verification_code,\n                   min_quest_difficulty, min_diary_tier, pk_value_threshold, wom_id, created_at,\n                   custom_drop_broadcast_filter,\n                   collection_log_max_percentage, hidden_from_website\n            FROM guilds\n            WHERE clan_name IS NOT NULL AND clan_name <> ''\n            ORDER BY clan_name ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -189,6 +189,17 @@
             "name": "collection_log_max_percentage"
           }
         }
+      },
+      {
+        "ordinal": 17,
+        "name": "hidden_from_website",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "hidden_from_website"
+          }
+        }
       }
     ],
     "parameters": {
@@ -211,8 +222,9 @@
       true,
       true,
       true,
-      true
+      true,
+      false
     ]
   },
-  "hash": "c8d17648a1fcc80c19f1e46bfe833ebc3e52d2ae1815420af2a00ca08209addf"
+  "hash": "24c78fca488c3e64935d7188ae5761e6175baf3ae909a3bef874a3662c013463"
 }

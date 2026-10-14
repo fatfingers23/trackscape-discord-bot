@@ -97,6 +97,58 @@ async fn verification_codes_stay_unique_and_findable(pool: PgPool) {
 }
 
 #[sqlx::test]
+async fn hidden_clan_is_invisible_to_the_website_only(pool: PgPool) {
+    let db = setup(pool).await;
+
+    for (guild_id, clan_name) in [(1, "Hidden Clan"), (2, "Visible Clan")] {
+        db.guilds.save_new_guild(guild_id).await;
+        let mut guild = db.guilds.get_by_guild_id(guild_id).await.unwrap().unwrap();
+        // A new guild starts out visible.
+        assert!(!guild.hidden_from_website);
+        guild.clan_name = Some(clan_name.to_string());
+        db.guilds.update_guild(guild).await;
+    }
+
+    let mut hidden = db.guilds.get_by_guild_id(1).await.unwrap().unwrap();
+    hidden.hidden_from_website = true;
+    db.guilds.update_guild(hidden.clone()).await;
+
+    // The website's list, search and total no longer include it.
+    let listed = db.guilds.list_clans_paginated(None, 50, 0).await.unwrap();
+    let names: Vec<&str> = listed.iter().map(|c| c.clan_name.as_str()).collect();
+    assert_eq!(names, vec!["Visible Clan"]);
+    assert_eq!(db.guilds.count_clans(None).await.unwrap(), 1);
+    let searched = db
+        .guilds
+        .list_clans_paginated(Some("hidden"), 50, 0)
+        .await
+        .unwrap();
+    assert!(searched.is_empty());
+    assert_eq!(db.guilds.count_clans(Some("hidden")).await.unwrap(), 0);
+
+    // Nor can it be opened by its id.
+    assert!(
+        db.guilds
+            .get_visible_by_id(hidden.id)
+            .await
+            .unwrap()
+            .is_none()
+    );
+
+    // The bot and the jobs still see it.
+    let by_id = db.guilds.get_by_id(hidden.id).await.unwrap().unwrap();
+    assert!(by_id.hidden_from_website);
+    assert_eq!(db.guilds.list_clans().await.unwrap().len(), 2);
+
+    // Un-hiding brings it back.
+    hidden.hidden_from_website = false;
+    db.guilds.update_guild(hidden.clone()).await;
+    assert_eq!(db.guilds.count_clans(None).await.unwrap(), 2);
+    let visible = db.guilds.get_visible_by_id(hidden.id).await.unwrap();
+    assert_eq!(visible.unwrap().guild_id, 1);
+}
+
+#[sqlx::test]
 async fn clan_mate_find_or_create_and_duplicate_rejected(pool: PgPool) {
     let db = setup(pool).await;
     db.guilds.save_new_guild(123).await;

@@ -2,6 +2,7 @@ pub mod choices;
 pub mod expel_clanmate_command;
 pub mod get_custom_drop_broadcast_filter;
 pub mod get_verification_code;
+pub mod hide_from_website_command;
 pub mod info;
 pub(crate) mod manually_run_wom_sync_command;
 pub mod name_change_command;

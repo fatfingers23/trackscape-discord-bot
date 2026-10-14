@@ -14,6 +14,8 @@ const route = useRoute();
 const clanId = route.params.clanId as string;
 
 const clanDetail = ref<ClanDetail>();
+// An unknown clan id and a clan hidden with /hide_from_website both answer 404
+const clanNotFound = ref(false);
 
 client.getClanDetail(clanId).then((clan) => {
   //put clan list in alphabetical order
@@ -27,6 +29,8 @@ client.getClanDetail(clanId).then((clan) => {
     return 0;
   });
   clanDetail.value = clan;
+}).catch(() => {
+  clanNotFound.value = true;
 });
 
 // useHead() has to be called during setup: unhead v3 throws when it runs from an
@@ -71,8 +75,9 @@ const tabMenus = [
 <template>
 
   <PageTitle
-    :title="clanDetail?.name ?? ''">
-    <div class="mt-2 flex items-center gap-x-7">
+    :title="clanNotFound ? 'Clan not found' : clanDetail?.name ?? ''">
+    <div v-if="!clanNotFound"
+         class="mt-2 flex items-center gap-x-7">
       <div class="flex items-center ">
         <svg
           class="mr-2 h-5 w-10 text-gray-200"
@@ -104,7 +109,14 @@ const tabMenus = [
     </div>
   </PageTitle>
 
-  <div class="container bg-base-200">
+  <div v-if="clanNotFound"
+       class="container bg-base-200 p-6">
+    <p>This clan does not exist or is not shown on the website.</p>
+    <router-link class="link"
+                 to="/clans">Back to the clan list</router-link>
+  </div>
+  <div v-else
+       class="container bg-base-200">
     <DiscordWidget
       class="mx-3"
       v-if="clanDetail !== undefined"

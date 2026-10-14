@@ -35,6 +35,8 @@ pub struct RegisteredGuildModel {
     pub created_at: Option<DateTime<Utc>>,
     pub custom_drop_broadcast_filter: Option<HashMap<BroadcastType, Vec<String>>>,
     pub collection_log_max_percentage: Option<f64>,
+    //Set by /hide_from_website, the website acts as if the clan does not exist
+    pub hidden_from_website: bool,
 }
 
 /// A clan as it appears in the public clans list: just the fields the
@@ -70,6 +72,7 @@ impl RegisteredGuildModel {
             created_at: Some(Utc::now()),
             custom_drop_broadcast_filter: Some(HashMap::new()),
             collection_log_max_percentage: None,
+            hidden_from_website: false,
         }
     }
 
@@ -109,6 +112,7 @@ struct GuildRow {
     created_at: Option<DateTime<Utc>>,
     custom_drop_broadcast_filter: Option<serde_json::Value>,
     collection_log_max_percentage: Option<f64>,
+    hidden_from_website: bool,
 }
 
 impl From<GuildRow> for RegisteredGuildModel {
@@ -141,6 +145,7 @@ impl From<GuildRow> for RegisteredGuildModel {
                 row.custom_drop_broadcast_filter,
             ),
             collection_log_max_percentage: row.collection_log_max_percentage,
+            hidden_from_website: row.hidden_from_website,
         }
     }
 }
@@ -284,7 +289,7 @@ impl GuildsDb {
                    disallowed_broadcast_types, verification_code, hashed_verification_code,
                    min_quest_difficulty, min_diary_tier, pk_value_threshold, wom_id, created_at,
                    custom_drop_broadcast_filter,
-                   collection_log_max_percentage
+                   collection_log_max_percentage, hidden_from_website
             FROM guilds
             WHERE hashed_verification_code = $1
             "#,
@@ -307,7 +312,7 @@ impl GuildsDb {
                    disallowed_broadcast_types, verification_code, hashed_verification_code,
                    min_quest_difficulty, min_diary_tier, pk_value_threshold, wom_id, created_at,
                    custom_drop_broadcast_filter,
-                   collection_log_max_percentage
+                   collection_log_max_percentage, hidden_from_website
             FROM guilds
             WHERE guild_id = $1
             "#,
@@ -333,7 +338,8 @@ impl GuildsDb {
                 disallowed_broadcast_types = $7, verification_code = $8,
                 hashed_verification_code = $9, min_quest_difficulty = $10, min_diary_tier = $11,
                 pk_value_threshold = $12, wom_id = $13, created_at = $14,
-                custom_drop_broadcast_filter = $15, collection_log_max_percentage = $16
+                custom_drop_broadcast_filter = $15, collection_log_max_percentage = $16,
+                hidden_from_website = $17
             WHERE guild_id = $1
             "#,
             guild.guild_id as i64,
@@ -358,6 +364,7 @@ impl GuildsDb {
             guild.created_at,
             custom_drop_broadcast_filter,
             guild.collection_log_max_percentage,
+            guild.hidden_from_website,
         )
         .execute(&self.pool)
         .await;
@@ -375,13 +382,14 @@ impl GuildsDb {
         }
     }
 
-    /// Total number of clans, optionally narrowed by a case-insensitive name
-    /// search. Matches the filter used by [GuildsDb::list_clans_paginated].
+    /// Total number of clans shown on the website, optionally narrowed by a
+    /// case-insensitive name search. Matches the filter used by [GuildsDb::list_clans_paginated].
     pub async fn count_clans(&self, search: Option<&str>) -> Result<i64, anyhow::Error> {
         let count = sqlx::query_scalar!(
             r#"
             SELECT COUNT(*) as count FROM guilds
             WHERE clan_name IS NOT NULL AND clan_name <> ''
+                AND NOT hidden_from_website
                 AND ($1::text IS NULL OR clan_name ILIKE '%' || $1 || '%')
             "#,
             search
@@ -391,7 +399,7 @@ impl GuildsDb {
         Ok(count.unwrap_or(0))
     }
 
-    /// One page of clans with their active member counts folded in (a LEFT
+    /// One page of the clans shown on the website (hidden ones are left out) with their active member counts folded in (a LEFT
     /// JOIN instead of the old per-clan COUNT round-trips). The member-count
     /// predicate (left_at IS NULL and not a Guest) mirrors
     /// `ClanMates::get_clan_member_count`.
@@ -409,6 +417,7 @@ impl GuildsDb {
             LEFT JOIN clan_mates cm ON cm.guild_id = g.guild_id
                 AND cm.left_at IS NULL AND cm."rank" IS DISTINCT FROM 'Guest'
             WHERE g.clan_name IS NOT NULL AND g.clan_name <> ''
+                AND NOT g.hidden_from_website
                 AND ($1::text IS NULL OR g.clan_name ILIKE '%' || $1 || '%')
             GROUP BY g.id, g.clan_name
             ORDER BY g.clan_name ASC
@@ -423,6 +432,7 @@ impl GuildsDb {
         Ok(rows)
     }
 
+    /// Every clan, hidden from the website or not. This is what the jobs use.
     pub async fn list_clans(&self) -> Result<Vec<RegisteredGuildModel>, anyhow::Error> {
         let rows = sqlx::query_as!(
             GuildRow,
@@ -432,7 +442,7 @@ impl GuildsDb {
                    disallowed_broadcast_types, verification_code, hashed_verification_code,
                    min_quest_difficulty, min_diary_tier, pk_value_threshold, wom_id, created_at,
                    custom_drop_broadcast_filter,
-                   collection_log_max_percentage
+                   collection_log_max_percentage, hidden_from_website
             FROM guilds
             WHERE clan_name IS NOT NULL AND clan_name <> ''
             ORDER BY clan_name ASC
@@ -452,7 +462,7 @@ impl GuildsDb {
                    disallowed_broadcast_types, verification_code, hashed_verification_code,
                    min_quest_difficulty, min_diary_tier, pk_value_threshold, wom_id, created_at,
                    custom_drop_broadcast_filter,
-                   collection_log_max_percentage
+                   collection_log_max_percentage, hidden_from_website
             FROM guilds
             WHERE id = $1
             "#,
@@ -461,5 +471,15 @@ impl GuildsDb {
         .fetch_optional(&self.pool)
         .await?;
         Ok(row.map(|row| row.into()))
+    }
+
+    /// The lookup behind the website's clan pages: a clan hidden with
+    /// /hide_from_website comes back as `None`, the same as an unknown id.
+    pub async fn get_visible_by_id(
+        &self,
+        id: Uuid,
+    ) -> Result<Option<RegisteredGuildModel>, sqlx::Error> {
+        let guild = self.get_by_id(id).await?;
+        Ok(guild.filter(|guild| !guild.hidden_from_website))
     }
 }

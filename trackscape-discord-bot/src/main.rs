@@ -96,6 +96,7 @@ async fn main() -> anyhow::Result<()> {
                 commands::expel_clanmate_command::expel_clanmate_command(),
                 commands::get_custom_drop_broadcast_filter::get_custom_drop_broadcast_filter(),
                 commands::get_verification_code::get_verification_code(),
+                commands::hide_from_website_command::hide_from_website_command(),
                 commands::info::info(),
                 commands::manually_run_wom_sync_command::manually_run_wom_sync_command(),
                 commands::name_change_command::name_change_command(),

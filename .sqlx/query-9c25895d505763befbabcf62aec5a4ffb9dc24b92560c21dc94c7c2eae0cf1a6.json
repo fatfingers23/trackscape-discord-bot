@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT g.id, g.clan_name AS \"clan_name!\", COUNT(cm.guild_id) AS \"registered_members!\"\n            FROM guilds g\n            LEFT JOIN clan_mates cm ON cm.guild_id = g.guild_id\n                AND cm.left_at IS NULL AND cm.\"rank\" IS DISTINCT FROM 'Guest'\n            WHERE g.clan_name IS NOT NULL AND g.clan_name <> ''\n                AND ($1::text IS NULL OR g.clan_name ILIKE '%' || $1 || '%')\n            GROUP BY g.id, g.clan_name\n            ORDER BY g.clan_name ASC\n            LIMIT $2 OFFSET $3\n            ",
+  "query": "\n            SELECT g.id, g.clan_name AS \"clan_name!\", COUNT(cm.guild_id) AS \"registered_members!\"\n            FROM guilds g\n            LEFT JOIN clan_mates cm ON cm.guild_id = g.guild_id\n                AND cm.left_at IS NULL AND cm.\"rank\" IS DISTINCT FROM 'Guest'\n            WHERE g.clan_name IS NOT NULL AND g.clan_name <> ''\n                AND NOT g.hidden_from_website\n                AND ($1::text IS NULL OR g.clan_name ILIKE '%' || $1 || '%')\n            GROUP BY g.id, g.clan_name\n            ORDER BY g.clan_name ASC\n            LIMIT $2 OFFSET $3\n            ",
   "describe": {
     "columns": [
       {
@@ -45,5 +45,5 @@
       null
     ]
   },
-  "hash": "f36a51678cb58bcfe923f8cda28fbe039bb91635551970779d3da49f797dd498"
+  "hash": "9c25895d505763befbabcf62aec5a4ffb9dc24b92560c21dc94c7c2eae0cf1a6"
 }

@@ -90,7 +90,7 @@ async fn detail(mongodb: Data<BotDb>, path: web::Path<(String,)>) -> Result<Http
         }
     };
 
-    let registered_guild_query = mongodb.guilds.get_by_id(id).await;
+    let registered_guild_query = mongodb.guilds.get_visible_by_id(id).await;
     match registered_guild_query {
         Ok(possible_registered_guild) => match possible_registered_guild {
             None => {
@@ -138,7 +138,7 @@ async fn collection_log(
         }
     };
 
-    let registered_guild_query = mongodb.guilds.get_by_id(id).await;
+    let registered_guild_query = mongodb.guilds.get_visible_by_id(id).await;
     match registered_guild_query {
         Ok(possible_registered_guild) => match possible_registered_guild {
             None => {
@@ -188,7 +188,7 @@ async fn broadcasts(
             return Ok(HttpResponse::BadRequest().body("Invalid id format."));
         }
     };
-    let registered_guild_query = mongodb.guilds.get_by_id(id).await;
+    let registered_guild_query = mongodb.guilds.get_visible_by_id(id).await;
     match registered_guild_query {
         Ok(possible_guild) => match possible_guild {
             Some(guild) => {
@@ -205,7 +205,7 @@ async fn broadcasts(
                     }
                 }
             }
-            None => Ok(HttpResponse::BadRequest().body("There is not a clan with that id")),
+            None => Ok(HttpResponse::NotFound().body("Clan not found.")),
         },
         Err(err) => {
             error!("Failed to get clan by id: {}", err);
@@ -238,7 +238,7 @@ async fn personal_bests(
         }
     };
 
-    let registered_guild_query = mongodb.guilds.get_by_id(guild_id).await;
+    let registered_guild_query = mongodb.guilds.get_visible_by_id(guild_id).await;
     match registered_guild_query {
         Ok(possible_registered_guild) => match possible_registered_guild {
             None => {
