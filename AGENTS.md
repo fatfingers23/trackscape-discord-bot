@@ -63,6 +63,11 @@ Prereqs: Rust stable, Docker, Node 24 + pnpm 12 (for the dashboard).
   `trackscape-discord-ui/dist/` to `trackscape-discord-api/ui/`. The API still
   boots without it. That directory is NOT gitignored — don't commit build
   output.
+- Compact clan chat (`/clan_chat_embeds enabled:false`) shows ranks as Discord
+  application emojis. The icons live in `trackscape-discord-api/assets/clan_rank_icons/`
+  (refresh with `uv run scripts/fetch_clan_rank_icons.py`) and are compiled into the
+  API. On startup the API uploads any the bot's application is missing, in the
+  background; the first run for a new bot uploads ~270 and takes a minute or so.
 - `rust-toolchain.toml` pins Rust 1.99.0; rustup auto-installs it when building in the
   repo. When bumping Rust, keep it in sync with CI (`dtolnay/rust-toolchain@…`) and the
   Docker builder images (`rust:<version>-bookworm`).

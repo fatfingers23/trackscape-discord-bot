@@ -2,10 +2,12 @@ extern crate dotenv;
 
 mod controllers;
 mod handler;
+mod rank_emojis;
 mod websocket_server;
 
 use crate::controllers::bot_info_controller::info_controller;
 use crate::controllers::chat_controller::chat_controller;
+use crate::rank_emojis::RankEmojis;
 use actix_cors::Cors;
 use actix_web::web::Data;
 use actix_web::{App, Error, HttpServer, guard, web};
@@ -114,6 +116,15 @@ async fn main() -> std::io::Result<()> {
     // `Fn + Send + Clone + 'static`, which `HttpServer::new` requires.
     let db = Data::new(db);
     let discord_http = Data::new(HttpBuilder::new(discord_token).build());
+
+    //Clan rank emojis for compact clan chat. Uploading the missing ones can take a while
+    let rank_emojis = RankEmojis::default();
+    let rank_emojis_to_sync = rank_emojis.clone();
+    let discord_http_for_emojis = discord_http.clone();
+    spawn(async move {
+        rank_emojis_to_sync.sync(&discord_http_for_emojis).await;
+    });
+    let rank_emojis = Data::new(rank_emojis);
     let celery = Data::new(celery);
     let redis_client = Data::new(redis_client);
 
@@ -144,6 +155,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(connected_websockets_counter.clone())
             .app_data(connected_discord_servers.clone())
             .app_data(discord_http.clone())
+            .app_data(rank_emojis.clone())
             .app_data(db.clone())
             .app_data(celery.clone())
             .app_data(redis_client.clone())

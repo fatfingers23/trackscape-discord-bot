@@ -1,3 +1,4 @@
+use crate::rank_emojis::RankEmojis;
 use crate::websocket_server::DiscordToClanChatMessage;
 use crate::{ChatServerHandle, handler};
 use actix_web::web::Data;
@@ -49,19 +50,32 @@ fn show_links_and_mentions_as_code(message: &str) -> String {
         .into_owned()
 }
 
-/// Renders clan chat lines (sender, message) as plain text for guilds that
+/// A clan chat line for guilds that turned embeds off with /clan_chat_embeds.
+struct CompactClanChatLine {
+    /// The sender's rank as a Discord emoji, when the bot has one for it
+    rank_emoji: Option<String>,
+    sender: String,
+    message: String,
+}
+
+/// Renders clan chat lines as plain text for guilds that
 /// turned embeds off with /clan_chat_embeds. Lines are joined into as few
 /// Discord messages as fit under [DISCORD_MESSAGE_LIMIT].
-fn compact_clan_chat_messages(lines: &[(String, String)]) -> Vec<String> {
+fn compact_clan_chat_messages(lines: &[CompactClanChatLine]) -> Vec<String> {
     let mut messages: Vec<String> = vec![];
     let mut current = String::new();
     let mut current_length = 0;
 
-    for (sender, message) in lines {
+    for line in lines {
+        let rank_emoji = match &line.rank_emoji {
+            Some(emoji) => format!("{} ", emoji),
+            None => String::new(),
+        };
         let line: String = format!(
-            "**{}**: {}",
-            sender,
-            show_links_and_mentions_as_code(message)
+            "{}**{}**: {}",
+            rank_emoji,
+            line.sender,
+            show_links_and_mentions_as_code(&line.message)
         )
         .chars()
         .take(DISCORD_MESSAGE_LIMIT)
@@ -154,6 +168,7 @@ async fn new_clan_chats(
     new_chat: Json<Vec<ClanMessage>>,
     mongodb: Data<BotDb>,
     celery: Data<Arc<Celery>>,
+    rank_emojis: Data<RankEmojis>,
 ) -> actix_web::Result<String> {
     let possible_verification_code = req.headers().get("verification-code");
     if let None = possible_verification_code {
@@ -191,7 +206,7 @@ async fn new_clan_chats(
 
     let mut clan_chat_queue: Vec<CreateEmbed> = vec![];
     //Used instead of clan_chat_queue when the guild has clan chat embeds turned off
-    let mut compact_clan_chat_queue: Vec<(String, String)> = vec![];
+    let mut compact_clan_chat_queue: Vec<CompactClanChatLine> = vec![];
     let mut broadcast_queue: Vec<CreateEmbed> = vec![];
     let mut leagues_broadcast_queue: Vec<CreateEmbed> = vec![];
 
@@ -250,7 +265,15 @@ async fn new_clan_chats(
 
         match registered_guild.clan_chat_channel {
             Some(_channel_id) if !registered_guild.clan_chat_embeds => {
-                compact_clan_chat_queue.push((chat.sender.clone(), chat.message.clone()));
+                let rank_emoji = match chat.clan_name == chat.sender {
+                    true => rank_emojis.for_clan(),
+                    false => rank_emojis.for_rank(&chat.rank),
+                };
+                compact_clan_chat_queue.push(CompactClanChatLine {
+                    rank_emoji,
+                    sender: chat.sender.clone(),
+                    message: chat.message.clone(),
+                });
             }
             Some(_channel_id) => {
                 let author_image = match chat.clan_name.clone() == chat.sender.clone() {
@@ -523,8 +546,23 @@ pub fn chat_controller() -> Scope {
 mod tests {
     use super::*;
 
-    fn line(sender: &str, message: &str) -> (String, String) {
-        (sender.to_string(), message.to_string())
+    fn line(sender: &str, message: &str) -> CompactClanChatLine {
+        CompactClanChatLine {
+            rank_emoji: None,
+            sender: sender.to_string(),
+            message: message.to_string(),
+        }
+    }
+
+    #[test]
+    fn compact_line_starts_with_the_rank_emoji_when_there_is_one() {
+        let mut owner = line("Zezima", "gz");
+        owner.rank_emoji = Some("<:rank_owner:123>".to_string());
+        let messages = compact_clan_chat_messages(&[owner, line("Durial321", "ty")]);
+        assert_eq!(
+            messages,
+            vec!["<:rank_owner:123> **Zezima**: gz\n**Durial321**: ty"]
+        );
     }
 
     #[test]
@@ -547,7 +585,7 @@ mod tests {
 
     #[test]
     fn compact_lines_split_before_discords_message_limit() {
-        let lines: Vec<(String, String)> = (0..30)
+        let lines: Vec<CompactClanChatLine> = (0..30)
             .map(|i| line("Zezima", &format!("{}{}", i, "a".repeat(100))))
             .collect();
         let messages = compact_clan_chat_messages(&lines);
@@ -559,7 +597,7 @@ mod tests {
         // Nothing is dropped or reordered, and no line is cut in half.
         let expected: Vec<String> = lines
             .iter()
-            .map(|(sender, message)| format!("**{}**: {}", sender, message))
+            .map(|line| format!("**{}**: {}", line.sender, line.message))
             .collect();
         let sent: Vec<String> = messages
             .iter()

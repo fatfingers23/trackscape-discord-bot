@@ -1,0 +1,13 @@
+Clan rank icons
+
+These icons are Old School RuneScape interface graphics. They are the property
+of Jagex Ltd. and are used here to show a clan mate's rank next to their name.
+TrackScape is not affiliated with or endorsed by Jagex.
+
+They were sourced from the Old School RuneScape Wiki, with thanks to its
+contributors:
+https://oldschool.runescape.wiki/w/Clan_Settings#Rank_Titles
+https://oldschool.runescape.wiki/w/Category:Clan_rank_icons
+
+The originals are 13x13. The copies here were scaled up with nearest-neighbour
+by scripts/fetch_clan_rank_icons.py and are otherwise unmodified.
