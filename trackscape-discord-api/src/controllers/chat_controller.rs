@@ -228,14 +228,6 @@ async fn new_clan_chats(
             continue;
         }
 
-        //TODO may remove this since the handler does some loging for the website now
-        if registered_guild.broadcast_channel.is_none()
-            && registered_guild.clan_chat_channel.is_none()
-        {
-            //If there is not any broadcast_channels set just continue
-            continue;
-        }
-
         if league_world {
             chat.is_league_world = Some(true);
         }

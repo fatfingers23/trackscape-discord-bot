@@ -2,7 +2,12 @@ use crate::commands::guild_id;
 use crate::{Context, Error};
 
 /// Stops leagues notifications, can reenable by setting the channel again.
-#[poise::command(slash_command, guild_only, ephemeral)]
+#[poise::command(
+    slash_command,
+    guild_only,
+    ephemeral,
+    default_member_permissions = "MANAGE_GUILD"
+)]
 pub async fn stop_leagues_notifications(ctx: Context<'_>) -> Result<(), Error> {
     let guild_id = guild_id(ctx)?;
     let db = &ctx.data().db;

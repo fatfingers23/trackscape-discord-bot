@@ -93,6 +93,7 @@ async fn main() -> anyhow::Result<()> {
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
             commands: vec![
+                commands::clear_channel::clear_channel(),
                 commands::expel_clanmate_command::expel_clanmate_command(),
                 commands::get_custom_drop_broadcast_filter::get_custom_drop_broadcast_filter(),
                 commands::get_verification_code::get_verification_code(),

@@ -153,6 +153,17 @@ impl From<ToggleBroadcast> for BroadcastType {
     }
 }
 
+/// Channel settings `/clear_channel` can unset.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, poise::ChoiceParameter)]
+pub enum ClearableChannel {
+    #[name = "Broadcast"]
+    Broadcast,
+    #[name = "Clan Chat"]
+    ClanChat,
+    #[name = "Leagues"]
+    Leagues,
+}
+
 /// Quest difficulties `/quests` can set as the minimum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, poise::ChoiceParameter)]
 pub enum QuestDifficultyChoice {
@@ -294,6 +305,14 @@ mod tests {
             BroadcastType::CombatMasteries,
         );
         assert_broadcast_choice(ToggleBroadcast::RelicTier, BroadcastType::RelicTier);
+    }
+
+    #[test]
+    fn clearable_channel_labels() {
+        assert_eq!(ClearableChannel::list().len(), 3);
+        assert_eq!(ClearableChannel::Broadcast.name(), "Broadcast");
+        assert_eq!(ClearableChannel::ClanChat.name(), "Clan Chat");
+        assert_eq!(ClearableChannel::Leagues.name(), "Leagues");
     }
 
     #[test]

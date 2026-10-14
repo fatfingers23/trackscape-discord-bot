@@ -50,6 +50,13 @@ async fn guild_roundtrip_and_update(pool: PgPool) {
         vec![BroadcastType::PetDrop]
     );
 
+    // Clearing a channel persists as unset.
+    let mut cleared = refetched.clone();
+    cleared.broadcast_channel = None;
+    db.guilds.update_guild(cleared).await;
+    let refetched = db.guilds.get_by_guild_id(123).await.unwrap().unwrap();
+    assert_eq!(refetched.broadcast_channel, None);
+
     // list_clans only includes guilds with a non-empty clan name.
     db.guilds.save_new_guild(124).await;
     let clans = db.guilds.list_clans().await.unwrap();
