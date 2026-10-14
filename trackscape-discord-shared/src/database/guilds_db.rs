@@ -37,6 +37,8 @@ pub struct RegisteredGuildModel {
     pub collection_log_max_percentage: Option<f64>,
     //Set by /hide_from_website, the website acts as if the clan does not exist
     pub hidden_from_website: bool,
+    //Set by /clan_chat_embeds, false posts clan chat as plain text instead of embeds
+    pub clan_chat_embeds: bool,
 }
 
 /// A clan as it appears in the public clans list: just the fields the
@@ -73,6 +75,7 @@ impl RegisteredGuildModel {
             custom_drop_broadcast_filter: Some(HashMap::new()),
             collection_log_max_percentage: None,
             hidden_from_website: false,
+            clan_chat_embeds: true,
         }
     }
 
@@ -113,6 +116,7 @@ struct GuildRow {
     custom_drop_broadcast_filter: Option<serde_json::Value>,
     collection_log_max_percentage: Option<f64>,
     hidden_from_website: bool,
+    clan_chat_embeds: bool,
 }
 
 impl From<GuildRow> for RegisteredGuildModel {
@@ -146,6 +150,7 @@ impl From<GuildRow> for RegisteredGuildModel {
             ),
             collection_log_max_percentage: row.collection_log_max_percentage,
             hidden_from_website: row.hidden_from_website,
+            clan_chat_embeds: row.clan_chat_embeds,
         }
     }
 }
@@ -289,7 +294,7 @@ impl GuildsDb {
                    disallowed_broadcast_types, verification_code, hashed_verification_code,
                    min_quest_difficulty, min_diary_tier, pk_value_threshold, wom_id, created_at,
                    custom_drop_broadcast_filter,
-                   collection_log_max_percentage, hidden_from_website
+                   collection_log_max_percentage, hidden_from_website, clan_chat_embeds
             FROM guilds
             WHERE hashed_verification_code = $1
             "#,
@@ -312,7 +317,7 @@ impl GuildsDb {
                    disallowed_broadcast_types, verification_code, hashed_verification_code,
                    min_quest_difficulty, min_diary_tier, pk_value_threshold, wom_id, created_at,
                    custom_drop_broadcast_filter,
-                   collection_log_max_percentage, hidden_from_website
+                   collection_log_max_percentage, hidden_from_website, clan_chat_embeds
             FROM guilds
             WHERE guild_id = $1
             "#,
@@ -339,7 +344,7 @@ impl GuildsDb {
                 hashed_verification_code = $9, min_quest_difficulty = $10, min_diary_tier = $11,
                 pk_value_threshold = $12, wom_id = $13, created_at = $14,
                 custom_drop_broadcast_filter = $15, collection_log_max_percentage = $16,
-                hidden_from_website = $17
+                hidden_from_website = $17, clan_chat_embeds = $18
             WHERE guild_id = $1
             "#,
             guild.guild_id as i64,
@@ -365,6 +370,7 @@ impl GuildsDb {
             custom_drop_broadcast_filter,
             guild.collection_log_max_percentage,
             guild.hidden_from_website,
+            guild.clan_chat_embeds,
         )
         .execute(&self.pool)
         .await;
@@ -442,7 +448,7 @@ impl GuildsDb {
                    disallowed_broadcast_types, verification_code, hashed_verification_code,
                    min_quest_difficulty, min_diary_tier, pk_value_threshold, wom_id, created_at,
                    custom_drop_broadcast_filter,
-                   collection_log_max_percentage, hidden_from_website
+                   collection_log_max_percentage, hidden_from_website, clan_chat_embeds
             FROM guilds
             WHERE clan_name IS NOT NULL AND clan_name <> ''
             ORDER BY clan_name ASC
@@ -462,7 +468,7 @@ impl GuildsDb {
                    disallowed_broadcast_types, verification_code, hashed_verification_code,
                    min_quest_difficulty, min_diary_tier, pk_value_threshold, wom_id, created_at,
                    custom_drop_broadcast_filter,
-                   collection_log_max_percentage, hidden_from_website
+                   collection_log_max_percentage, hidden_from_website, clan_chat_embeds
             FROM guilds
             WHERE id = $1
             "#,

@@ -156,6 +156,33 @@ async fn hidden_clan_is_invisible_to_the_website_only(pool: PgPool) {
 }
 
 #[sqlx::test]
+async fn clan_chat_embeds_default_on_and_can_be_turned_off(pool: PgPool) {
+    let db = setup(pool).await;
+    db.guilds.save_new_guild(1).await;
+
+    // A new guild keeps the embeds it always had.
+    let mut guild = db.guilds.get_by_guild_id(1).await.unwrap().unwrap();
+    assert!(guild.clan_chat_embeds);
+
+    guild.clan_chat_embeds = false;
+    db.guilds.update_guild(guild.clone()).await;
+
+    // The chat endpoint looks the guild up by its verification code.
+    let by_code = db
+        .guilds
+        .get_guild_by_code(guild.verification_code.clone())
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(!by_code.clan_chat_embeds);
+
+    guild.clan_chat_embeds = true;
+    db.guilds.update_guild(guild).await;
+    let turned_back_on = db.guilds.get_by_guild_id(1).await.unwrap().unwrap();
+    assert!(turned_back_on.clan_chat_embeds);
+}
+
+#[sqlx::test]
 async fn clan_mate_find_or_create_and_duplicate_rejected(pool: PgPool) {
     let db = setup(pool).await;
     db.guilds.save_new_guild(123).await;

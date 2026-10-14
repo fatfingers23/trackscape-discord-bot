@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, guild_id, clan_name, broadcast_channel, clan_chat_channel,\n                   leagues_broadcast_channel, drop_price_threshold,\n                   disallowed_broadcast_types, verification_code, hashed_verification_code,\n                   min_quest_difficulty, min_diary_tier, pk_value_threshold, wom_id, created_at,\n                   custom_drop_broadcast_filter,\n                   collection_log_max_percentage, hidden_from_website\n            FROM guilds\n            WHERE hashed_verification_code = $1\n            ",
+  "query": "\n            SELECT id, guild_id, clan_name, broadcast_channel, clan_chat_channel,\n                   leagues_broadcast_channel, drop_price_threshold,\n                   disallowed_broadcast_types, verification_code, hashed_verification_code,\n                   min_quest_difficulty, min_diary_tier, pk_value_threshold, wom_id, created_at,\n                   custom_drop_broadcast_filter,\n                   collection_log_max_percentage, hidden_from_website, clan_chat_embeds\n            FROM guilds\n            WHERE hashed_verification_code = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -200,6 +200,17 @@
             "name": "hidden_from_website"
           }
         }
+      },
+      {
+        "ordinal": 18,
+        "name": "clan_chat_embeds",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "clan_chat_embeds"
+          }
+        }
       }
     ],
     "parameters": {
@@ -225,8 +236,9 @@
       true,
       true,
       true,
+      false,
       false
     ]
   },
-  "hash": "d2fdfc61682e31e71499f6bf5520f8c141f2f9ae2d1fbc0380f95d56f0fac217"
+  "hash": "76e60797de8cfe7af895d92d1c1ab9658e6eecb2e9c0f1378edffe8163fcea8c"
 }

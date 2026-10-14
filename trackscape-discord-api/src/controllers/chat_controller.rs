@@ -4,10 +4,11 @@ use actix_web::web::Data;
 use actix_web::{Error, HttpRequest, HttpResponse, Scope, error, post, web};
 use celery::Celery;
 use redis::Commands;
-use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor};
-use serenity::builder::CreateMessage;
+use regex::Regex;
+use serenity::all::{ChannelId, CreateEmbed, CreateEmbedAuthor, MessageFlags};
+use serenity::builder::{CreateAllowedMentions, CreateMessage};
 use serenity::http::Http;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use tokio::task::spawn_local;
 use trackscape_discord_shared::database::BotDb;
 use trackscape_discord_shared::ge_api::ge_api::get_item_mapping;
@@ -28,6 +29,74 @@ struct MyError {
 }
 
 const LEAGUES_ICON_TAG: &str = "<img=22> ";
+
+/// The most characters Discord accepts in the content of one message.
+const DISCORD_MESSAGE_LIMIT: usize = 2000;
+
+/// What Discord would turn into a link or a mention in plain text: http(s)
+/// links, user, role and channel mentions, @everyone and @here.
+static LINKS_AND_MENTIONS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)https?://\S+|<[@#][!&]?\d+>|@everyone|@here").unwrap());
+
+/// Wraps links and mentions in a plain text clan chat message in inline code,
+/// so Discord shows them as typed instead of as a clickable link or a mention.
+/// The player's own backticks become apostrophes first, otherwise one could
+/// close the inline code early.
+fn show_links_and_mentions_as_code(message: &str) -> String {
+    let message = message.replace('`', "'");
+    LINKS_AND_MENTIONS
+        .replace_all(&message, "`${0}`")
+        .into_owned()
+}
+
+/// Renders clan chat lines (sender, message) as plain text for guilds that
+/// turned embeds off with /clan_chat_embeds. Lines are joined into as few
+/// Discord messages as fit under [DISCORD_MESSAGE_LIMIT].
+fn compact_clan_chat_messages(lines: &[(String, String)]) -> Vec<String> {
+    let mut messages: Vec<String> = vec![];
+    let mut current = String::new();
+    let mut current_length = 0;
+
+    for (sender, message) in lines {
+        let line: String = format!(
+            "**{}**: {}",
+            sender,
+            show_links_and_mentions_as_code(message)
+        )
+        .chars()
+        .take(DISCORD_MESSAGE_LIMIT)
+        .collect();
+        let line_length = line.chars().count();
+
+        if !current.is_empty() {
+            // +1 for the new line that joins it to the lines before it
+            if current_length + 1 + line_length > DISCORD_MESSAGE_LIMIT {
+                messages.push(std::mem::take(&mut current));
+                current_length = 0;
+            } else {
+                current.push('\n');
+                current_length += 1;
+            }
+        }
+        current.push_str(&line);
+        current_length += line_length;
+    }
+
+    if !current.is_empty() {
+        messages.push(current);
+    }
+    messages
+}
+
+/// A plain text clan chat message. Unlike an embed, message content can ping,
+/// so all mentions are turned off: an in-game "@everyone" must never reach
+/// Discord as a real ping. Link previews are suppressed to keep it compact.
+fn compact_clan_chat_message(content: String) -> CreateMessage {
+    CreateMessage::new()
+        .content(content)
+        .allowed_mentions(CreateAllowedMentions::new())
+        .flags(MessageFlags::SUPPRESS_EMBEDS)
+}
 
 #[post("/new-discord-message")]
 async fn new_discord_message(
@@ -121,6 +190,8 @@ async fn new_clan_chats(
         .expect("Could not connect to redis");
 
     let mut clan_chat_queue: Vec<CreateEmbed> = vec![];
+    //Used instead of clan_chat_queue when the guild has clan chat embeds turned off
+    let mut compact_clan_chat_queue: Vec<(String, String)> = vec![];
     let mut broadcast_queue: Vec<CreateEmbed> = vec![];
     let mut leagues_broadcast_queue: Vec<CreateEmbed> = vec![];
 
@@ -178,6 +249,9 @@ async fn new_clan_chats(
         }
 
         match registered_guild.clan_chat_channel {
+            Some(_channel_id) if !registered_guild.clan_chat_embeds => {
+                compact_clan_chat_queue.push((chat.sender.clone(), chat.message.clone()));
+            }
             Some(_channel_id) => {
                 let author_image = match chat.clan_name.clone() == chat.sender.clone() {
                     true => {
@@ -321,17 +395,23 @@ async fn new_clan_chats(
     let redis_broadcast_stats_prefix = format!("chat_stats:{}", today);
 
     //Send all the messages
-    if clan_chat_queue.len() > 0 {
-        let clan_chat_queue_length = clan_chat_queue.len();
+    if clan_chat_queue.len() > 0 || compact_clan_chat_queue.len() > 0 {
+        let clan_chat_queue_length = clan_chat_queue.len() + compact_clan_chat_queue.len();
         if let Some(channel_id) = registered_guild.clan_chat_channel {
-            let result = ChannelId::new(channel_id)
-                .send_message(
-                    &*discord_http_client,
-                    CreateMessage::new().embeds(clan_chat_queue),
-                )
-                .await;
-            if let Err(_e) = result {
-                // error!("Error sending clan chat: {:?}", e);
+            let mut messages: Vec<CreateMessage> = vec![];
+            if clan_chat_queue.len() > 0 {
+                messages.push(CreateMessage::new().embeds(clan_chat_queue));
+            }
+            for content in compact_clan_chat_messages(&compact_clan_chat_queue) {
+                messages.push(compact_clan_chat_message(content));
+            }
+            for message in messages {
+                let result = ChannelId::new(channel_id)
+                    .send_message(&*discord_http_client, message)
+                    .await;
+                if let Err(_e) = result {
+                    // error!("Error sending clan chat: {:?}", e);
+                }
             }
         }
         let clan_chat_key = format!("{}:{}", redis_broadcast_stats_prefix, "clan_chat");
@@ -441,6 +521,134 @@ pub fn chat_controller() -> Scope {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    fn line(sender: &str, message: &str) -> (String, String) {
+        (sender.to_string(), message.to_string())
+    }
+
+    #[test]
+    fn compact_line_is_bold_sender_then_message() {
+        let messages = compact_clan_chat_messages(&[line("Zezima", "anyone up for cox?")]);
+        assert_eq!(messages, vec!["**Zezima**: anyone up for cox?"]);
+    }
+
+    #[test]
+    fn compact_lines_sent_together_share_one_message() {
+        let messages = compact_clan_chat_messages(&[
+            line("Zezima", "gz"),
+            line("My Clan", "Zezima has reached 99 Slayer!"),
+        ]);
+        assert_eq!(
+            messages,
+            vec!["**Zezima**: gz\n**My Clan**: Zezima has reached 99 Slayer!"]
+        );
+    }
+
+    #[test]
+    fn compact_lines_split_before_discords_message_limit() {
+        let lines: Vec<(String, String)> = (0..30)
+            .map(|i| line("Zezima", &format!("{}{}", i, "a".repeat(100))))
+            .collect();
+        let messages = compact_clan_chat_messages(&lines);
+
+        assert!(messages.len() > 1);
+        for message in &messages {
+            assert!(message.chars().count() <= DISCORD_MESSAGE_LIMIT);
+        }
+        // Nothing is dropped or reordered, and no line is cut in half.
+        let expected: Vec<String> = lines
+            .iter()
+            .map(|(sender, message)| format!("**{}**: {}", sender, message))
+            .collect();
+        let sent: Vec<String> = messages
+            .iter()
+            .flat_map(|message| message.split('\n'))
+            .map(str::to_string)
+            .collect();
+        assert_eq!(sent, expected);
+    }
+
+    #[test]
+    fn compact_line_shows_links_as_code_so_they_are_not_clickable() {
+        let messages = compact_clan_chat_messages(&[line(
+            "Zezima",
+            "look https://example.com/a?b=1 and HTTP://example.org",
+        )]);
+        assert_eq!(
+            messages,
+            vec!["**Zezima**: look `https://example.com/a?b=1` and `HTTP://example.org`"]
+        );
+    }
+
+    #[test]
+    fn compact_line_shows_mentions_as_code_so_they_do_not_render() {
+        let messages = compact_clan_chat_messages(&[line(
+            "Zezima",
+            "hi <@&456> <@123> <@!123> <#789> @everyone and @here",
+        )]);
+        assert_eq!(
+            messages,
+            vec!["**Zezima**: hi `<@&456>` `<@123>` `<@!123>` `<#789>` `@everyone` and `@here`"]
+        );
+    }
+
+    #[test]
+    fn compact_line_backticks_cannot_close_the_code_around_a_link() {
+        let messages =
+            compact_clan_chat_messages(&[line("Zezima", "`https://example.com` <@&4`56>")]);
+        // No backtick of the player's survives, so the only code spans are ours.
+        assert_eq!(
+            messages,
+            vec!["**Zezima**: '`https://example.com'` <@&4'56>"]
+        );
+    }
+
+    #[test]
+    fn compact_line_without_links_or_mentions_is_left_alone() {
+        let messages =
+            compact_clan_chat_messages(&[line("Zezima", "gz @ 99, email me at a@b.com <3")]);
+        assert_eq!(
+            messages,
+            vec!["**Zezima**: gz @ 99, email me at a@b.com <3"]
+        );
+    }
+
+    #[test]
+    fn compact_line_longer_than_the_limit_is_cut_to_fit() {
+        let messages = compact_clan_chat_messages(&[
+            line("Zezima", &"\u{e9}".repeat(3000)),
+            line("Zezima", "next"),
+        ]);
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0].chars().count(), DISCORD_MESSAGE_LIMIT);
+        assert_eq!(messages[1], "**Zezima**: next");
+    }
+
+    #[test]
+    fn compact_message_cannot_mention_anyone() {
+        let message = compact_clan_chat_message("**Zezima**: @everyone <@123> <@&456>".to_string());
+        let json = serde_json::to_value(&message).unwrap();
+
+        // An empty parse list tells Discord to ping nobody, whatever the text says.
+        assert_eq!(json["allowed_mentions"]["parse"], serde_json::json!([]));
+        assert!(
+            json["allowed_mentions"]
+                .get("users")
+                .is_none_or(|u| u == &serde_json::json!([]))
+        );
+        assert!(
+            json["allowed_mentions"]
+                .get("roles")
+                .is_none_or(|r| r == &serde_json::json!([]))
+        );
+        assert!(
+            json.get("embeds")
+                .is_none_or(|e| e == &serde_json::json!([]))
+        );
+        // A pasted link stays one line instead of growing a preview.
+        assert_eq!(json["flags"], MessageFlags::SUPPRESS_EMBEDS.bits());
+    }
 
     #[test]
     fn sanitize_img() {

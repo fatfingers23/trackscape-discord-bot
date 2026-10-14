@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT id, guild_id, clan_name, broadcast_channel, clan_chat_channel,\n                   leagues_broadcast_channel, drop_price_threshold,\n                   disallowed_broadcast_types, verification_code, hashed_verification_code,\n                   min_quest_difficulty, min_diary_tier, pk_value_threshold, wom_id, created_at,\n                   custom_drop_broadcast_filter,\n                   collection_log_max_percentage, hidden_from_website\n            FROM guilds\n            WHERE id = $1\n            ",
+  "query": "\n            SELECT id, guild_id, clan_name, broadcast_channel, clan_chat_channel,\n                   leagues_broadcast_channel, drop_price_threshold,\n                   disallowed_broadcast_types, verification_code, hashed_verification_code,\n                   min_quest_difficulty, min_diary_tier, pk_value_threshold, wom_id, created_at,\n                   custom_drop_broadcast_filter,\n                   collection_log_max_percentage, hidden_from_website, clan_chat_embeds\n            FROM guilds\n            WHERE clan_name IS NOT NULL AND clan_name <> ''\n            ORDER BY clan_name ASC\n            ",
   "describe": {
     "columns": [
       {
@@ -200,12 +200,21 @@
             "name": "hidden_from_website"
           }
         }
+      },
+      {
+        "ordinal": 18,
+        "name": "clan_chat_embeds",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "guilds",
+            "name": "clan_chat_embeds"
+          }
+        }
       }
     ],
     "parameters": {
-      "Left": [
-        "Uuid"
-      ]
+      "Left": []
     },
     "nullable": [
       false,
@@ -225,8 +234,9 @@
       true,
       true,
       true,
+      false,
       false
     ]
   },
-  "hash": "c106a089b47fdbd660c036af8523c4d738e151510c7469ab56716c99a944961c"
+  "hash": "0551f6521e06452ffc31a30484fdfb6c727ba112fe097c7375f2343291dc6550"
 }

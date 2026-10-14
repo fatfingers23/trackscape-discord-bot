@@ -5889,6 +5889,7 @@ dependencies = [
  "num-format",
  "rand 0.8.8",
  "redis 0.23.5",
+ "regex",
  "serde",
  "serde_json",
  "serde_with",

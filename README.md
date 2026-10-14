@@ -27,6 +27,8 @@ By default, only Discord users with Manage Server permissions can use the majort
 
 > `/set_clan_chat_channel channel: {channel}` - Sets the channel to receive Clan Chat messages and records messages sent to Clan Chat in game
 
+> `/clan_chat_embeds enabled: {true|false}` - Shows Clan Chat messages as embeds (true, the default) or as compact plain text (false). Broadcasts always stay embeds
+
 > `/get_verification_code` - Get the verification code to link your RuneLite TrackScape Connector plugin to the bot
 
 

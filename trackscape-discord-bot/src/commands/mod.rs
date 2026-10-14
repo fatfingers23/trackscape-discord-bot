@@ -1,4 +1,5 @@
 pub mod choices;
+pub mod clan_chat_embeds_command;
 pub mod clear_channel;
 pub mod expel_clanmate_command;
 pub mod get_custom_drop_broadcast_filter;
