@@ -18,7 +18,7 @@ pub mod osrs_broadcast_extractor {
         Regex::new(r#"^(?P<player_name>.*?) received a clue item: (?P<item>.*?)(?: \((?P<value>[,\d]+) coins\))?[.]?$"#).unwrap()
     });
     static PET_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r#"^(?P<player_name>.*?) (?:has a funny feeling.*?|feels something weird sneaking into (?P<pronoun>her|his) backpack): (?P<pet_name>.*?) at (?P<count>[,\d]+) (?P<count_type>.*?)[.]$"#).unwrap()
+        Regex::new(r#"^(?P<player_name>.*?) (?:has a funny feeling.*?|feels something weird sneaking into (?:her|his|their) backpack): (?P<pet_name>.*?) at (?P<count>[,\d]+) (?P<count_type>.*?)[.]$"#).unwrap()
     });
     static QUEST_COMPLETED_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
         Regex::new(r#"^(?P<player_name>.*?) has completed a quest: (?P<quest_name>.+)$"#).unwrap()
@@ -77,9 +77,13 @@ pub mod osrs_broadcast_extractor {
     // <str_quest_name_0=The Lost Tribe>, <int_0=19456107>
     static TEMPLATE_DEFINITION: Lazy<Regex> =
         Lazy::new(|| Regex::new(r"<(?P<name>(?:str|int)_\w+)=(?P<value>[^>]*)>").unwrap());
-    // <str_quest_name_0>, <int_0>, <int_0:spacer>
-    static TEMPLATE_REFERENCE: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r"<(?P<name>(?:str|int)_\w+)(?::(?P<format>\w+))?>").unwrap());
+    // <str_quest_name_0>, <int_0>, <int_0:spacer>, <switch,int_p1,he's,she's,they're>
+    static TEMPLATE_TAG: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(
+            r#"<(?:(?P<name>(?:str|int)_\w+)(?::(?P<format>\w+))?|switch,(?P<switch_name>(?:str|int)_\w+),(?P<options>[^>]*))>"#,
+        )
+        .unwrap()
+    });
     static ICON_TAG: Lazy<Regex> = Lazy::new(|| Regex::new(r"<img=\d+>").unwrap());
     static COMBAT_ACHIEVEMENT_ID_PREFIX: Lazy<Regex> =
         Lazy::new(|| Regex::new(r"^CA_ID:\d+\|").unwrap());
@@ -501,36 +505,79 @@ pub mod osrs_broadcast_extractor {
 
     /// Takes the raw broadcast from the game and removes the markup around it. Account type icons,
     /// combat achievement ids, and fills in the variable templates the game uses for things like
-    /// quest names (`<str_quest_name_0=The Lost Tribe>` ... `<str_quest_name_0>`) and drop values
-    /// (`<int_0=19456107>` ... `<int_0:spacer>`)
+    /// quest names (`<str_quest_name_0=The Lost Tribe>` ... `<str_quest_name_0>`), drop values
+    /// (`<int_0=19456107>` ... `<int_0:spacer>`) and pronoun switches
+    /// (`<switch,int_p1,he's,she's,they're>`)
     pub fn clean_broadcast_message(message: &str) -> String {
         // Definitions like `<int_0=19456107>` render as nothing in game, but references to them
-        // can appear before or after the definition, so collect them all up front.
-        let definitions: HashMap<&str, &str> = TEMPLATE_DEFINITION
-            .captures_iter(message)
-            .filter_map(|caps| Some((caps.name("name")?.as_str(), caps.name("value")?.as_str())))
-            .collect();
+        // can appear before or after the definition. The game also reuses variable names between
+        // fragments of a single message (a drop's quantity and its coin value are both `int_0`),
+        // so every definition is kept with its position and each reference binds to the closest
+        // one: the nearest preceding definition, else the nearest following one.
+        let mut definitions: HashMap<&str, Vec<(usize, &str)>> = HashMap::new();
+        for caps in TEMPLATE_DEFINITION.captures_iter(message) {
+            definitions
+                .entry(caps.name("name").unwrap().as_str())
+                .or_default()
+                .push((
+                    caps.get(0).unwrap().start(),
+                    caps.name("value").unwrap().as_str(),
+                ));
+        }
 
         // References like `<str_quest_name_0>` or `<int_0:spacer>` are replaced with their value.
         // The `spacer` format renders integers grouped with thousands separators (19,456,107).
+        // Switch tags like `<switch,int_p1,he's,she's,they're>` render the option their variable
+        // selects; the switch variable is a client-side value (the player's pronouns) that never
+        // travels with the message, so fall back to the last option, the neutral form.
         let mut cleaned = String::with_capacity(message.len());
         let mut last_end = 0;
-        for caps in TEMPLATE_REFERENCE.captures_iter(message) {
+        for caps in TEMPLATE_TAG.captures_iter(message) {
             let reference = caps.get(0).unwrap();
             cleaned.push_str(&message[last_end..reference.start()]);
             last_end = reference.end();
 
-            let name = caps.name("name").unwrap().as_str();
-            match definitions.get(name) {
-                Some(value) => match caps.name("format").map(|m| m.as_str()) {
-                    Some("spacer") => match value.replace(",", "").parse::<i64>() {
-                        Ok(number) => cleaned.push_str(&number.to_formatted_string(&Locale::en)),
-                        Err(_) => cleaned.push_str(value),
+            let name = caps
+                .name("switch_name")
+                .or_else(|| caps.name("name"))
+                .map(|m| m.as_str())
+                .unwrap();
+            let resolved = definitions
+                .get(name)
+                .and_then(|defs| {
+                    defs.iter()
+                        .rev()
+                        .find(|(pos, _)| *pos < reference.start())
+                        .or_else(|| defs.iter().find(|(pos, _)| *pos >= reference.end()))
+                })
+                .map(|(_, value)| *value);
+
+            match caps.name("switch_name") {
+                Some(_) => {
+                    let options: Vec<&str> =
+                        caps.name("options").unwrap().as_str().split(',').collect();
+                    let selected = resolved
+                        .and_then(|value| value.replace(",", "").parse::<usize>().ok())
+                        .and_then(|index| options.get(index).copied())
+                        .or_else(|| options.last().copied());
+                    // A switch with no usable options renders as nothing in game
+                    if let Some(option) = selected {
+                        cleaned.push_str(option);
+                    }
+                }
+                None => match resolved {
+                    Some(value) => match caps.name("format").map(|m| m.as_str()) {
+                        Some("spacer") => match value.replace(",", "").parse::<i64>() {
+                            Ok(number) => {
+                                cleaned.push_str(&number.to_formatted_string(&Locale::en))
+                            }
+                            Err(_) => cleaned.push_str(value),
+                        },
+                        _ => cleaned.push_str(value),
                     },
-                    _ => cleaned.push_str(value),
+                    // A reference without a definition has nothing to expand to; leave it as-is
+                    None => cleaned.push_str(reference.as_str()),
                 },
-                // A reference without a definition has nothing to expand to; leave it as-is
-                None => cleaned.push_str(reference.as_str()),
             }
         }
         cleaned.push_str(&message[last_end..]);
@@ -1852,6 +1899,18 @@ mod tests {
         "<str_quest_name_0=The Lost Tribe>iLoveGuyDih has completed a quest: <str_quest_name_0> for <int_0=15000000><int_0:spacer> XP.",
         "iLoveGuyDih has completed a quest: The Lost Tribe for 15,000,000 XP."
     )]
+    #[case(
+        "bovkk received a drop: <int_0=80><int_0:spacer> x Onyx bolts<int_0=725040> (<int_0:spacer> coins).",
+        "bovkk received a drop: 80 x Onyx bolts (725,040 coins)."
+    )]
+    #[case(
+        "AstroBon3r has a funny feeling like <switch,int_p1,he's,she's,they're> being followed: Beef at 292 kills from Brutus.",
+        "AstroBon3r has a funny feeling like they're being followed: Beef at 292 kills from Brutus."
+    )]
+    #[case(
+        "X has a funny feeling like <int_p1=1><switch,int_p1,he's,she's,they're> being followed: Pet at 5 kills.",
+        "X has a funny feeling like she's being followed: Pet at 5 kills."
+    )]
     fn test_clean_broadcast_message(#[case] raw: &str, #[case] expected: &str) {
         assert_eq!(
             osrs_broadcast_extractor::clean_broadcast_message(raw),
@@ -1893,6 +1952,19 @@ mod tests {
         assert_eq!(personal_best.activity, "Brutus");
         assert_eq!(personal_best.time_in_seconds, 15.60);
 
+        // Jagex templates the pronoun with a switch; its variable is client-side so it cleans
+        // to the neutral last option.
+        let pet = osrs_broadcast_extractor::pet_broadcast_extractor(
+            osrs_broadcast_extractor::clean_broadcast_message(
+                "AstroBon3r has a funny feeling like <switch,int_p1,he's,she's,they're> being followed: Beef at 292 kills from Brutus.",
+            ),
+        )
+        .unwrap();
+        assert_eq!(pet.player_it_happened_to, "AstroBon3r");
+        assert_eq!(pet.pet_name, "Beef");
+        assert_eq!(pet.actions_optioned_at, Some(292));
+        assert_eq!(pet.action_for_pet, Some("kills from Brutus".to_string()));
+
         let drop = osrs_broadcast_extractor::drop_broadcast_extractor(
             osrs_broadcast_extractor::clean_broadcast_message(
                 "<img=41> LarryBeans received a drop: Uncut onyx (2,639,012 coins) from Zulrah.",
@@ -1914,6 +1986,19 @@ mod tests {
         assert_eq!(templated_drop.item_name, "Saradomin hilt");
         assert_eq!(templated_drop.item_quantity, 1);
         assert_eq!(templated_drop.item_value, Some(19_456_107));
+
+        // The quantity and the value between them reuse the `int_0` name: each reference has to
+        // bind to the definition next to it, not the last one in the message.
+        let templated_drop_with_quantity = osrs_broadcast_extractor::drop_broadcast_extractor(
+            osrs_broadcast_extractor::clean_broadcast_message(
+                "bovkk received a drop: <int_0=80><int_0:spacer> x Onyx bolts<int_0=725040> (<int_0:spacer> coins).",
+            ),
+        )
+        .unwrap();
+        assert_eq!(templated_drop_with_quantity.player_it_happened_to, "bovkk");
+        assert_eq!(templated_drop_with_quantity.item_name, "Onyx bolts");
+        assert_eq!(templated_drop_with_quantity.item_quantity, 80);
+        assert_eq!(templated_drop_with_quantity.item_value, Some(725_040));
     }
 
     #[test]

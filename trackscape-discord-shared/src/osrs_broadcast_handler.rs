@@ -1411,6 +1411,104 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_templated_drop_with_quantity_message_sent() {
+        let clan_message = ClanMessage {
+            sender: "Insomniacs".to_string(),
+            message: "bovkk received a drop: <int_0=80><int_0:spacer> x Onyx bolts<int_0=725040> (<int_0:spacer> coins)."
+                .to_string(),
+            clan_name: "Insomniacs".to_string(),
+            rank: "Recruit".to_string(),
+            icon_id: None,
+            is_league_world: None,
+        };
+
+        let registered_guild = RegisteredGuildModel::new(123);
+        let ge_item_mapping: Vec<GetItem> = Vec::new();
+        let get_item_mapping = Ok(ge_item_mapping);
+        let quests = Ok(Vec::new());
+        let clogs = Ok(Vec::new());
+
+        let mut drop_log_db_mock = MockDropLogs::new();
+        drop_log_db_mock.expect_new_drop_log().returning(|_, _| {
+            info!("Drop log recorded");
+        });
+
+        let mock_job_queue = MockJobQueue::new();
+
+        let handler = OSRSBroadcastHandler::new(
+            clan_message,
+            get_item_mapping,
+            quests,
+            clogs,
+            registered_guild,
+            false,
+            drop_log_db_mock,
+            MockClanMateCollectionLogTotals::new(),
+            MockClanMates::new(),
+            Arc::from(mock_job_queue),
+        );
+
+        let extracted_message = handler
+            .drop_item_handler()
+            .await
+            .expect("Quantity drops should still be broadcast");
+
+        // The quantity and the coin value both template `int_0`; the quantity must not be
+        // replaced with the coin value.
+        assert_eq!(
+            extracted_message.message,
+            "bovkk received a drop: 80 x Onyx bolts (725,040 coins)."
+        );
+    }
+
+    #[tokio::test]
+    async fn test_pet_switch_pronoun_message_sent() {
+        let clan_message = ClanMessage {
+            sender: "Insomniacs".to_string(),
+            message: "AstroBon3r has a funny feeling like <switch,int_p1,he's,she's,they're> being followed: Beef at 292 kills from Brutus."
+                .to_string(),
+            clan_name: "Insomniacs".to_string(),
+            rank: "Recruit".to_string(),
+            icon_id: None,
+            is_league_world: None,
+        };
+
+        let registered_guild = RegisteredGuildModel::new(123);
+        let ge_item_mapping: Vec<GetItem> = Vec::new();
+        let get_item_mapping = Ok(ge_item_mapping);
+        let quests = Ok(Vec::new());
+        let clogs = Ok(Vec::new());
+
+        let drop_log_db_mock = MockDropLogs::new();
+        let mock_job_queue = MockJobQueue::new();
+
+        let handler = OSRSBroadcastHandler::new(
+            clan_message,
+            get_item_mapping,
+            quests,
+            clogs,
+            registered_guild,
+            false,
+            drop_log_db_mock,
+            MockClanMateCollectionLogTotals::new(),
+            MockClanMates::new(),
+            Arc::from(mock_job_queue),
+        );
+
+        let extracted_message = handler
+            .extract_message()
+            .await
+            .expect("Pet drops with a switch pronoun should still be broadcast");
+
+        assert_eq!(extracted_message.type_of_broadcast, BroadcastType::PetDrop);
+        // The pronoun switch resolves to the neutral last option instead of leaking the tag.
+        assert_eq!(
+            extracted_message.message,
+            "AstroBon3r has a funny feeling like they're being followed: Beef at 292 kills from Brutus."
+        );
+    }
+
+    #[tokio::test]
     async fn check_disallowed_do_not_send() {
         let clan_message = ClanMessage {
             sender: "Insomniacs".to_string(),
