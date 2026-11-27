@@ -1,7 +1,9 @@
 pub mod osrs_broadcast_extractor {
+    use num_format::{Locale, ToFormattedString};
     use once_cell::sync::Lazy;
     use regex::Regex;
     use serde::{Deserialize, Serialize};
+    use std::collections::HashMap;
 
     static RAID_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
         Regex::new(
@@ -72,9 +74,12 @@ pub mod osrs_broadcast_extractor {
     static COMBAT_ACHIEVEMENT_TIER_BROADCAST_EXTRACTOR: Lazy<Regex> = Lazy::new(|| {
         Regex::new(r#"^(?P<player>.*?) has unlocked the (?P<tier>\w+) tier of rewards from Combat Achievements!"#).unwrap()
     });
-    // <str_quest_name_0=The Lost Tribe>RuneScape Player has completed a quest: <str_quest_name_0>
-    static STRING_TEMPLATE_DEFINITION: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r"<(?P<name>str_\w+)=(?P<value>[^>]*)>").unwrap());
+    // <str_quest_name_0=The Lost Tribe>, <int_0=19456107>
+    static TEMPLATE_DEFINITION: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"<(?P<name>(?:str|int)_\w+)=(?P<value>[^>]*)>").unwrap());
+    // <str_quest_name_0>, <int_0>, <int_0:spacer>
+    static TEMPLATE_REFERENCE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"<(?P<name>(?:str|int)_\w+)(?::(?P<format>\w+))?>").unwrap());
     static ICON_TAG: Lazy<Regex> = Lazy::new(|| Regex::new(r"<img=\d+>").unwrap());
     static COMBAT_ACHIEVEMENT_ID_PREFIX: Lazy<Regex> =
         Lazy::new(|| Regex::new(r"^CA_ID:\d+\|").unwrap());
@@ -495,16 +500,43 @@ pub mod osrs_broadcast_extractor {
     }
 
     /// Takes the raw broadcast from the game and removes the markup around it. Account type icons,
-    /// combat achievement ids, and fills in the string templates the game uses for things like quest names
+    /// combat achievement ids, and fills in the variable templates the game uses for things like
+    /// quest names (`<str_quest_name_0=The Lost Tribe>` ... `<str_quest_name_0>`) and drop values
+    /// (`<int_0=19456107>` ... `<int_0:spacer>`)
     pub fn clean_broadcast_message(message: &str) -> String {
-        let mut cleaned = STRING_TEMPLATE_DEFINITION
-            .replace_all(message, "")
-            .to_string();
-        for caps in STRING_TEMPLATE_DEFINITION.captures_iter(message) {
-            let placeholder = format!("<{}>", caps.name("name").unwrap().as_str());
-            cleaned = cleaned.replace(placeholder.as_str(), caps.name("value").unwrap().as_str());
+        // Definitions like `<int_0=19456107>` render as nothing in game, but references to them
+        // can appear before or after the definition, so collect them all up front.
+        let definitions: HashMap<&str, &str> = TEMPLATE_DEFINITION
+            .captures_iter(message)
+            .filter_map(|caps| Some((caps.name("name")?.as_str(), caps.name("value")?.as_str())))
+            .collect();
+
+        // References like `<str_quest_name_0>` or `<int_0:spacer>` are replaced with their value.
+        // The `spacer` format renders integers grouped with thousands separators (19,456,107).
+        let mut cleaned = String::with_capacity(message.len());
+        let mut last_end = 0;
+        for caps in TEMPLATE_REFERENCE.captures_iter(message) {
+            let reference = caps.get(0).unwrap();
+            cleaned.push_str(&message[last_end..reference.start()]);
+            last_end = reference.end();
+
+            let name = caps.name("name").unwrap().as_str();
+            match definitions.get(name) {
+                Some(value) => match caps.name("format").map(|m| m.as_str()) {
+                    Some("spacer") => match value.replace(",", "").parse::<i64>() {
+                        Ok(number) => cleaned.push_str(&number.to_formatted_string(&Locale::en)),
+                        Err(_) => cleaned.push_str(value),
+                    },
+                    _ => cleaned.push_str(value),
+                },
+                // A reference without a definition has nothing to expand to; leave it as-is
+                None => cleaned.push_str(reference.as_str()),
+            }
         }
-        let cleaned = ICON_TAG.replace_all(cleaned.as_str(), "");
+        cleaned.push_str(&message[last_end..]);
+
+        let cleaned = TEMPLATE_DEFINITION.replace_all(cleaned.as_str(), "");
+        let cleaned = ICON_TAG.replace_all(cleaned.as_ref(), "");
         COMBAT_ACHIEVEMENT_ID_PREFIX
             .replace(cleaned.trim_start(), "")
             .to_string()
@@ -1808,6 +1840,18 @@ mod tests {
         "BroRex has reached 15,000,000 XP in Herblore.",
         "BroRex has reached 15,000,000 XP in Herblore."
     )]
+    #[case(
+        "<img=41>Becauseimdan received a drop: Saradomin hilt<int_0=19456107> (<int_0:spacer> coins) from Commander Zilyana.",
+        "Becauseimdan received a drop: Saradomin hilt (19,456,107 coins) from Commander Zilyana."
+    )]
+    #[case(
+        "PlayerX has deposited <int_0=1000000><int_0:spacer> coins and <int_1=250000><int_1:spacer> coins into the coffer.",
+        "PlayerX has deposited 1,000,000 coins and 250,000 coins into the coffer."
+    )]
+    #[case(
+        "<str_quest_name_0=The Lost Tribe>iLoveGuyDih has completed a quest: <str_quest_name_0> for <int_0=15000000><int_0:spacer> XP.",
+        "iLoveGuyDih has completed a quest: The Lost Tribe for 15,000,000 XP."
+    )]
     fn test_clean_broadcast_message(#[case] raw: &str, #[case] expected: &str) {
         assert_eq!(
             osrs_broadcast_extractor::clean_broadcast_message(raw),
@@ -1857,6 +1901,19 @@ mod tests {
         .unwrap();
         assert_eq!(drop.player_it_happened_to, "LarryBeans");
         assert_eq!(drop.item_name, "Uncut onyx");
+
+        // Jagex templates the drop value now: a definition that renders as nothing followed by
+        // a `:spacer` reference that renders the number with thousands separators.
+        let templated_drop = osrs_broadcast_extractor::drop_broadcast_extractor(
+            osrs_broadcast_extractor::clean_broadcast_message(
+                "<img=41>Becauseimdan received a drop: Saradomin hilt<int_0=19456107> (<int_0:spacer> coins) from Commander Zilyana.",
+            ),
+        )
+        .unwrap();
+        assert_eq!(templated_drop.player_it_happened_to, "Becauseimdan");
+        assert_eq!(templated_drop.item_name, "Saradomin hilt");
+        assert_eq!(templated_drop.item_quantity, 1);
+        assert_eq!(templated_drop.item_value, Some(19_456_107));
     }
 
     #[test]
